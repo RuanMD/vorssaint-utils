@@ -114,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                     .dockPreview, .finderCutPaste, .autoQuit, .dockClick,
                     .middleClick, .windowMaximizer, .keyboardDebounce, .windowLayout,
                     .textSnippets, .brightness, .radialMenu, .mouseButtonShortcuts,
+                    .menuBarOrganizer,
                 ])
             }
             .store(in: &cancellables)
@@ -122,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { _ in
-                FeatureRuntime.shared.sync([.dockPreview])
+                FeatureRuntime.shared.sync([.dockPreview, .menuBarOrganizer])
             }
             .store(in: &cancellables)
 
@@ -214,6 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         SmoothScrollService.shared.suspend()
         MouseNavigationService.shared.suspend()
         DockPreviewService.shared.stop()
+        MenuBarOrganizerService.shared.stop()
         SoundOutputSwitcher.shared.stop()
         AppVolumeMixer.shared.stopAll()
         // Puts the system input back if a microphone was chosen here: the

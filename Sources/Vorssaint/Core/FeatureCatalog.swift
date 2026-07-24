@@ -24,6 +24,8 @@ enum AppFeature: String, CaseIterable {
     case mixer, soundOutputSwitcher, micMute, musicBlock
     // Energy and display
     case keepAwake, brightness, extraBrightness
+    // Menu bar
+    case menuBarOrganizer
     // Tools
     case quickLauncher, quickToggles, colorPicker, screenOCR, cleaningMode, mediaTools,
          cleaner, uninstaller, homebrew, screenshot, cameraPreview, radialMenu, scratchpad
@@ -34,7 +36,7 @@ enum AppFeature: String, CaseIterable {
 
 /// Hub sections, in display order.
 enum FeatureGroup: String, CaseIterable {
-    case windowsDock, mouseKeyboard, clipboardFiles, sound, energyDisplay, tools, monitor
+    case windowsDock, menuBar, mouseKeyboard, clipboardFiles, sound, energyDisplay, tools, monitor
 }
 
 /// System permissions surfaced by the hub's transparency portal.
@@ -57,6 +59,8 @@ extension AppFeature {
             return .sound
         case .keepAwake, .brightness, .extraBrightness:
             return .energyDisplay
+        case .menuBarOrganizer:
+            return .menuBar
         case .quickLauncher, .quickToggles, .colorPicker, .screenOCR, .cleaningMode, .mediaTools,
              .cleaner, .uninstaller, .homebrew, .screenshot, .cameraPreview, .radialMenu, .scratchpad:
             return .tools
@@ -92,6 +96,7 @@ extension AppFeature {
         case .keepAwake: return "moon.zzz.fill"
         case .brightness: return "display.2"
         case .extraBrightness: return "sun.max.fill"
+        case .menuBarOrganizer: return "menubar.rectangle"
         case .quickLauncher: return "wand.and.rays"
         case .quickToggles: return "togglepower"
         case .colorPicker: return "eyedropper"
@@ -150,6 +155,7 @@ extension AppFeature {
         case .musicBlock: return [DefaultsKey.musicBlockEnabled]
         case .brightness: return [DefaultsKey.brightnessControlEnabled]
         case .extraBrightness: return [DefaultsKey.extraBrightnessEnabled]
+        case .menuBarOrganizer: return [DefaultsKey.menuBarOrganizerEnabled]
         case .windowLayout, .mixer, .micMute, .keepAwake,
              .quickLauncher, .quickToggles, .colorPicker, .screenOCR, .cleaningMode, .mediaTools,
              .cleaner, .uninstaller, .homebrew, .screenshot, .cameraPreview, .scratchpad,
@@ -174,6 +180,7 @@ extension AppFeature {
         case .quickToggles: return [.automationFinder]
         case .switcher: return [.accessibility, .screenRecording]
         case .dockPreview: return [.accessibility, .screenRecording]
+        case .menuBarOrganizer: return [.accessibility, .screenRecording]
         case .screenOCR: return [.screenRecording]
         case .screenshot: return [.screenRecording]
         case .cameraPreview: return [.camera]
@@ -218,6 +225,8 @@ extension AppFeature {
             switch (feature, permission) {
             case (.switcher, .screenRecording):
                 return !boolFor(DefaultsKey.switcherSimpleMode)
+            case (.menuBarOrganizer, .screenRecording):
+                return boolFor(DefaultsKey.menuBarOrganizerCapturePreviews)
             case (.radialMenu, .accessibility):
                 return RadialMenuSupport.needsAccessibility(
                     RadialMenuSupport.decode(dataFor(DefaultsKey.radialMenuItems)))

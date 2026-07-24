@@ -13,6 +13,10 @@ WhatsApp downloads. Plus windows from other desktops in the App Switcher
 and a batch of fixes.
 
 ### Added
+- A menu bar organizer with visible, hidden and always-hidden sections,
+  drag-and-drop arrangement from Settings, search, an overflow-friendly
+  secondary bar, reveal triggers and shortcuts. It is inspired by Ice and
+  implemented independently for Vorssaint.
 - A snippet menu. A shortcut opens your snippets in a searchable list and
   picking one types it at the cursor. Under Text snippets.
 - Mouse button shortcuts. Any extra mouse button can press a key

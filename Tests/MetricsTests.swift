@@ -5913,7 +5913,7 @@ struct MetricsTests {
 
         // MARK: Features hub catalog
 
-        expect(AppFeature.allCases.count == 44, "feature catalog has 44 features")
+        expect(AppFeature.allCases.count == 45, "feature catalog has 45 features")
         expect(Set(AppFeature.allCases.map(\.rawValue)).count == AppFeature.allCases.count,
                "feature ids are unique")
         expect(AppFeature.allCases.map(\.rawValue) == [
@@ -5922,7 +5922,7 @@ struct MetricsTests {
             "keyboardDebounce", "textSnippets",
             "clipboardHistory", "pastePlain", "finderCutPaste", "shelf", "urlCleaner",
             "mixer", "soundOutputSwitcher", "micMute", "musicBlock",
-            "keepAwake", "brightness", "extraBrightness",
+            "keepAwake", "brightness", "extraBrightness", "menuBarOrganizer",
             "quickLauncher", "quickToggles", "colorPicker", "screenOCR", "cleaningMode", "mediaTools",
             "cleaner", "uninstaller", "homebrew", "screenshot", "cameraPreview", "radialMenu",
             "scratchpad",
@@ -5969,6 +5969,9 @@ struct MetricsTests {
         expect(!activeSet(.accessibility, on: [DefaultsKey.brightnessControlEnabled])
                 .contains(.brightness),
                "brightness sliders alone never use accessibility")
+        expect(activeSet(.accessibility, on: [DefaultsKey.menuBarOrganizerEnabled])
+                .contains(.menuBarOrganizer),
+               "the enabled menu bar organizer uses accessibility for Command-drag")
 
         expect(activeSet(.screenRecording, on: [DefaultsKey.switcherEnabled])
                 == [.switcher, .screenOCR, .screenshot],
@@ -5981,6 +5984,66 @@ struct MetricsTests {
                          on: [DefaultsKey.switcherSimpleMode, DefaultsKey.dockPreviewEnabled])
                 .contains(.dockPreview),
                "dock preview keeps screen recording in use regardless of switcher mode")
+        expect(activeSet(.screenRecording,
+                         on: [DefaultsKey.menuBarOrganizerEnabled,
+                              DefaultsKey.menuBarOrganizerCapturePreviews])
+                .contains(.menuBarOrganizer),
+               "exact menu bar previews opt into screen recording")
+        expect(!activeSet(.screenRecording, on: [DefaultsKey.menuBarOrganizerEnabled])
+                .contains(.menuBarOrganizer),
+               "the organizer works without screen recording when previews are off")
+
+        // MARK: Menu bar organizer
+
+        expect(MenuBarOrganizerPresentationMode.sanitized("secondaryBar") == .secondaryBar
+                && MenuBarOrganizerPresentationMode.sanitized("invalid") == .automatic,
+               "menu bar presentation storage sanitizes to a safe automatic fallback")
+        expect(MenuBarOrganizerRehideMode.sanitized("focusedApp") == .focusedApp
+                && MenuBarOrganizerRehideMode.sanitized(nil) == .afterDelay,
+               "rehide storage sanitizes to the default delay")
+        expect(MenuBarOrganizerSupport.sanitizedRehideDelay(11) == 10
+                && MenuBarOrganizerSupport.sanitizedRehideDelay(58) == 60,
+               "rehide delays snap to supported values")
+        expect(MenuBarOrganizerSupport.collapsedLength(screenWidths: []) == 4_096
+                && MenuBarOrganizerSupport.collapsedLength(screenWidths: [1_440, 3_000]) == 6_000
+                && MenuBarOrganizerSupport.collapsedLength(screenWidths: [10_000]) == 16_384,
+               "collapsed dividers cover ordinary, multi-display and extreme layouts")
+        expect(MenuBarOrganizerSupport.section(itemMidX: 500,
+                                               hiddenDividerMidX: 400,
+                                               alwaysHiddenDividerMidX: 200) == .visible
+                && MenuBarOrganizerSupport.section(itemMidX: 300,
+                                                   hiddenDividerMidX: 400,
+                                                   alwaysHiddenDividerMidX: 200) == .hidden
+                && MenuBarOrganizerSupport.section(itemMidX: 100,
+                                                   hiddenDividerMidX: 400,
+                                                   alwaysHiddenDividerMidX: 200) == .alwaysHidden,
+               "divider boundaries classify all three menu bar sections")
+        expect(MenuBarOrganizerSupport.shouldUseSecondaryBar(
+                mode: .automatic, hiddenWidth: 600, availableWidth: 500, hasNotch: false)
+                && MenuBarOrganizerSupport.shouldUseSecondaryBar(
+                    mode: .automatic, hiddenWidth: 10, availableWidth: 500, hasNotch: true)
+                && !MenuBarOrganizerSupport.shouldUseSecondaryBar(
+                    mode: .menuBar, hiddenWidth: 900, availableWidth: 100, hasNotch: true),
+               "automatic presentation handles overflow and notches while explicit mode wins")
+        let duplicateMenuRecords = [
+            MenuBarOrganizerWindowRecord(windowID: 1, ownerPID: 1, ownerName: "App",
+                                         bundleIdentifier: "com.example.app", title: "State",
+                                         frame: CGRect(x: 40, y: 0, width: 20, height: 20),
+                                         layer: 0, alpha: 1),
+            MenuBarOrganizerWindowRecord(windowID: 2, ownerPID: 1, ownerName: "App",
+                                         bundleIdentifier: "com.example.app", title: "State",
+                                         frame: CGRect(x: 10, y: 0, width: 20, height: 20),
+                                         layer: 0, alpha: 1),
+        ]
+        let duplicateIdentities = MenuBarOrganizerSupport.identities(for: duplicateMenuRecords)
+        expect(duplicateIdentities[1]?.occurrence == 0
+                && duplicateIdentities[2]?.occurrence == 1,
+               "duplicate menu bar items keep stable identities while reordered")
+        expect(MenuBarOrganizerSupport.isSystemImmovable(
+                bundleIdentifier: "com.apple.controlcenter", title: "Clock")
+                && !MenuBarOrganizerSupport.isSystemImmovable(
+                    bundleIdentifier: "com.example.app", title: "Clock"),
+               "protected system items are not offered to automatic movement")
 
         expect(activeSet(.notifications) == [],
                "no alerts and no schedule means notifications are unused")
@@ -6117,6 +6180,16 @@ struct MetricsTests {
                    "every appearance string is set for \(language.rawValue)")
             expect(appearanceValues.allSatisfy { !$0.contains("—") },
                    "no em-dash in visible appearance strings (\(language.rawValue))")
+            let menuBarOrganizerValues = Mirror(
+                reflecting: FeatureStrings.menuBarOrganizer(language)).children
+                .compactMap { $0.value as? String }
+            expect(!menuBarOrganizerValues.isEmpty
+                    && menuBarOrganizerValues.allSatisfy { !$0.isEmpty },
+                   "every menu bar organizer string is set for \(language.rawValue)")
+            expect(menuBarOrganizerValues.allSatisfy { !$0.contains("—") },
+                   "no em-dash in menu bar organizer strings (\(language.rawValue))")
+            expect(FeatureStrings.menuBarOrganizer(language).delayFormat.contains("%d"),
+                   "the organizer delay keeps its numeric placeholder (\(language.rawValue))")
             let screenshotValues = Mirror(reflecting: FeatureStrings.screenshot(language)).children
                 .compactMap { $0.value as? String }
             expect(!screenshotValues.isEmpty && screenshotValues.allSatisfy { !$0.isEmpty },
@@ -6673,6 +6746,32 @@ struct MetricsTests {
         let roleDefaults = GlobalShortcutRole.allCases.map(\.defaultShortcut)
         expect(Set(roleDefaults).count == roleDefaults.count,
                "no two shortcut roles ship the same default combination")
+        expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerEnabled] as? Bool == false
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerSetupComplete] as? Bool == false
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled] as? Bool == false,
+               "the menu bar organizer and destructive hiding state ship off")
+        expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerCapturePreviews] as? Bool == true
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresentationMode] as? String
+                    == MenuBarOrganizerPresentationMode.automatic.rawValue
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerRehideMode] as? String
+                    == MenuBarOrganizerRehideMode.afterDelay.rawValue
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerRehideDelay] as? Int == 10,
+               "menu bar presentation defaults remain predictable")
+        expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerToggleShortcut] as? String
+                    == GlobalShortcut.menuBarOrganizerToggleDefault.storageValue
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerAlwaysShortcut] as? String
+                    == GlobalShortcut.menuBarOrganizerAlwaysDefault.storageValue
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerSearchShortcut] as? String
+                    == GlobalShortcut.menuBarOrganizerSearchDefault.storageValue,
+               "the three organizer shortcuts persist their unique defaults")
+        expect(GlobalShortcutRole.menuBarOrganizerToggle.requiredEnableKeys
+                    == [DefaultsKey.menuBarOrganizerEnabled,
+                        DefaultsKey.menuBarOrganizerToggleShortcutEnabled]
+                && GlobalShortcutRole.menuBarOrganizerAlways.feature == .menuBarOrganizer
+                && GlobalShortcutRole.menuBarOrganizerSearch.feature == .menuBarOrganizer,
+               "organizer shortcut roles follow the feature and their own toggles")
+        expect(Defaults.registeredDefaults[DefaultsKey.panelUtilityMenuBarOrganizer] as? Bool == true,
+               "the menu panel organizer action ships visible")
 
         // MARK: Radial menu (issue #220)
 

@@ -470,7 +470,7 @@ private enum UtilityPanelItem: String, PanelOrderItem, Identifiable {
     // Case order IS the default panel order (PanelLayout.itemOrder falls back
     // to allCases). Screenshot leads in 3.1.13; existing orders that predate it
     // are migrated once without disturbing the rest of the user's layout.
-    case screenshot, quickLauncher, cleaner, homebrew, media, clipboard, windowLayout, uninstaller,
+    case screenshot, quickLauncher, menuBarOrganizer, cleaner, homebrew, media, clipboard, windowLayout, uninstaller,
          cleanURL, cleaning, screenOCR, colorPicker, micMute, cameraPreview, scratchpad
 
     var id: String { rawValue }
@@ -494,6 +494,7 @@ private enum UtilityPanelItem: String, PanelOrderItem, Identifiable {
         case .screenshot: return .screenshot
         case .cameraPreview: return .cameraPreview
         case .scratchpad: return .scratchpad
+        case .menuBarOrganizer: return .menuBarOrganizer
         }
     }
 }
@@ -518,6 +519,7 @@ struct UtilitiesSection: View {
     @AppStorage(DefaultsKey.panelUtilityMedia) private var showMedia = true
     @AppStorage(DefaultsKey.panelUtilityClipboard) private var showClipboard = true
     @AppStorage(DefaultsKey.panelUtilityWindowLayout) private var showWindowLayout = true
+    @AppStorage(DefaultsKey.panelUtilityMenuBarOrganizer) private var showMenuBarOrganizer = true
     @AppStorage(DefaultsKey.panelUtilityScreenOCR) private var showScreenOCR = true
     @AppStorage(DefaultsKey.panelUtilityScreenshot) private var showScreenshot = true
     @AppStorage(DefaultsKey.panelUtilityQuickLauncher) private var showQuickLauncher = true
@@ -673,6 +675,7 @@ struct UtilitiesSection: View {
         case .scratchpad: return showScratchpad
         case .quickLauncher: return showQuickLauncher
         case .screenshot: return showScreenshot
+        case .menuBarOrganizer: return showMenuBarOrganizer
         }
     }
 
@@ -725,6 +728,24 @@ struct UtilitiesSection: View {
                                 action: {
                                     PanelInteractionState.shared.keepsPopoverOpen = true
                                     showWindowLayoutPanel = true
+                                })
+        case .menuBarOrganizer:
+            let strings = FeatureStrings.menuBarOrganizer(l10n.language)
+            let enabled = UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerEnabled)
+            UtilityActionButton(title: strings.pageTitle,
+                                caption: enabled ? strings.toggleHiddenShortcut : strings.enableCaption,
+                                systemImage: "menubar.rectangle",
+                                isEditing: editing,
+                                showsDragHandle: true,
+                                visibility: $showMenuBarOrganizer,
+                                shortcutHint: shortcutHint(.menuBarOrganizerToggle),
+                                action: {
+                                    if enabled {
+                                        MenuBarOrganizerService.shared.toggleHiddenSection()
+                                    } else {
+                                        SettingsRouter.shared.page = .menuBarOrganizer
+                                        appDelegate()?.openSettingsWindow()
+                                    }
                                 })
         case .uninstaller:
             UtilityActionButton(title: l10n.s.uninstallerName,
@@ -930,6 +951,7 @@ struct UtilitiesSection: View {
         showCameraPreview = true
         showScratchpad = true
         showQuickLauncher = true
+        showMenuBarOrganizer = true
     }
 
     private func grantAccessibility() {

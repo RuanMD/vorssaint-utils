@@ -69,6 +69,11 @@ struct SettingsView: View {
                 SidebarItem(page: .monitor, title: l10n.s.tabMonitor, icon: "chart.line.uptrend.xyaxis",
                             keywords: [l10n.s.menuBarSpacingLabel, l10n.s.menuBarHideIconToggle,
                                        l10n.s.monitorMemoryPressureDot]),
+                SidebarItem(page: .menuBarOrganizer,
+                            title: FeatureStrings.menuBarOrganizer(l10n.language).pageTitle,
+                            icon: "menubar.rectangle",
+                            keywords: [FeatureStrings.menuBarOrganizer(l10n.language).enable,
+                                       FeatureStrings.menuBarOrganizer(l10n.language).search]),
             ]),
             (categories.windowsControls, [
                 SidebarItem(page: .mouse, title: l10n.s.tabMouse, icon: "computermouse",
@@ -226,6 +231,7 @@ struct SettingsView: View {
         case .radialMenu: RadialMenuSettings()
         case .energy: EnergySettings()
         case .monitor: MonitorSettings()
+        case .menuBarOrganizer: MenuBarOrganizerSettings()
         case .mouse: MouseSettings()
         case .switcher: SwitcherSettings()
         case .keyDebounce: KeyboardDebounceSettings()

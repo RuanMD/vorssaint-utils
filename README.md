@@ -70,6 +70,17 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 - **Network.** Live rates, session totals and a built in speed test.
 - **Alerts.** Optional notifications for sustained CPU load, high temperature, memory pressure, low disk space and low battery.
 
+### Menu bar
+
+- **Menu bar organizer.** Split status items into visible, hidden and
+  always-hidden sections, then reorder them from Settings with drag and
+  drop. Reveal them in the real menu bar or a searchable secondary bar,
+  with optional hover, empty-space click, scroll and keyboard triggers.
+  Accessibility enables automatic Command-drag; Screen Recording is only
+  used for exact previews. Inspired by
+  [Ice](https://github.com/jordanbaird/Ice) and implemented independently
+  for Vorssaint.
+
 ### Windows and the Dock
 
 - **App switcher.** A richer take on pressing ⌘Tab, with live window thumbnails, minimized windows included, and more than one window per app.
@@ -163,8 +174,8 @@ Permissions get the same treatment. Every one is optional, the app explains each
 
 | Permission | Used by | Without it |
 |---|---|---|
-| Accessibility | Switcher, Dock features, window controls, mouse and keyboard features, snippets, cut and paste | Those features stay off |
-| Screen Recording | Switcher and Dock Preview thumbnails, copy text from screen | Previews fall back or stay off |
+| Accessibility | Switcher, Dock features, menu bar organizer, window controls, mouse and keyboard features, snippets, cut and paste | Automatic movement and the other affected features stay off |
+| Screen Recording | Switcher and Dock Preview thumbnails, menu bar item previews, copy text from screen | Previews fall back or stay off |
 | System Audio Recording | Per app volume and output routing | Apps stay on normal system audio |
 | Notifications | Keep awake, battery, monitor and update alerts | The app stays silent |
 | Full Disk Access, optional | Deeper cleaner and uninstaller scans | Only reachable places are scanned |
