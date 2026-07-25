@@ -18,7 +18,7 @@ enum MenuBarOrganizerPresentationMode: String, CaseIterable {
     case secondaryBar
 
     static func sanitized(_ raw: String?) -> Self {
-        Self(rawValue: raw ?? "") ?? .automatic
+        Self(rawValue: raw ?? "") ?? .menuBar
     }
 }
 
@@ -91,6 +91,16 @@ enum MenuBarOrganizerSupport {
 
     static func sanitizedRehideDelay(_ value: Int) -> Int {
         allowedRehideDelays.min(by: { abs($0 - value) < abs($1 - value) }) ?? 10
+    }
+
+    static func usesExactPreviews(preferenceEnabled: Bool,
+                                  screenRecordingGranted: Bool) -> Bool {
+        preferenceEnabled && screenRecordingGranted
+    }
+
+    static func shouldRegisterAlwaysHiddenShortcut(sectionEnabled: Bool,
+                                                   shortcutEnabled: Bool) -> Bool {
+        sectionEnabled && shortcutEnabled
     }
 
     static func collapsedLength(screenWidths: [CGFloat]) -> CGFloat {

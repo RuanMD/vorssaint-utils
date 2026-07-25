@@ -298,6 +298,16 @@ final class MenuBarOrganizerService: ObservableObject {
 
     private func refresh(captureImages: Bool) {
         guard isRunning else { return }
+        let defaults = UserDefaults.standard
+        let canCapture = CGPreflightScreenCaptureAccess()
+        let usesExactPreviews = MenuBarOrganizerSupport.usesExactPreviews(
+            preferenceEnabled: defaults.bool(forKey: DefaultsKey.menuBarOrganizerCapturePreviews),
+            screenRecordingGranted: canCapture)
+        if !usesExactPreviews {
+            snapshotTask?.cancel()
+            snapshotTask = nil
+            imageCache.removeAll()
+        }
         let records = provider.records()
         let ownWindowIDs = Set([controlItem?.windowID, hiddenDivider?.windowID,
                                 alwaysHiddenDivider?.windowID].compactMap { $0 })
@@ -329,15 +339,17 @@ final class MenuBarOrganizerService: ObservableObject {
                                       section: section,
                                       isMovable: !protected && !immovable,
                                       isProtected: protected,
-                                      image: imageCache[identity] ?? fallbackIcon)
+                                      image: usesExactPreviews
+                                        ? (imageCache[identity] ?? fallbackIcon)
+                                        : fallbackIcon)
         }
         .sorted { $0.frame.minX < $1.frame.minX }
         capabilities = MenuBarOrganizerCapabilities(
             canEnumerate: true,
             canMove: AXIsProcessTrusted(),
-            canCapture: CGPreflightScreenCaptureAccess(),
+            canCapture: canCapture,
             hasPrivateFrameAPI: DynamicMenuBarAPI.shared.hasWindowFrame)
-        if captureImages, capabilities.canCapture {
+        if captureImages, usesExactPreviews {
             loadSnapshots(records: filtered, identities: identities)
         }
     }
@@ -553,7 +565,11 @@ final class MenuBarOrganizerService: ObservableObject {
                                   fallback: .menuBarOrganizerToggleDefault),
              { [weak self] in self?.toggleHiddenSection() }),
             (.toggleAlwaysHidden,
-             defaults.bool(forKey: DefaultsKey.menuBarOrganizerAlwaysShortcutEnabled),
+             MenuBarOrganizerSupport.shouldRegisterAlwaysHiddenShortcut(
+                sectionEnabled: defaults.bool(
+                    forKey: DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled),
+                shortcutEnabled: defaults.bool(
+                    forKey: DefaultsKey.menuBarOrganizerAlwaysShortcutEnabled)),
              GlobalShortcut.saved(for: DefaultsKey.menuBarOrganizerAlwaysShortcut,
                                   fallback: .menuBarOrganizerAlwaysDefault),
              { [weak self] in self?.toggleAlwaysHiddenSection() }),

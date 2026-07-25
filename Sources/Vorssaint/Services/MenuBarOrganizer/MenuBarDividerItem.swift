@@ -80,7 +80,9 @@ final class MenuBarDividerItem: NSObject {
         button.action = #selector(clicked)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         if kind == .control {
-            button.image = NSImage(systemSymbolName: "line.3.horizontal.decrease",
+            // The managed items sit to this control's left, so the icon also
+            // communicates the direction in which a click reveals them.
+            button.image = NSImage(systemSymbolName: "chevron.left",
                                    accessibilityDescription: "Menu bar organizer")
             button.toolTip = "Menu bar organizer"
         }

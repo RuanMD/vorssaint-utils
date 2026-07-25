@@ -721,7 +721,7 @@ enum Defaults {
         DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled: false,
         DefaultsKey.menuBarOrganizerShowDividers: false,
         DefaultsKey.menuBarOrganizerCapturePreviews: true,
-        DefaultsKey.menuBarOrganizerPresentationMode: MenuBarOrganizerPresentationMode.automatic.rawValue,
+        DefaultsKey.menuBarOrganizerPresentationMode: MenuBarOrganizerPresentationMode.menuBar.rawValue,
         DefaultsKey.menuBarOrganizerRehideMode: MenuBarOrganizerRehideMode.afterDelay.rawValue,
         DefaultsKey.menuBarOrganizerRehideDelay: 10,
         DefaultsKey.menuBarOrganizerShowOnHover: false,

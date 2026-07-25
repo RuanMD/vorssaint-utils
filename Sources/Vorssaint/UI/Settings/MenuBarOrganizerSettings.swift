@@ -15,7 +15,7 @@ struct MenuBarOrganizerSettings: View {
     @AppStorage(DefaultsKey.menuBarOrganizerShowDividers) private var showDividers = false
     @AppStorage(DefaultsKey.menuBarOrganizerCapturePreviews) private var capturePreviews = true
     @AppStorage(DefaultsKey.menuBarOrganizerPresentationMode) private var presentationMode =
-        MenuBarOrganizerPresentationMode.automatic.rawValue
+        MenuBarOrganizerPresentationMode.menuBar.rawValue
     @AppStorage(DefaultsKey.menuBarOrganizerRehideMode) private var rehideMode =
         MenuBarOrganizerRehideMode.afterDelay.rawValue
     @AppStorage(DefaultsKey.menuBarOrganizerRehideDelay) private var rehideDelay = 10
@@ -254,6 +254,15 @@ struct MenuBarOrganizerSettings: View {
                                         section: section,
                                         target: item.id,
                                         service: service))
+                            .contextMenu {
+                                sectionMoveButton(for: item, to: .visible, title: text.visible)
+                                sectionMoveButton(for: item, to: .hidden, title: text.hidden)
+                                if alwaysHiddenEnabled {
+                                    sectionMoveButton(for: item,
+                                                      to: .alwaysHidden,
+                                                      title: text.alwaysHidden)
+                                }
+                            }
                     }
                 }
                 .padding(7)
@@ -270,6 +279,20 @@ struct MenuBarOrganizerSettings: View {
                         service: service))
         }
         .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private func sectionMoveButton(for item: ManagedMenuBarItem,
+                                   to section: MenuBarOrganizerSection,
+                                   title: String) -> some View {
+        Button {
+            service.move(itemID: item.id, before: nil, to: section)
+        } label: {
+            Label(title, systemImage: section == .visible
+                  ? "eye"
+                  : (section == .hidden ? "eye.slash" : "lock"))
+        }
+        .disabled(!item.isMovable || item.section == section)
     }
 
     private func updateEditingSession() {

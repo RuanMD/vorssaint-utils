@@ -5996,14 +5996,28 @@ struct MetricsTests {
         // MARK: Menu bar organizer
 
         expect(MenuBarOrganizerPresentationMode.sanitized("secondaryBar") == .secondaryBar
-                && MenuBarOrganizerPresentationMode.sanitized("invalid") == .automatic,
-               "menu bar presentation storage sanitizes to a safe automatic fallback")
+                && MenuBarOrganizerPresentationMode.sanitized("invalid") == .menuBar,
+               "menu bar presentation storage sanitizes to the basic inline fallback")
         expect(MenuBarOrganizerRehideMode.sanitized("focusedApp") == .focusedApp
                 && MenuBarOrganizerRehideMode.sanitized(nil) == .afterDelay,
                "rehide storage sanitizes to the default delay")
         expect(MenuBarOrganizerSupport.sanitizedRehideDelay(11) == 10
                 && MenuBarOrganizerSupport.sanitizedRehideDelay(58) == 60,
                "rehide delays snap to supported values")
+        expect(MenuBarOrganizerSupport.usesExactPreviews(
+                    preferenceEnabled: true, screenRecordingGranted: true)
+                && !MenuBarOrganizerSupport.usesExactPreviews(
+                    preferenceEnabled: false, screenRecordingGranted: true)
+                && !MenuBarOrganizerSupport.usesExactPreviews(
+                    preferenceEnabled: true, screenRecordingGranted: false),
+               "exact previews require both the preference and current permission")
+        expect(MenuBarOrganizerSupport.shouldRegisterAlwaysHiddenShortcut(
+                    sectionEnabled: true, shortcutEnabled: true)
+                && !MenuBarOrganizerSupport.shouldRegisterAlwaysHiddenShortcut(
+                    sectionEnabled: false, shortcutEnabled: true)
+                && !MenuBarOrganizerSupport.shouldRegisterAlwaysHiddenShortcut(
+                    sectionEnabled: true, shortcutEnabled: false),
+               "the always-hidden hotkey never captures keys for a disabled section")
         expect(MenuBarOrganizerSupport.collapsedLength(screenWidths: []) == 4_096
                 && MenuBarOrganizerSupport.collapsedLength(screenWidths: [1_440, 3_000]) == 6_000
                 && MenuBarOrganizerSupport.collapsedLength(screenWidths: [10_000]) == 16_384,
@@ -6752,7 +6766,7 @@ struct MetricsTests {
                "the menu bar organizer and destructive hiding state ship off")
         expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerCapturePreviews] as? Bool == true
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresentationMode] as? String
-                    == MenuBarOrganizerPresentationMode.automatic.rawValue
+                    == MenuBarOrganizerPresentationMode.menuBar.rawValue
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerRehideMode] as? String
                     == MenuBarOrganizerRehideMode.afterDelay.rawValue
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerRehideDelay] as? Int == 10,
