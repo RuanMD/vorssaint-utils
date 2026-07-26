@@ -78,7 +78,7 @@ extension AppFeature {
         case .scrollInverter, .smoothScroll, .windowMaximizer, .middleClick,
              .mouseNavigation, .mouseButtonShortcuts, .dockPreview, .dockClick, .shelf:
             return .mouse
-        case .switcher, .keyboardDebounce, .finderCutPaste:
+        case .switcher, .keyboardDebounce, .finderCutPaste, .superKey:
             return .keyboard
         case .textSnippets, .autoQuit:
             return .inputs

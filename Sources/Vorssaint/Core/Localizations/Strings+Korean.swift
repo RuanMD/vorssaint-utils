@@ -881,6 +881,7 @@ extension Strings {
         highlightsCaptionDockPreview: "Dock Preview가 이제 Dock 확대가 켜져 있어도 작동합니다",
         highlightsCaptionScreenshot: "스크린샷 도구에 픽셀 루페와 QR 코드 읽기가 추가되었습니다",
         highlightsCaptionSnippetLibrary: "검색 가능한 스니펫 메뉴가 커서 위치에 스니펫을 입력합니다",
+        highlightsCaptionMicMute: "음소거가 설정된 마이크뿐 아니라 모든 마이크에 적용됩니다",
         highlightsConfigure: "설정하기",
         highlightsTry: "사용해 보기",
         highlightsSeeAll: "모든 변경 사항 보기",

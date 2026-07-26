@@ -128,6 +128,11 @@ struct SettingsView: View {
                 SidebarItem(page: .homebrew, title: l10n.s.homebrewName, icon: "shippingbox"),
                 SidebarItem(page: .uninstaller, title: l10n.s.uninstallerName, icon: "trash"),
                 SidebarItem(page: .keyDebounce, title: l10n.s.keyDebounceName, icon: "keyboard"),
+                SidebarItem(page: .superKey,
+                            title: FeatureStrings.superKey(l10n.language).pageTitle,
+                            icon: "capslock",
+                            keywords: [FeatureStrings.superKey(l10n.language).capsLockKey,
+                                       FeatureStrings.superKey(l10n.language).enableToggle]),
                 SidebarItem(page: .textSnippets, title: FeatureStrings.snippets(l10n.language).pageTitle,
                             icon: "text.append",
                             keywords: [FeatureStrings.snippets(l10n.language).triggerLabel,
@@ -235,6 +240,7 @@ struct SettingsView: View {
         case .mouse: MouseSettings()
         case .switcher: SwitcherSettings()
         case .keyDebounce: KeyboardDebounceSettings()
+        case .superKey: SuperKeySettings()
         case .cutPaste: CutPasteSettings()
         case .autoQuit: AutoQuitSettings()
         case .uninstaller: UninstallerView()

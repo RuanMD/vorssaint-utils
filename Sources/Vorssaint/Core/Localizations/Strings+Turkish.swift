@@ -880,6 +880,7 @@ extension Strings {
         highlightsCaptionDockPreview: "Dock Preview artık Dock büyütme açıkken de çalışıyor",
         highlightsCaptionScreenshot: "Ekran görüntüsü aracına piksel büyüteci ve QR kod okuma eklendi",
         highlightsCaptionSnippetLibrary: "Aranabilir parçacık menüsü istediğiniz parçacığı imlece yazar",
+        highlightsCaptionMicMute: "Sessize alma artık yalnızca seçili mikrofonu değil, tüm mikrofonları kapsıyor",
         highlightsConfigure: "Ayarla",
         highlightsTry: "Dene",
         highlightsSeeAll: "Tüm değişiklikleri gör",

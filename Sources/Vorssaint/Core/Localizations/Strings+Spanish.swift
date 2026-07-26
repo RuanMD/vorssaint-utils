@@ -880,6 +880,7 @@ extension Strings {
         highlightsCaptionDockPreview: "Dock Preview ahora funciona con la ampliación del Dock activada",
         highlightsCaptionScreenshot: "La captura de pantalla ganó una lupa de píxeles y lectura de códigos QR",
         highlightsCaptionSnippetLibrary: "Un menú de fragmentos con búsqueda escribe cualquier fragmento en el cursor",
+        highlightsCaptionMicMute: "El silencio ahora cubre todos los micrófonos, no solo el que usa el Mac",
         highlightsConfigure: "Configurar",
         highlightsTry: "Probar",
         highlightsSeeAll: "Ver todos los cambios",

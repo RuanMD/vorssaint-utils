@@ -5560,6 +5560,7 @@ struct MetricsTests {
             let highlightsStrings = [strings.highlightsTitle, strings.highlightsCaptionDockPreview,
                                      strings.highlightsCaptionScreenshot,
                                      strings.highlightsCaptionSnippetLibrary,
+                                     strings.highlightsCaptionMicMute,
                                      strings.highlightsConfigure,
                                      strings.highlightsTry, strings.highlightsSeeAll]
             expect(highlightsStrings.allSatisfy { !$0.isEmpty && !$0.contains("—") },
@@ -5913,13 +5914,13 @@ struct MetricsTests {
 
         // MARK: Features hub catalog
 
-        expect(AppFeature.allCases.count == 45, "feature catalog has 45 features")
+        expect(AppFeature.allCases.count == 46, "feature catalog has 46 features")
         expect(Set(AppFeature.allCases.map(\.rawValue)).count == AppFeature.allCases.count,
                "feature ids are unique")
         expect(AppFeature.allCases.map(\.rawValue) == [
             "switcher", "dockPreview", "dockClick", "windowMaximizer", "windowLayout", "autoQuit",
             "scrollInverter", "smoothScroll", "mouseNavigation", "mouseButtonShortcuts", "middleClick",
-            "keyboardDebounce", "textSnippets",
+            "keyboardDebounce", "textSnippets", "superKey",
             "clipboardHistory", "pastePlain", "finderCutPaste", "shelf", "urlCleaner",
             "mixer", "soundOutputSwitcher", "micMute", "musicBlock",
             "keepAwake", "brightness", "extraBrightness", "menuBarOrganizer",
@@ -6188,6 +6189,12 @@ struct MetricsTests {
                    "every menu bar appearance string is set for \(language.rawValue)")
             expect(menuBarAppearanceValues.allSatisfy { !$0.contains("—") },
                    "no em-dash in visible menu bar appearance strings (\(language.rawValue))")
+            let superKeyValues = Mirror(reflecting: FeatureStrings.superKey(language)).children
+                .compactMap { $0.value as? String }
+            expect(superKeyValues.count == 14 && superKeyValues.allSatisfy { !$0.isEmpty },
+                   "every super key string is set for \(language.rawValue)")
+            expect(superKeyValues.allSatisfy { !$0.contains("—") },
+                   "no em-dash in visible super key strings (\(language.rawValue))")
             let appearanceValues = Mirror(reflecting: FeatureStrings.appearance(language)).children
                 .compactMap { $0.value as? String }
             expect(appearanceValues.count == 4 && appearanceValues.allSatisfy { !$0.isEmpty },
@@ -7526,6 +7533,35 @@ struct MetricsTests {
                 && scratchpadExportName.count == "Scratchpad ".count + 14,
                "scratchpad export file name is the title plus the local date")
 
+        // Muting every microphone, not just the one the Mac is set to: an app
+        // pointed at a device of its own has to go silent too.
+        expect(MicMuteSupport.isOwnDevice(name: "Vorssaint Mixer")
+                && !MicMuteSupport.isOwnDevice(name: "MacBook Air Microphone"),
+               "the mute skips the app's own mixing device and no other")
+        expect(!MicMuteSupport.shouldSaveVolume(nil)
+                && !MicMuteSupport.shouldSaveVolume(0)
+                && !MicMuteSupport.shouldSaveVolume(0.005)
+                && MicMuteSupport.shouldSaveVolume(0.4),
+               "a level worth restoring is remembered and a silent one never is")
+        expect(MicMuteSupport.volumeToRestore(uid: "mic-a",
+                                              saved: ["mic-a": 0.4, "mic-b": 0.9],
+                                              legacy: 0.6) == 0.4
+                && MicMuteSupport.volumeToRestore(uid: "mic-c",
+                                                  saved: ["mic-a": 0.4],
+                                                  legacy: 0.6) == 0.6
+                && MicMuteSupport.volumeToRestore(uid: "mic-c", saved: [:], legacy: 0)
+                    == MicMuteSupport.fallbackVolume
+                && MicMuteSupport.volumeToRestore(uid: "mic-a",
+                                                  saved: ["mic-a": 0],
+                                                  legacy: 0) == MicMuteSupport.fallbackVolume,
+               "each microphone gets its own level back, then the older single level, then a usable one")
+        expect(MicMuteSupport.restoreTargets(recorded: ["mic-a", "gone"],
+                                             present: ["mic-a", "mic-b"]) == ["mic-a"]
+                && MicMuteSupport.restoreTargets(recorded: [],
+                                                 present: ["mic-a", "mic-b"]) == ["mic-a", "mic-b"]
+                && MicMuteSupport.restoreTargets(recorded: ["mic-a"], present: []).isEmpty,
+               "unmuting touches the microphones this app muted, and every one of them when it knows of none")
+
         expect(Defaults.registeredDefaults[DefaultsKey.radialMenuEnabled] as? Bool == false,
                "the radial menu ships off by default")
         expect(Defaults.registeredDefaults[DefaultsKey.radialMenuShortcut] as? String
@@ -7643,6 +7679,111 @@ struct MetricsTests {
                 == MouseButtonFeatureStrings.enUS.forwardButtonName
                 && MouseButtonShortcutSupport.buttonName(for: 5, strings: .enUS) == "Button 6",
                "buttons are named by their job or their printed count")
+
+        // MARK: Super key (issue #330)
+
+        expect(Defaults.registeredDefaults[DefaultsKey.superKeyEnabled] as? Bool == false,
+               "the super key ships off by default")
+        expect(Defaults.registeredDefaults[DefaultsKey.superKeySoloAction] as? String
+                == SuperKeySoloAction.none.rawValue,
+               "a tap on its own does nothing until the user picks something")
+        expect(Defaults.registeredDefaults[DefaultsKey.panelControlSuperKey] as? Bool == true,
+               "the super key panel row ships visible like its siblings")
+        expect(Defaults.registeredDefaults[DefaultsKey.superKeyMappingApplied] == nil,
+               "the mapping flag is machine state, so it is never registered and never backed up")
+        expect(!SettingsBackupSupport.exportKeys().contains(DefaultsKey.superKeyMappingApplied)
+                && SettingsBackupSupport.exportKeys().contains(DefaultsKey.superKeyEnabled)
+                && SettingsBackupSupport.exportKeys().contains(DefaultsKey.superKeySoloAction),
+               "the switch and the solo action travel in a backup, the mapping state stays behind")
+        expect(AppFeature.superKey.enabledKeys == [DefaultsKey.superKeyEnabled]
+                && AppFeature.superKey.permissions == [.accessibility]
+                && AppFeature.superKey.group == .mouseKeyboard
+                && AppFeature.superKey.energyProfile == .keyboard,
+               "the hub knows the super key's switch, permission, group and cost")
+        expect(FeatureVisibilitySupport.features(for: .superKey) == [.superKey]
+                && !FeatureVisibilitySupport.isPageVisible(.superKey, isAvailable: { _ in false }),
+               "the page leaves the sidebar when the feature is off in the hub")
+        expect(SuperKeySoloAction.sanitized("escape") == .escape
+                && SuperKeySoloAction.sanitized("capsLock") == .capsLock
+                && SuperKeySoloAction.sanitized("nonsense") == SuperKeySoloAction.none
+                && SuperKeySoloAction.sanitized(nil) == SuperKeySoloAction.none,
+               "a stored solo action is trusted only when the app still knows it")
+
+        let capsMapping = SuperKeyMapping(source: SuperKeySupport.capsLockUsage,
+                                          destination: SuperKeySupport.triggerUsage)
+        let foreignMapping = SuperKeyMapping(source: 0x700000064, destination: 0x700000035)
+        expect(SuperKeySupport.mappings(enablingSuperKey: true, existing: []) == [capsMapping],
+               "turning the key on maps caps lock to the key it arrives as")
+        expect(SuperKeySupport.mappings(enablingSuperKey: true, existing: [foreignMapping])
+                == [capsMapping, foreignMapping],
+               "a mapping the user set up elsewhere survives turning the feature on")
+        expect(SuperKeySupport.mappings(enablingSuperKey: false, existing: [capsMapping, foreignMapping])
+                == [foreignMapping],
+               "turning it off removes only the entry this feature owns")
+        expect(SuperKeySupport.mappings(enablingSuperKey: true,
+                                        existing: [SuperKeyMapping(source: SuperKeySupport.capsLockUsage,
+                                                                   destination: 0x700000029)])
+                == [capsMapping],
+               "caps lock never carries two mappings at once")
+        expect(SuperKeySupport.mappingArgument([capsMapping])
+                == "{\"UserKeyMapping\":[{\"HIDKeyboardModifierMappingSrc\":30064771129,\"HIDKeyboardModifierMappingDst\":30064771181}]}",
+               "the mapping table goes out in the form the system takes")
+        expect(SuperKeySupport.mappingArgument([]) == "{\"UserKeyMapping\":[]}",
+               "an empty table clears the mapping")
+
+        let mappingReport = """
+        RegistryID  Key                   Value
+        100000a84   UserKeyMapping   (
+                {
+                HIDKeyboardModifierMappingDst = 30064771181;
+                HIDKeyboardModifierMappingSrc = 30064771129;
+            }
+        )
+        100000a85   UserKeyMapping   (
+                {
+                HIDKeyboardModifierMappingDst = 30064771181;
+                HIDKeyboardModifierMappingSrc = 30064771129;
+            }
+        )
+        """
+        expect(SuperKeySupport.parseMappings(mappingReport) == [capsMapping],
+               "the same entry on two keyboards is read once")
+        expect(SuperKeySupport.parseMappings("RegistryID  Key  Value\n100000a84 UserKeyMapping (null)").isEmpty
+                && SuperKeySupport.parseMappings("").isEmpty,
+               "a keyboard with no mapping reads as none")
+
+        var superKeyState = SuperKeySupport.State()
+        expect(superKeyState.decide(.otherKey) == .pass,
+               "with the key up, typing is untouched")
+        expect(superKeyState.decide(.triggerDown(isRepeat: false)) == .swallow,
+               "the key itself never reaches an app")
+        expect(superKeyState.decide(.otherKey) == .addModifiers
+                && superKeyState.decide(.otherKey) == .addModifiers,
+               "every key pressed while it is held carries the four modifiers")
+        expect(superKeyState.decide(.triggerUp) == .swallow,
+               "releasing after a combination does nothing on its own")
+
+        var soloState = SuperKeySupport.State()
+        _ = soloState.decide(.triggerDown(isRepeat: false))
+        expect(soloState.decide(.triggerUp) == .soloTap,
+               "a tap with nothing else is the solo tap")
+        _ = soloState.decide(.triggerDown(isRepeat: false))
+        expect(soloState.decide(.triggerDown(isRepeat: true)) == .swallow
+                && soloState.decide(.triggerUp) == .swallow,
+               "holding the key long enough to repeat is not a tap")
+        _ = soloState.decide(.triggerDown(isRepeat: false))
+        _ = soloState.decide(.otherModifier)
+        expect(soloState.decide(.triggerUp) == .swallow,
+               "holding it together with another modifier is not a tap either")
+
+        var strandedState = SuperKeySupport.State()
+        _ = strandedState.decide(.triggerDown(isRepeat: false))
+        strandedState.reset()
+        expect(strandedState.decide(.otherKey) == .pass,
+               "a key held while the tap goes away cannot leave typing stuck in modifiers")
+        var unmappedKeyboardState = SuperKeySupport.State()
+        expect(unmappedKeyboardState.decide(.capsLock) == .remapNeeded,
+               "a real caps lock means that keyboard still needs the mapping")
 
         // MARK: Mouse app exceptions (issue #358)
 
@@ -7810,6 +7951,8 @@ struct MetricsTests {
                 && !backupKeys.contains(DefaultsKey.shelfItems)
                 && !backupKeys.contains(DefaultsKey.sleepDisabledFlag)
                 && !backupKeys.contains(DefaultsKey.micMuteActive)
+                && !backupKeys.contains(DefaultsKey.micMuteSavedVolumes)
+                && !backupKeys.contains(DefaultsKey.micMuteMutedDevices)
                 && !backupKeys.contains(DefaultsKey.cleanerLastAutoRun)
                 && !backupKeys.contains(DefaultsKey.statusItemPlacementGeneration)
                 && !backupKeys.contains(DefaultsKey.displaysSwitchedOff),

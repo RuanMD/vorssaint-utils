@@ -60,7 +60,7 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 - **Volume mixer.** Slide any single app up or down while the rest of the Mac stays put, and push a quiet one past 100 percent when a video is just too low. Hide the apps you never adjust to keep the list short. No audio driver, no setup.
 - **Per app output.** Send your music to the speakers and a call to your headset at the same time.
 - **Output switcher.** Cycle between chosen outputs with one shortcut, and drop the volume automatically when headphones disconnect.
-- **Microphone tools.** Pin your favorite input so the Mac stops guessing, and mute the mic everywhere with a click or shortcut.
+- **Microphone tools.** Pin your favorite input so the Mac stops guessing, and mute every microphone at once with a click or shortcut, whichever one an app is using.
 - **Music app blocker.** Stops the Music app from bursting in when headphones connect.
 
 ### Know what your Mac is doing
@@ -104,6 +104,7 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 - **Middle click.** A three finger press becomes a real middle click.
 - **Apps to leave alone.** Every feature above can name apps that drive themselves with the mouse, like 3D and design tools, and it steps aside in those.
 - **Key debounce.** Filters the double letters a worn keyboard invents.
+- **Super key.** Hold Caps Lock and it counts as Shift, Control, Option and Command together, so the shortcuts you build on it never fight with the ones apps already use. A tap on its own can still switch capitals, press Escape, or do nothing.
 
 ### Clipboard, files and links
 

@@ -880,6 +880,7 @@ extension Strings {
         highlightsCaptionDockPreview: "Dock Preview 现在可以在开启 Dock 放大时使用",
         highlightsCaptionScreenshot: "截图工具新增了像素放大镜和二维码读取",
         highlightsCaptionSnippetLibrary: "可搜索的片段菜单把任意片段直接输入到光标处",
+        highlightsCaptionMicMute: "静音现在对所有麦克风生效，不只是系统选中的那个",
         highlightsConfigure: "设置",
         highlightsTry: "试一试",
         highlightsSeeAll: "查看全部更改",
