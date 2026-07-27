@@ -13,6 +13,8 @@ the Cleaner can tidy WhatsApp downloads. Plus windows from other desktops in
 the App Switcher and a batch of fixes.
 
 ### Added
+- App updates. One list of the apps with a newer version, ticked the way you
+  want, updated together. Under App updates.
 - A menu bar organizer with visible, hidden and always-hidden sections,
   drag-and-drop arrangement from Settings, search, an overflow-friendly
   secondary bar, reveal triggers and shortcuts. It is inspired by Ice and

@@ -470,8 +470,9 @@ private enum UtilityPanelItem: String, PanelOrderItem, Identifiable {
     // Case order IS the default panel order (PanelLayout.itemOrder falls back
     // to allCases). Screenshot leads in 3.1.13; existing orders that predate it
     // are migrated once without disturbing the rest of the user's layout.
-    case screenshot, quickLauncher, menuBarOrganizer, cleaner, homebrew, media, clipboard, windowLayout, uninstaller,
-         cleanURL, cleaning, screenOCR, colorPicker, micMute, cameraPreview, scratchpad
+    case screenshot, quickLauncher, appUpdates, menuBarOrganizer, cleaner, homebrew, media, clipboard,
+         windowLayout, uninstaller, cleanURL, cleaning, screenOCR, colorPicker, micMute, cameraPreview,
+         scratchpad
 
     var id: String { rawValue }
 
