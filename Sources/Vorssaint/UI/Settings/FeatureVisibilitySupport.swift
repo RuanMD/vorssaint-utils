@@ -39,6 +39,7 @@ enum FeatureVisibilitySupport {
         case .urlCleaner: return [.urlCleaner]
         case .cleaner: return [.cleaner]
         case .homebrew: return [.homebrew]
+        case .appUpdates: return [.appUpdates]
         case .uninstaller: return [.uninstaller]
         case .keyDebounce: return [.keyboardDebounce]
         case .superKey: return [.superKey]

@@ -7,10 +7,9 @@ All notable changes to this project are documented here. The format follows
 ## [3.2.0]
 
 ### Summary
-Vorssaint 3.2.0 adds a searchable snippet menu, a super key on Caps Lock,
-mouse button shortcuts, screenshot autopilot and new radial menu slices, and
-the Cleaner can tidy WhatsApp downloads. Plus windows from other desktops in
-the App Switcher and a batch of fixes.
+Vorssaint 3.2.0 adds app updates in one list, a searchable snippet menu, a
+super key on Caps Lock and mouse button shortcuts. Plus screenshot autopilot,
+new radial menu slices and a batch of fixes.
 
 ### Added
 - App updates. One list of the apps with a newer version, ticked the way you
@@ -51,6 +50,8 @@ the App Switcher and a batch of fixes.
   Command together, for shortcuts nothing else uses. Under Super key.
 
 ### Changed
+- Settings groups App updates, Cleaner, Homebrew and Uninstaller under App
+  management.
 - Recording a shortcut keeps the keys to itself instead of triggering the
   app or the system.
 - "Open the editor right after capturing" became the Edit after-capture
@@ -59,6 +60,10 @@ the App Switcher and a batch of fixes.
   tools keeps it floating instead.
 
 ### Fixed
+- Brightness keys and sliders reach an external monitor again after the Mac
+  has slept. The connection is looked up fresh on waking.
+- Copy text from screen works again. The area is now picked with the app's
+  own selector, the same one screenshots use.
 - Muting the microphone now cuts every microphone, not only the one macOS
   is set to. An app pointed at a headset of its own goes quiet too.
 - The app pickers list every app again, including the ones macOS keeps

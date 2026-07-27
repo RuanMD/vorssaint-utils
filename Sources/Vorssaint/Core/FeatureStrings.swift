@@ -87,7 +87,8 @@ extension SettingsCategoryStrings {
         windowsControls: "윈도우 및 제어",
         files: "파일",
         utilities: "유틸리티",
-        app: "앱"
+        app: "앱",
+        appManagement: "앱 관리"
     )
 }
 
@@ -229,13 +230,15 @@ struct SettingsCategoryStrings {
     let files: String
     let utilities: String
     let app: String
+    let appManagement: String
 
     static let enUS = SettingsCategoryStrings(
         essentials: "Essentials",
         windowsControls: "Window controls",
         files: "Files",
         utilities: "Utilities",
-        app: "App"
+        app: "App",
+        appManagement: "App management"
     )
 
     static let ptBR = SettingsCategoryStrings(
@@ -243,7 +246,8 @@ struct SettingsCategoryStrings {
         windowsControls: "Janelas e controles",
         files: "Arquivos",
         utilities: "Utilitários",
-        app: "App"
+        app: "App",
+        appManagement: "Gestão de apps"
     )
 
     static let tr = SettingsCategoryStrings(
@@ -251,7 +255,8 @@ struct SettingsCategoryStrings {
         windowsControls: "Pencereler ve denetimler",
         files: "Dosyalar",
         utilities: "Araçlar",
-        app: "Uygulama"
+        app: "Uygulama",
+        appManagement: "Uygulama yönetimi"
     )
 
     static let ru = SettingsCategoryStrings(
@@ -259,7 +264,8 @@ struct SettingsCategoryStrings {
         windowsControls: "Окна и управление",
         files: "Файлы",
         utilities: "Утилиты",
-        app: "Приложение"
+        app: "Приложение",
+        appManagement: "Управление приложениями"
     )
 
     static let es = SettingsCategoryStrings(
@@ -267,7 +273,8 @@ struct SettingsCategoryStrings {
         windowsControls: "Ventanas y controles",
         files: "Archivos",
         utilities: "Utilidades",
-        app: "App"
+        app: "App",
+        appManagement: "Gestión de apps"
     )
 
     static let de = SettingsCategoryStrings(
@@ -275,7 +282,8 @@ struct SettingsCategoryStrings {
         windowsControls: "Fenster und Steuerung",
         files: "Dateien",
         utilities: "Dienstprogramme",
-        app: "App"
+        app: "App",
+        appManagement: "App-Verwaltung"
     )
 
     static let fr = SettingsCategoryStrings(
@@ -283,7 +291,8 @@ struct SettingsCategoryStrings {
         windowsControls: "Fenêtres et contrôles",
         files: "Fichiers",
         utilities: "Utilitaires",
-        app: "App"
+        app: "App",
+        appManagement: "Gestion des apps"
     )
 
     static let it = SettingsCategoryStrings(
@@ -291,7 +300,8 @@ struct SettingsCategoryStrings {
         windowsControls: "Finestre e controlli",
         files: "File",
         utilities: "Utilità",
-        app: "App"
+        app: "App",
+        appManagement: "Gestione delle app"
     )
 
     static let ja = SettingsCategoryStrings(
@@ -299,7 +309,8 @@ struct SettingsCategoryStrings {
         windowsControls: "ウインドウと操作",
         files: "ファイル",
         utilities: "ユーティリティ",
-        app: "App"
+        app: "App",
+        appManagement: "Appの管理"
     )
 
     static let zhHans = SettingsCategoryStrings(
@@ -307,7 +318,8 @@ struct SettingsCategoryStrings {
         windowsControls: "窗口与控制",
         files: "文件",
         utilities: "实用工具",
-        app: "App"
+        app: "App",
+        appManagement: "App 管理"
     )
 
     static let zhTW = SettingsCategoryStrings(
@@ -315,7 +327,8 @@ struct SettingsCategoryStrings {
         windowsControls: "視窗與控制",
         files: "檔案",
         utilities: "工具程式",
-        app: "App"
+        app: "App",
+        appManagement: "App 管理"
     )
 
     static let zhHK = SettingsCategoryStrings(
@@ -323,7 +336,8 @@ struct SettingsCategoryStrings {
         windowsControls: "視窗及控制",
         files: "檔案",
         utilities: "工具",
-        app: "App"
+        app: "App",
+        appManagement: "App 管理"
     )
 }
 
