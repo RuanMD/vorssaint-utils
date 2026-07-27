@@ -173,6 +173,7 @@ final class FeatureRuntime: ObservableObject {
                 WhatsAppDownloadOrganizer.shared.stop()
             }
         },
+        .appUpdates: { AppUpdatesService.shared.syncWithPreferences() },
         .monitorCPU: { FeatureRuntime.syncMonitor() },
         .monitorGPU: { FeatureRuntime.syncMonitor() },
         .monitorMemory: { FeatureRuntime.syncMonitor() },

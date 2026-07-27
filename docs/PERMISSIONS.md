@@ -78,6 +78,7 @@ You can review or change every grant in System Settings, under Privacy and Secur
 - **Battery**, with the battery protection alerts.
 - **Monitor**, with optional alerts for the conditions you turn on.
 - **Updates**, with a one time note when a new version shows up, and only while automatic update checks are on.
+- **App updates**, with a note when other apps on the Mac have a newer version, and only while the background check is on.
 
 **If you say no.** Vorssaint runs without a peep, and the same information is still right there in the panel and in Settings.
 

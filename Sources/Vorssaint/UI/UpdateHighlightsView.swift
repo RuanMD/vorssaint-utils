@@ -43,6 +43,15 @@ struct UpdateHighlightsView: View {
     /// uninstalled in the hub stay out; their Settings pages are gone too.
     private var highlights: [Highlight] {
         var pages: [Highlight] = []
+        if AppFeature.appUpdates.isAvailable {
+            pages.append(Highlight(
+                id: "appupdates", symbol: AppFeature.appUpdates.symbolName,
+                imageName: "highlights-appupdates",
+                title: FeatureStrings.appUpdates(l10n.language).pageTitle,
+                caption: FeatureStrings.appUpdates(l10n.language).hubDescription,
+                actionLabel: s.highlightsConfigure,
+                action: { openSettings(.appUpdates) }))
+        }
         if AppFeature.textSnippets.isAvailable {
             pages.append(Highlight(
                 id: "snippetlibrary", symbol: AppFeature.textSnippets.symbolName,

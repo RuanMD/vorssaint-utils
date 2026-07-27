@@ -113,6 +113,7 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 - **Scratchpad.** A floating pad for short-lived text: meeting notes, numbers, fragments on their way somewhere else. It saves as you type, steps aside when you click elsewhere (or stays floating, your call), and can copy everything, export to a file or clear itself after a quiet period.
 - **Copy text from screen.** Select any area and its text is recognized offline, straight onto the clipboard. When the area holds a QR code, its content is shown so you can copy it or open the link.
 - **Color picker.** Grab any pixel with the system loupe as HEX, RGB, HSL or SwiftUI code.
+- **App updates.** One list of the apps on your Mac that have a newer version, from Homebrew and from the App Store. Tick the ones you want and they update together, so you stop opening a different store for each app. It can also check in the background and tell you when something is waiting.
 - **Cleaner.** Sweeps app leftovers, caches and logs, by hand or on a schedule.
 - **WhatsApp downloads.** The Cleaner can also tidy files WhatsApp saved into Downloads, confirmed by macOS metadata and only ever moved to the Trash, with a review list, retention rules and an optional organizer that files new downloads into a folder of your choice.
 - **Uninstaller.** Drop an app in and take its caches, preferences and logs to the Trash with it.
@@ -154,7 +155,7 @@ To remove Vorssaint completely, including its settings and permissions:
 
 ## Private by default
 
-Vorssaint has no backend, no account, no analytics and no tracking. The network is touched only by things you can see: update checks, the speed test, and Homebrew searches and installs you start. The full story is in the [privacy notes](docs/PRIVACY.md).
+Vorssaint has no backend, no account, no analytics and no tracking. The network is touched only by things you can see: update checks, the speed test, the app update check, and Homebrew searches and installs you start. The full story is in the [privacy notes](docs/PRIVACY.md).
 
 Permissions get the same treatment. Every one is optional, the app explains each in plain words, shows which features actually use it, and even tells you when a permission you granted is no longer needed by anything, with a shortcut to revoke it.
 

@@ -97,12 +97,25 @@ struct SettingsView: View {
                 SidebarItem(page: .media, title: l10n.s.mediaName, icon: "photo.on.rectangle.angled",
                             keywords: ["PDF", "GIF", l10n.s.mediaStartConvertPDF, l10n.s.ocrName]),
             ]),
-            (categories.utilities, [
+            // Everything about the apps installed on the Mac lives together:
+            // what is out of date, what is junk and what should go.
+            (categories.appManagement, [
+                SidebarItem(page: .appUpdates,
+                            title: FeatureStrings.appUpdates(l10n.language).pageTitle,
+                            icon: "arrow.down.app",
+                            keywords: [FeatureStrings.appUpdates(l10n.language).checkNow,
+                                       FeatureStrings.appUpdates(l10n.language).frequencyLabel,
+                                       FeatureStrings.appUpdates(l10n.language).appStoreBadge,
+                                       l10n.s.homebrewName]),
                 SidebarItem(page: .cleaner, title: l10n.s.cleanerName, icon: "sparkles",
                             keywords: [l10n.s.cleanerScheduleTitle,
                                        FeatureStrings.whatsAppDownloads(l10n.language).title,
                                        FeatureStrings.whatsAppDownloads(l10n.language).automatic,
                                        FeatureStrings.whatsAppDownloads(l10n.language).fileTypes]),
+                SidebarItem(page: .homebrew, title: l10n.s.homebrewName, icon: "shippingbox"),
+                SidebarItem(page: .uninstaller, title: l10n.s.uninstallerName, icon: "trash"),
+            ]),
+            (categories.utilities, [
                 SidebarItem(page: .quickTools, title: l10n.s.quickToolsTab, icon: "wand.and.rays",
                             keywords: [l10n.s.launcherName, l10n.s.colorPickerName,
                                        l10n.s.micMuteName, l10n.s.ocrName,
@@ -120,8 +133,6 @@ struct SettingsView: View {
                                        FeatureStrings.screenshot(l10n.language).toolPixelate,
                                        FeatureStrings.screenshot(l10n.language).toolArrow]),
                 SidebarItem(page: .urlCleaner, title: l10n.s.urlCleanerName, icon: "link"),
-                SidebarItem(page: .homebrew, title: l10n.s.homebrewName, icon: "shippingbox"),
-                SidebarItem(page: .uninstaller, title: l10n.s.uninstallerName, icon: "trash"),
                 SidebarItem(page: .keyDebounce, title: l10n.s.keyDebounceName, icon: "keyboard"),
                 SidebarItem(page: .superKey,
                             title: FeatureStrings.superKey(l10n.language).pageTitle,
@@ -241,6 +252,7 @@ struct SettingsView: View {
         case .urlCleaner: URLCleanerSettings()
         case .cleaner: CleanerSettings()
         case .homebrew: HomebrewSettings()
+        case .appUpdates: AppUpdatesSettings()
         case .media: MediaSettings()
         case .clipboard: ClipboardSettings()
         case .quickTools: QuickToolsSettings()

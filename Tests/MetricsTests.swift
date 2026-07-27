@@ -5914,7 +5914,7 @@ struct MetricsTests {
 
         // MARK: Features hub catalog
 
-        expect(AppFeature.allCases.count == 45, "feature catalog has 45 features")
+        expect(AppFeature.allCases.count == 46, "feature catalog has 46 features")
         expect(Set(AppFeature.allCases.map(\.rawValue)).count == AppFeature.allCases.count,
                "feature ids are unique")
         expect(AppFeature.allCases.map(\.rawValue) == [
@@ -5925,8 +5925,8 @@ struct MetricsTests {
             "mixer", "soundOutputSwitcher", "micMute", "musicBlock",
             "keepAwake", "brightness", "extraBrightness",
             "quickLauncher", "quickToggles", "colorPicker", "screenOCR", "cleaningMode", "mediaTools",
-            "cleaner", "uninstaller", "homebrew", "screenshot", "cameraPreview", "radialMenu",
-            "scratchpad",
+            "cleaner", "uninstaller", "homebrew", "appUpdates", "screenshot", "cameraPreview",
+            "radialMenu", "scratchpad",
             "monitorCPU", "monitorGPU", "monitorMemory", "monitorNetwork", "monitorDisk", "monitorPower",
         ], "feature ids are stable (they persist inside availability keys)")
         expect(AppFeature.switcher.availabilityKey == "featureAvailable.switcher",
@@ -6112,6 +6112,23 @@ struct MetricsTests {
                    "every menu bar appearance string is set for \(language.rawValue)")
             expect(menuBarAppearanceValues.allSatisfy { !$0.contains("—") },
                    "no em-dash in visible menu bar appearance strings (\(language.rawValue))")
+            let appUpdateValues = Mirror(reflecting: FeatureStrings.appUpdates(language)).children
+                .compactMap { $0.value as? String }
+            expect(appUpdateValues.count == 29 && appUpdateValues.allSatisfy { !$0.isEmpty },
+                   "every app update string is set for \(language.rawValue)")
+            expect(appUpdateValues.allSatisfy { !$0.contains("—") },
+                   "no em-dash in visible app update strings (\(language.rawValue))")
+            expect(FeatureStrings.appUpdates(language).updateSelectedFormat.contains("%d")
+                    && FeatureStrings.appUpdates(language).lastCheckFormat.contains("%@")
+                    && FeatureStrings.appUpdates(language).nextCheckFormat.contains("%@")
+                    && FeatureStrings.appUpdates(language).notificationBodyFormat.contains("%@"),
+                   "app update formats keep their placeholders (\(language.rawValue))")
+            expect(!FeatureStrings.appUpdates(language).notificationBodyOne.contains("%"),
+                   "the single-app note carries no placeholder (\(language.rawValue))")
+            let categoryValues = Mirror(reflecting: FeatureStrings.settingsCategories(language)).children
+                .compactMap { $0.value as? String }
+            expect(categoryValues.count == 6 && categoryValues.allSatisfy { !$0.isEmpty },
+                   "every Settings category name is set for \(language.rawValue)")
             let superKeyValues = Mirror(reflecting: FeatureStrings.superKey(language)).children
                 .compactMap { $0.value as? String }
             expect(superKeyValues.count == 14 && superKeyValues.allSatisfy { !$0.isEmpty },
@@ -7913,6 +7930,235 @@ struct MetricsTests {
                "text where a number belongs is dropped on import")
         expect(shapeChecked?[DefaultsKey.smoothScrollStep] as? Int == 60,
                "a value of the right shape still restores")
+
+        // MARK: App updates
+
+        expect(AppUpdatesSupport.compare("1.130.0", "1.129.0") == .orderedDescending
+                && AppUpdatesSupport.compare("0.730.0.7300790", "0.731.0") == .orderedAscending
+                && AppUpdatesSupport.compare("26.084.0504", "26.119.0622.0003") == .orderedAscending,
+               "versions compare part by part, as numbers")
+        expect(AppUpdatesSupport.compare("1.2", "1.2.0") == .orderedSame
+                && AppUpdatesSupport.compare("1.2", "1.2.1") == .orderedAscending
+                && AppUpdatesSupport.compare("3.5.230", "3.5.230") == .orderedSame,
+               "a missing part counts as zero")
+        expect(AppUpdatesSupport.compare("2026.723.1724", "2026.714.1952") == .orderedDescending
+                && AppUpdatesSupport.compare("00123", "123") == .orderedSame,
+               "leading zeros never decide a comparison")
+        expect(AppUpdatesSupport.versionCore("3.5.262,260717dcrpwg7m0") == "3.5.262"
+                && AppUpdatesSupport.versionCore("0.0.402") == "0.0.402",
+               "the revision after a comma is not part of the version")
+        expect(AppUpdatesSupport.isNewer("3.5.262,260717dcrpwg7m0", than: "3.5.230")
+                && !AppUpdatesSupport.isNewer("1.130.0", than: "1.130.0"),
+               "an update is only newer when the number really grew")
+        expect(AppUpdatesSupport.isUncomparable("latest") && AppUpdatesSupport.isUncomparable("")
+                && !AppUpdatesSupport.isUncomparable("1.0"),
+               "a package without a version number cannot be judged")
+
+        func caskUpdate(_ token: String, installed: String, current: String,
+                        pinned: Bool = false) -> HomebrewPackageUpdate {
+            HomebrewPackageUpdate(kind: .cask, name: token, installedVersions: [installed],
+                                  currentVersion: current, isPinned: pinned)
+        }
+        let caskRecords = [
+            HomebrewCaskRecord(token: "editor", displayName: "Editor",
+                               installedVersion: "1.129.0", appFileNames: ["Editor.app"]),
+            HomebrewCaskRecord(token: "chat", displayName: "Chat",
+                               installedVersion: "0.0.374", appFileNames: ["Chat.app"]),
+            HomebrewCaskRecord(token: "installer", displayName: "Installer",
+                               installedVersion: "26.078", appFileNames: []),
+        ]
+        // The receipt says 1.129 while the app on disk already updated itself
+        // to 1.130: believing the receipt would offer an update that happened.
+        let bundles = ["Editor.app": (name: "Editor", version: "1.130.0", path: "/Applications/Editor.app"),
+                       "Chat.app": (name: "Chat", version: "0.0.401", path: "/Applications/Chat.app")]
+        let packageRows = AppUpdatesSupport.packageUpdates(
+            outdated: [caskUpdate("editor", installed: "1.129.0", current: "1.130.0"),
+                       caskUpdate("chat", installed: "0.0.374", current: "0.0.402"),
+                       caskUpdate("installer", installed: "26.078", current: "26.119"),
+                       caskUpdate("pinnedApp", installed: "1.0", current: "2.0", pinned: true),
+                       caskUpdate("rolling", installed: "latest", current: "latest")],
+            installed: caskRecords,
+            bundleVersion: { bundles[$0] })
+        expect(!packageRows.contains { $0.token == "editor" },
+               "an app that already updated itself is not offered again")
+        expect(packageRows.contains { $0.token == "chat" && $0.installedVersion == "0.0.401" },
+               "the version the app reports wins over the package receipt")
+        expect(packageRows.contains { $0.token == "installer" && $0.installedVersion == "26.078" },
+               "without an app bundle to read, the package receipt is used")
+        // Packages that install through an installer declare no app, so the
+        // catalog name is tried as a bundle name before giving up.
+        let namedRows = AppUpdatesSupport.packageUpdates(
+            outdated: [caskUpdate("installer", installed: "26.078", current: "26.119")],
+            installed: caskRecords,
+            bundleVersion: { ["Installer.app": (name: "Installer", version: "26.084",
+                                                path: "/Applications/Installer.app")][$0] })
+        expect(namedRows.first?.installedVersion == "26.084",
+               "a package with no declared app is matched by its catalog name")
+        let alreadyCurrent = AppUpdatesSupport.packageUpdates(
+            outdated: [caskUpdate("installer", installed: "26.078", current: "26.119")],
+            installed: caskRecords,
+            bundleVersion: { ["Installer.app": (name: "Installer", version: "26.200",
+                                                path: "/Applications/Installer.app")][$0] })
+        expect(alreadyCurrent.isEmpty,
+               "the name match also suppresses an app that ran ahead of its package")
+        expect(!packageRows.contains { $0.token == "pinnedApp" }
+                && !packageRows.contains { $0.token == "rolling" },
+               "pinned packages and packages without a version stay out")
+        expect(packageRows.allSatisfy { $0.canInstallInPlace },
+               "package rows can be installed on the spot")
+
+        let storeApps = [
+            AppUpdatesSupport.InstalledApp(name: "Blocker", bundleID: "net.example.blocker",
+                                           path: "/Applications/Blocker.app",
+                                           version: "2026.714.1952", isFromAppStore: true),
+            AppUpdatesSupport.InstalledApp(name: "Sheets", bundleID: "com.example.sheets",
+                                           path: "/Applications/Sheets.app",
+                                           version: "16.111.1", isFromAppStore: true),
+            AppUpdatesSupport.InstalledApp(name: "Chat", bundleID: "com.example.chat",
+                                           path: "/Applications/Chat.app",
+                                           version: "0.0.401", isFromAppStore: false),
+        ]
+        let candidates = AppUpdatesSupport.appStoreCandidates(apps: storeApps,
+                                                              coveredPaths: ["/Applications/Chat.app"])
+        expect(candidates.count == 2 && !candidates.contains { $0.bundleID == "com.example.chat" },
+               "only store purchases are asked about, and never one the package manager answers for")
+        let storeVersions = [
+            "net.example.blocker": AppUpdatesSupport.StoreEntry(bundleID: "net.example.blocker",
+                                                                version: "2026.723.1724",
+                                                                page: "https://apps.apple.com/app"),
+            "com.example.sheets": AppUpdatesSupport.StoreEntry(bundleID: "com.example.sheets",
+                                                               version: "16.111.1", page: nil),
+        ]
+        let storeRows = AppUpdatesSupport.appStoreUpdates(apps: candidates, storeVersions: storeVersions)
+        expect(storeRows.count == 1 && storeRows[0].name == "Blocker"
+                && !storeRows[0].canInstallInPlace,
+               "a store app is listed only when the store really has a newer version")
+
+        let mergedRows = AppUpdatesSupport.merged(storeRows, packageRows)
+        expect(mergedRows.count == packageRows.count + storeRows.count
+                && mergedRows.first?.canInstallInPlace == true
+                && mergedRows.last?.canInstallInPlace == false,
+               "the merged list puts what can be updated here first")
+        let everything = Set(mergedRows.map(\.id))
+        expect(AppUpdatesSupport.tokens(in: mergedRows, selection: everything).count == packageRows.count
+                && AppUpdatesSupport.hasStoreSelection(in: mergedRows, selection: everything),
+               "the selection splits into package tokens and store hand-offs")
+        expect(AppUpdatesSupport.tokens(in: mergedRows, selection: []).isEmpty
+                && !AppUpdatesSupport.hasStoreSelection(in: mergedRows, selection: []),
+               "an empty selection asks for nothing")
+
+        let keptSelection = AppUpdatesSupport.reconciledSelection(
+            previous: [mergedRows[0].id, "gone:row"],
+            knownIDs: Set(mergedRows.map(\.id)),
+            items: mergedRows)
+        expect(keptSelection == [mergedRows[0].id],
+               "a row that disappeared leaves the selection behind")
+        let withNewFinding = AppUpdatesSupport.reconciledSelection(
+            previous: [], knownIDs: [], items: mergedRows)
+        expect(withNewFinding == Set(mergedRows.map(\.id)),
+               "findings the person has not seen yet arrive already ticked")
+
+        expect(AppUpdatesSupport.storeLookupURL(bundleIDs: [], country: "BR") == nil,
+               "no identifiers means no request")
+        let lookup = AppUpdatesSupport.storeLookupURL(bundleIDs: ["a.b", "c.d"], country: "BR")?
+            .absoluteString ?? ""
+        expect(lookup.contains("bundleId=a.b,c.d") && lookup.contains("country=BR")
+                && lookup.contains("entity=macSoftware"),
+               "several apps are asked about in one request")
+        let noCountry = AppUpdatesSupport.storeLookupURL(bundleIDs: ["a.b"], country: nil)?
+            .absoluteString ?? ""
+        expect(!noCountry.contains("country="), "without a region the request carries none")
+        let lookupBody = Data(#"{"resultCount":1,"results":[{"bundleId":"a.b","version":"2.0","trackViewUrl":"https://x"}]}"#.utf8)
+        expect(AppUpdatesSupport.parseStoreLookup(lookupBody)["a.b"]?.version == "2.0",
+               "the store answer is read back")
+        expect(AppUpdatesSupport.parseStoreLookup(Data("not json".utf8)).isEmpty,
+               "a broken store answer yields nothing instead of throwing")
+
+        let noon = Date(timeIntervalSince1970: 1_800_000_000)
+        expect(AppUpdatesSupport.nextCheckDate(lastCheck: noon, frequency: .off, now: noon) == nil,
+               "with the schedule off nothing is armed")
+        expect(AppUpdatesSupport.nextCheckDate(lastCheck: nil, frequency: .daily, now: noon)
+                == noon.addingTimeInterval(AppUpdatesSupport.catchUpDelay),
+               "a schedule that never ran starts shortly after launch")
+        expect(AppUpdatesSupport.nextCheckDate(lastCheck: noon, frequency: .daily, now: noon)
+                == noon.addingTimeInterval(86_400),
+               "the next daily check follows the last one")
+        expect(AppUpdatesSupport.nextCheckDate(lastCheck: noon.addingTimeInterval(-200_000),
+                                               frequency: .daily, now: noon)
+                == noon.addingTimeInterval(AppUpdatesSupport.catchUpDelay),
+               "a check missed while the Mac was off runs soon, not instantly")
+        expect(AppUpdatesSupport.shouldRecheck(hasCheckedThisSession: false, handoffPending: false,
+                                               lastCheck: noon, now: noon),
+               "a session that never scanned always scans on opening")
+        expect(AppUpdatesSupport.shouldRecheck(hasCheckedThisSession: true, handoffPending: true,
+                                               lastCheck: noon, now: noon),
+               "coming back from the store always re-reads the list")
+        expect(!AppUpdatesSupport.shouldRecheck(hasCheckedThisSession: true, handoffPending: false,
+                                                lastCheck: noon, now: noon.addingTimeInterval(60)),
+               "reopening the panel right away costs nothing")
+        expect(AppUpdatesSupport.shouldRecheck(hasCheckedThisSession: true, handoffPending: false,
+                                               lastCheck: noon,
+                                               now: noon.addingTimeInterval(AppUpdatesSupport.staleAfter)),
+               "an old answer is read again")
+        expect(AppUpdatesSupport.CheckFrequency.sanitized("weekly") == .weekly
+                && AppUpdatesSupport.CheckFrequency.sanitized("nonsense") == .off
+                && AppUpdatesSupport.CheckFrequency.sanitized(nil) == .off,
+               "a damaged frequency falls back to off")
+
+        expect(HomebrewCommandBuilder.upgradeCasks(brewPath: "/opt/x/brew", tokens: [])?.arguments == nil
+                && HomebrewCommandBuilder.upgradeCasks(brewPath: "/opt/x/brew",
+                                                       tokens: ["; rm -rf /"])?.arguments == nil,
+               "an upgrade with nothing valid to name builds no command")
+        expect(HomebrewCommandBuilder.upgradeCasks(brewPath: "/opt/x/brew",
+                                                   tokens: ["chat", "--force", "editor"])?.arguments
+                == ["upgrade", "--cask", "--greedy", "chat", "editor"],
+               "only real package names reach the upgrade command")
+        expect(HomebrewCommandBuilder.outdatedCasksIncludingSelfUpdating(brewPath: "/opt/x/brew").arguments
+                == ["outdated", "--cask", "--greedy", "--json=v2"],
+               "the update check asks for the apps that carry their own updater too")
+        let caskJSON = #"{"formulae":[],"casks":[{"token":"editor","name":["Editor"],"installed":"1.129.0","artifacts":[{"app":["Editor.app"]},{"zap":[]}]}]}"#
+        let parsedRecords = HomebrewParser.parseInstalledCaskRecords(caskJSON)
+        expect(parsedRecords.count == 1 && parsedRecords[0].appFileNames == ["Editor.app"]
+                && parsedRecords[0].displayName == "Editor"
+                && parsedRecords[0].installedVersion == "1.129.0",
+               "an installed package is traced back to the app it puts in place")
+        expect(HomebrewParser.parseInstalledCaskRecords("garbage").isEmpty,
+               "unreadable package output yields no records")
+
+        expect(Defaults.utilityOrderWithAppUpdates("screenshot,quickLauncher,cleaner,homebrew")
+                == ["screenshot", "quickLauncher", "appUpdates", "cleaner", "homebrew"],
+               "app updates joins a saved panel order next to its siblings")
+        expect(Defaults.utilityOrderWithAppUpdates("media,clipboard")
+                == ["media", "appUpdates", "clipboard"],
+               "without the cleaner to anchor to, it still lands near the top")
+        expect(Defaults.utilityOrderWithAppUpdates("cleaner,appUpdates,media")
+                == ["cleaner", "appUpdates", "media"],
+               "an order that already has it is left alone")
+        expect(Defaults.utilityOrderWithAppUpdates("") == ["appUpdates"],
+               "an empty saved order does not lose the entry")
+        expect(Defaults.registeredDefaults[DefaultsKey.appUpdatesCheckFrequency] as? String == "off",
+               "the background check starts off")
+        expect(Defaults.registeredDefaults[DefaultsKey.appUpdatesIncludeAppStore] as? Bool == true
+                && Defaults.registeredDefaults[DefaultsKey.appUpdatesNotify] as? Bool == true
+                && Defaults.registeredDefaults[DefaultsKey.panelUtilityAppUpdates] as? Bool == true,
+               "the app update defaults are registered")
+        expect(SettingsBackupSupport.exportKeys().contains(DefaultsKey.appUpdatesCheckFrequency)
+                && !SettingsBackupSupport.exportKeys().contains(DefaultsKey.appUpdatesLastCheck),
+               "the schedule travels in a backup, the last check does not")
+        expect(AppFeature.appUpdates.enabledKeys.isEmpty
+                && AppFeature.appUpdates.permissions == [.notifications]
+                && AppFeature.appUpdates.group == .tools,
+               "app updates is an on demand tool that can only notify")
+        expect(FeatureVisibilitySupport.features(for: .appUpdates) == [.appUpdates]
+                && !FeatureVisibilitySupport.isPageVisible(.appUpdates, isAvailable: { _ in false }),
+               "the page follows the feature in the hub")
+        expect(activeSet(.notifications, on: [DefaultsKey.appUpdatesNotify],
+                         strings: [DefaultsKey.appUpdatesCheckFrequency: "daily"])
+                .contains(.appUpdates),
+               "app updates only use notifications with a background check armed")
+        expect(!activeSet(.notifications, on: [DefaultsKey.appUpdatesNotify])
+                .contains(.appUpdates),
+               "with the schedule off, app updates need no notification permission")
 
         // MARK: Result
 

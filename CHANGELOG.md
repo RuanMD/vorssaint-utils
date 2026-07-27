@@ -7,12 +7,13 @@ All notable changes to this project are documented here. The format follows
 ## [3.2.0]
 
 ### Summary
-Vorssaint 3.2.0 adds a searchable snippet menu, a super key on Caps Lock,
-mouse button shortcuts, screenshot autopilot and new radial menu slices, and
-the Cleaner can tidy WhatsApp downloads. Plus windows from other desktops in
-the App Switcher and a batch of fixes.
+Vorssaint 3.2.0 adds app updates in one list, a searchable snippet menu, a
+super key on Caps Lock and mouse button shortcuts. Plus screenshot autopilot,
+new radial menu slices and a batch of fixes.
 
 ### Added
+- App updates. One list of the apps with a newer version, ticked the way you
+  want, updated together. Under App updates.
 - A snippet menu. A shortcut opens your snippets in a searchable list and
   picking one types it at the cursor. Under Text snippets.
 - Mouse button shortcuts. Any extra mouse button can press a key
@@ -45,6 +46,8 @@ the App Switcher and a batch of fixes.
   Command together, for shortcuts nothing else uses. Under Super key.
 
 ### Changed
+- Settings groups App updates, Cleaner, Homebrew and Uninstaller under App
+  management.
 - Recording a shortcut keeps the keys to itself instead of triggering the
   app or the system.
 - "Open the editor right after capturing" became the Edit after-capture
