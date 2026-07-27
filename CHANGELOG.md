@@ -56,6 +56,8 @@ new radial menu slices and a batch of fixes.
   tools keeps it floating instead.
 
 ### Fixed
+- Copy text from screen works again. The area is now picked with the app's
+  own selector, the same one screenshots use.
 - Muting the microphone now cuts every microphone, not only the one macOS
   is set to. An app pointed at a headset of its own goes quiet too.
 - The app pickers list every app again, including the ones macOS keeps
