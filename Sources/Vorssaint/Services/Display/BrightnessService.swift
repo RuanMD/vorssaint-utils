@@ -40,10 +40,11 @@ struct BrightnessDisplay: Identifiable, Equatable {
 /// buttons use, addressed per display through its I2C service.
 ///
 /// While the feature is off nothing exists here: no observers, no services,
-/// no I2C traffic. While it is on, the only standing resource is one screen
-/// change observer; everything else happens when a slider moves or a panel
-/// opens. All I2C work runs on a serial queue with the pacing displays need,
-/// and slider drags coalesce to the newest value per display.
+/// no I2C traffic. While it is on, the standing resources are one screen
+/// change observer and a pair of wake observers, and no timers; everything
+/// else happens when a slider moves, a panel opens or the Mac wakes. All I2C
+/// work runs on a serial queue with the pacing displays need, and slider
+/// drags coalesce to the newest value per display.
 final class BrightnessService: ObservableObject {
     static let shared = BrightnessService()
 
@@ -73,6 +74,13 @@ final class BrightnessService: ObservableObject {
 
     private var screenObserver: NSObjectProtocol?
     private var rebuildDebounce: DispatchWorkItem?
+    private var wakeObservers: [NSObjectProtocol] = []
+    private var wakeRebuild: DispatchWorkItem?
+    /// How long displays are given to finish coming back before they are
+    /// spoken to again. A monitor still bringing its connection up answers
+    /// nothing, and taking that silence at face value would move it off the
+    /// protocol its own buttons use.
+    private static let wakeSettleDelay: TimeInterval = 3
     /// Media-key tap, alive while pointer routing or the optional overlay is
     /// on and Accessibility is granted. Its mask covers system-defined events
     /// only, so ordinary typing never touches it.
@@ -194,6 +202,7 @@ final class BrightnessService: ObservableObject {
             object: nil, queue: .main) { [weak self] _ in
             self?.screensChanged()
         }
+        installWakeObservers()
         refresh()
     }
 
@@ -204,6 +213,7 @@ final class BrightnessService: ObservableObject {
         removeFunctionKeyTap()
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         screenObserver = nil
+        removeWakeObservers()
         rebuildDebounce?.cancel()
         rebuildDebounce = nil
         stateLock.lock()
@@ -855,6 +865,50 @@ final class BrightnessService: ObservableObject {
         }
         rebuildDebounce = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    // MARK: - Waking up
+
+    /// Sleep takes the connection to every external monitor down with it, and
+    /// the channel this app speaks to each one through is a new one once the
+    /// connection returns. The channels held from before the sleep then lead
+    /// nowhere: the sliders and the brightness keys go through the motions
+    /// and the monitor never hears any of it, until opening the panel looks
+    /// everything up again. Nothing else can catch this, because the list of
+    /// displays is exactly the same on both sides of the sleep and the check
+    /// above has nothing to compare. Waking is the signal (issue #366).
+    private func installWakeObservers() {
+        guard wakeObservers.isEmpty else { return }
+        let workspace = NSWorkspace.shared.notificationCenter
+        wakeObservers = [NSWorkspace.didWakeNotification,
+                         NSWorkspace.screensDidWakeNotification].map { name in
+            workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                self?.displaysWokeUp()
+            }
+        }
+    }
+
+    private func removeWakeObservers() {
+        let workspace = NSWorkspace.shared.notificationCenter
+        for observer in wakeObservers { workspace.removeObserver(observer) }
+        wakeObservers = []
+        wakeRebuild?.cancel()
+        wakeRebuild = nil
+    }
+
+    /// One wake arrives as both notifications, and the screens usually wake a
+    /// moment before the monitors have finished negotiating, so the two fold
+    /// into a single pass that waits for the connections to settle.
+    private func displaysWokeUp() {
+        guard running else { return }
+        wakeRebuild?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.running else { return }
+            Self.log.log("woke from sleep; rebuilding display routes")
+            self.refresh()
+        }
+        wakeRebuild = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.wakeSettleDelay, execute: work)
     }
 
     // MARK: - Rebuild (work queue)

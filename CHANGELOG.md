@@ -56,6 +56,8 @@ new radial menu slices and a batch of fixes.
   tools keeps it floating instead.
 
 ### Fixed
+- Brightness keys and sliders reach an external monitor again after the Mac
+  has slept. The connection is looked up fresh on waking.
 - Copy text from screen works again. The area is now picked with the app's
   own selector, the same one screenshots use.
 - Muting the microphone now cuts every microphone, not only the one macOS
