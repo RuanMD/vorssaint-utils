@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Vorssaint
 
 import AppKit
+import os.log
 import Combine
 import SwiftUI
 import UserNotifications
@@ -274,10 +275,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// Whether the menu bar icon is actually visible on a screen, rather than
     /// present in the status bar but clipped or dropped by a crowded/notched menu
     /// bar (in which case the button still has a window, just not an on-screen one).
+    private static let menuBarLog = Logger(subsystem: Bundle.main.bundleIdentifier ?? "vorssaint",
+                                           category: "menubar")
+
     private func iconIsOnScreen() -> Bool {
         guard let frame = statusController?.statusItem.button?.window?.frame,
               frame.width > 0, frame.height > 0 else { return false }
         return NSScreen.screens.contains { $0.frame.intersects(frame) }
+    }
+
+    /// What the recovery saw, in the app's own log. Whether macOS gave the
+    /// rebuilt item a place is invisible from the outside, so a report of an
+    /// icon that never comes back has nothing to go on without this
+    /// (issue #369). Read with:
+    /// log show --last 1h --predicate 'category == "menubar"'
+    private func logStatusItemPlacement(_ stage: String) {
+        let window = statusController?.statusItem.button?.window
+        let frame = window?.frame ?? .zero
+        let placement = "\(Int(frame.origin.x)),\(Int(frame.origin.y)) \(Int(frame.width))x\(Int(frame.height))"
+        let screens = NSScreen.screens.map { "\(Int($0.frame.width))x\(Int($0.frame.height))" }
+            .joined(separator: ",")
+        let visible = statusController?.statusItem.isVisible ?? false
+        let manager = Self.runningMenuBarManagerName() ?? "none"
+        Self.menuBarLog.log("reshow \(stage, privacy: .public) window=\(window != nil) frame=\(placement, privacy: .public) visible=\(visible) screens=\(screens, privacy: .public) organizer=\(manager, privacy: .public)")
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
@@ -1237,8 +1257,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // asked to see (and then trip the "still hidden" alert).
         UserDefaults.standard.set(false, forKey: DefaultsKey.menuBarHideIconWithMetrics)
         statusController?.recreateStatusItem(resetPlacement: true)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-            guard let self, !self.iconIsOnScreen() else { return }
+        verifyIconReappeared(attemptsLeft: Self.reshowVerifyAttempts)
+    }
+
+    /// macOS places a rebuilt status item on its own schedule, and a busy bar
+    /// can take longer than one look to settle. Judging it once meant a slow
+    /// placement read as a failure and the person was told the bar was full
+    /// when it was not, so the answer is asked for several times before
+    /// anything is said.
+    private static let reshowVerifyAttempts = 4
+    private static let reshowVerifyInterval: TimeInterval = 0.8
+
+    private func verifyIconReappeared(attemptsLeft: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.reshowVerifyInterval) { [weak self] in
+            guard let self else { return }
+            if self.iconIsOnScreen() {
+                self.logStatusItemPlacement("appeared")
+                return
+            }
+            guard attemptsLeft <= 1 else {
+                self.verifyIconReappeared(attemptsLeft: attemptsLeft - 1)
+                return
+            }
+            self.logStatusItemPlacement("still hidden")
             let s = L10n.shared.s
             var body = s.menuBarIconStillHiddenBody
             if let manager = Self.runningMenuBarManagerName() {

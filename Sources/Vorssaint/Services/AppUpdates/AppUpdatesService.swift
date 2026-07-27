@@ -441,6 +441,15 @@ final class AppUpdatesService: ObservableObject {
     /// again.
     private static let commandTimeout: TimeInterval = 120
 
+    /// How long the output is still collected after the command was told to
+    /// stop, so a healthy command that was merely slow keeps its answer.
+    private static let commandTerminationGrace: TimeInterval = 5
+
+    /// Carries the output back from the reading queue.
+    private final class OutputBox: @unchecked Sendable {
+        var data = Data()
+    }
+
     private static func runCommand(_ command: HomebrewCommand) -> (status: Int32, output: String) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: command.executable)
@@ -453,17 +462,28 @@ final class AppUpdatesService: ObservableObject {
         } catch {
             return (-1, error.localizedDescription)
         }
-        let watchdog = DispatchWorkItem {
-            if process.isRunning { process.terminate() }
-        }
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + commandTimeout,
-                                                       execute: watchdog)
         // Read before waiting: a large listing fills the pipe buffer and a
-        // waiting process would never drain it. Terminating closes the pipe,
-        // so this read always ends.
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        // waiting process would never drain it. The read runs on its own queue
+        // because terminating the command does NOT necessarily end it: the
+        // package manager spawns helpers that inherit the pipe, and one of
+        // those outliving the signal keeps the write end open forever. The
+        // wait below is therefore the real ceiling, so a stuck descriptor can
+        // never leave the check spinning for the rest of the session.
+        let box = OutputBox()
+        let read = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .utility).async {
+            box.data = pipe.fileHandleForReading.readDataToEndOfFile()
+            read.signal()
+        }
+        if read.wait(timeout: .now() + commandTimeout) == .timedOut {
+            if process.isRunning { process.terminate() }
+            guard read.wait(timeout: .now() + commandTerminationGrace) == .success else {
+                // The output is given up on, not waited for. The reading queue
+                // ends by itself whenever the last holder of the pipe goes.
+                return (-1, "")
+            }
+        }
         process.waitUntilExit()
-        watchdog.cancel()
-        return (process.terminationStatus, String(data: data, encoding: .utf8) ?? "")
+        return (process.terminationStatus, String(data: box.data, encoding: .utf8) ?? "")
     }
 }

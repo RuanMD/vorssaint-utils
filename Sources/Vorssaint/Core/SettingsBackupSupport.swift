@@ -80,7 +80,6 @@ enum SettingsBackupSupport {
         DefaultsKey.appUpdatesLastCheck,
         DefaultsKey.appUpdatesLastCount,
         DefaultsKey.cleanerLastAutoFreed,
-        DefaultsKey.cleanerBadgeSeen,
         DefaultsKey.whatsAppDownloadsAutomaticStartDate,
         DefaultsKey.whatsAppDownloadsLastAutoRun,
         DefaultsKey.whatsAppDownloadsLastCleanup,

@@ -262,6 +262,18 @@ enum BrightnessSupport {
     }
 
     /// DDC value to the 0...1 slider scale.
+    /// Whether a remembered brightness can still be stepped from, or the
+    /// monitor has to be asked first. A value the app itself just wrote is
+    /// true; one that has been sitting around is only a guess, because the
+    /// monitor has buttons of its own (issue #370).
+    static func trustsRememberedLevel(lastKnownAt: Date?,
+                                      now: Date,
+                                      window: TimeInterval) -> Bool {
+        guard let lastKnownAt else { return false }
+        let age = now.timeIntervalSince(lastKnownAt)
+        return age >= 0 && age < window
+    }
+
     static func normalized(current: UInt16, maximum: UInt16) -> Double {
         let ceiling = sanitizedMaximum(maximum)
         return min(max(Double(current) / Double(ceiling), 0), 1)
