@@ -337,6 +337,16 @@ enum DefaultsKey {
     static let cameraPreviewShortcut = "cameraPreviewShortcut"
     static let scratchpadShortcutEnabled = "scratchpadShortcutEnabled"
     static let scratchpadShortcut = "scratchpadShortcut"
+    static let commandBarShortcutEnabled = "commandBarShortcutEnabled"
+    static let commandBarShortcut = "commandBarShortcut"
+    static let commandBarUsage = "commandBarUsage"           // per-command run counts, never queries
+    static let commandBarDisabledSources = "commandBarDisabledSources" // kinds of result switched off
+    static let commandBarAliases = "commandBarAliases"       // {row id: the name the person gave it}
+    static let commandBarPins = "commandBarPins"             // row keys kept at the top, in order
+    static let commandBarHidden = "commandBarHidden"         // row keys the person never wants offered
+    static let commandBarLinks = "commandBarLinks"           // Data: [CommandBarLink] JSON
+    static let commandBarRowShortcuts = "commandBarRowShortcuts" // {row key: shortcut}
+    static let panelUtilityCommandBar = "panelUtilityCommandBar"
     static let scratchpadRetention = "scratchpadRetention"   // never | day | week | month
     static let scratchpadCloseOnClickOutside = "scratchpadCloseOnClickOutside"
     static let micMuteActive = "micMuteActive"               // mic muted by the app (survives relaunch)
@@ -405,6 +415,7 @@ enum DefaultsKey {
     static let windowLayoutShortcutLeftTwoThirds = "windowLayoutShortcutLeftTwoThirds"
     static let windowLayoutShortcutRightTwoThirds = "windowLayoutShortcutRightTwoThirds"
     static let windowLayoutShortcutNextDisplay = "windowLayoutShortcutNextDisplay"
+    static let windowLayoutShortcutFullScreen = "windowLayoutShortcutFullScreen"
     static let windowLayoutShortcutTopLeftSixth = "windowLayoutShortcutTopLeftSixth"
     static let windowLayoutShortcutTopCenterSixth = "windowLayoutShortcutTopCenterSixth"
     static let windowLayoutShortcutTopRightSixth = "windowLayoutShortcutTopRightSixth"
@@ -913,6 +924,13 @@ enum Defaults {
         DefaultsKey.cameraPreviewShortcut: GlobalShortcut.cameraPreviewDefault.storageValue,
         DefaultsKey.scratchpadShortcutEnabled: false,
         DefaultsKey.scratchpadShortcut: GlobalShortcut.scratchpadDefault.storageValue,
+        DefaultsKey.commandBarShortcutEnabled: false,
+        DefaultsKey.commandBarDisabledSources: "",
+        DefaultsKey.commandBarAliases: "",
+        DefaultsKey.commandBarPins: "",
+        DefaultsKey.commandBarHidden: "",
+        DefaultsKey.commandBarShortcut: GlobalShortcut.commandBarDefault.storageValue,
+        DefaultsKey.panelUtilityCommandBar: true,
         DefaultsKey.scratchpadRetention: ScratchpadRetention.never.rawValue,
         DefaultsKey.scratchpadCloseOnClickOutside: true,
         DefaultsKey.micMuteActive: false,
@@ -981,6 +999,7 @@ enum Defaults {
         DefaultsKey.windowLayoutShortcutBottomLeftSixth: WindowLayoutAction.clearedShortcutStorageValue,
         DefaultsKey.windowLayoutShortcutBottomCenterSixth: WindowLayoutAction.clearedShortcutStorageValue,
         DefaultsKey.windowLayoutShortcutBottomRightSixth: WindowLayoutAction.clearedShortcutStorageValue,
+        DefaultsKey.windowLayoutShortcutFullScreen: WindowLayoutAction.clearedShortcutStorageValue,
     ]
 
     static func register() {

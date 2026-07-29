@@ -31,6 +31,8 @@ enum SettingsBackupSupport {
         DefaultsKey.finderCutPasteEnabled,
         DefaultsKey.textSnippets,
         DefaultsKey.radialMenuItems,
+        DefaultsKey.commandBarLinks,
+        DefaultsKey.commandBarRowShortcuts,
         DefaultsKey.language,
         DefaultsKey.appVolumes,
         DefaultsKey.appOutputDevices,
@@ -96,6 +98,8 @@ enum SettingsBackupSupport {
         DefaultsKey.whatsAppOrganizerLastMoved,
         DefaultsKey.whatsAppOrganizerLastDuplicates,
         DefaultsKey.whatsAppOrganizerLastFailed,
+        // What one person runs most is habit, not configuration.
+        DefaultsKey.commandBarUsage,
         DefaultsKey.simulateUpdate,
         DefaultsKey.updateShowcaseIntroVersion,
         DefaultsKey.updateShowcaseMediaOverride,

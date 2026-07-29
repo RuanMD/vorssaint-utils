@@ -72,3 +72,26 @@ struct HUDBackdrop: NSViewRepresentable {
         view.layer?.masksToBounds = true
     }
 }
+
+/// Plays an animated image. SwiftUI's Image shows only the first frame of a
+/// GIF, so anything that has to move goes through AppKit.
+struct AnimatedGIFView: NSViewRepresentable {
+    let image: NSImage
+
+    func makeNSView(context: Context) -> NSImageView {
+        let view = NSImageView()
+        view.imageAlignment = .alignCenter
+        view.imageScaling = .scaleProportionallyUpOrDown
+        view.animates = true
+        view.wantsLayer = true
+        view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        view.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        return view
+    }
+
+    func updateNSView(_ view: NSImageView, context: Context) {
+        guard view.image !== image else { return }
+        view.image = image
+        view.animates = true
+    }
+}

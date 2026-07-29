@@ -43,6 +43,12 @@ final class QuickTogglesService: ObservableObject {
         finderFlag(QuickTogglesSupport.showAllFilesKey, default: false)
     }
 
+    /// Current system appearance, read from the same WindowServer switch the
+    /// toggle flips; nil when the symbol is unavailable.
+    var systemAppearanceIsDark: Bool? {
+        Self.appearanceTheme?.get()
+    }
+
     var desktopIconsShown: Bool {
         finderFlag(QuickTogglesSupport.createDesktopKey, default: true)
     }
@@ -83,6 +89,12 @@ final class QuickTogglesService: ObservableObject {
         alert.addButton(withTitle: L10n.shared.s.uninstallerCancel)
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
+        emptyTrashConfirmed()
+    }
+
+    /// The variant for surfaces that already asked in their own words (the
+    /// command bar confirms inline); emptying is still permanent.
+    func emptyTrashConfirmed() {
         runAppleScript(.emptyTrash,
                        target: .finder,
                        source: QuickTogglesSupport.emptyTrashSource)

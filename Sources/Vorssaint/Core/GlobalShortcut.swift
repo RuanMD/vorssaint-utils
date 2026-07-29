@@ -196,6 +196,12 @@ struct GlobalShortcut: Equatable, Hashable {
                                                               modifiers: [.control, .option, .command])
     static let menuBarOrganizerSearchDefault = GlobalShortcut(keyCode: Int64(kVK_ANSI_F),
                                                               modifiers: [.control, .option, .command])
+    // Option-Space, the combination mature launchers settled on: one thumb
+    // and one finger, mirroring the system search's Command-Space without
+    // fighting it for the key. Registered as a hotkey it never types the
+    // narrow space some layouts put on that combination.
+    static let commandBarDefault = GlobalShortcut(keyCode: Int64(kVK_Space),
+                                                  modifiers: [.option])
 
     static func saved(for key: String, fallback: GlobalShortcut) -> GlobalShortcut {
         if let raw = UserDefaults.standard.string(forKey: key),
@@ -474,6 +480,7 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
     case menuBarOrganizerToggle
     case menuBarOrganizerAlways
     case menuBarOrganizerSearch
+    case commandBar
 
     var id: String { storageKey }
 
@@ -498,6 +505,7 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
         case .menuBarOrganizerToggle: return DefaultsKey.menuBarOrganizerToggleShortcut
         case .menuBarOrganizerAlways: return DefaultsKey.menuBarOrganizerAlwaysShortcut
         case .menuBarOrganizerSearch: return DefaultsKey.menuBarOrganizerSearchShortcut
+        case .commandBar: return DefaultsKey.commandBarShortcut
         }
     }
 
@@ -522,6 +530,7 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
         case .menuBarOrganizerToggle: return .menuBarOrganizerToggleDefault
         case .menuBarOrganizerAlways: return .menuBarOrganizerAlwaysDefault
         case .menuBarOrganizerSearch: return .menuBarOrganizerSearchDefault
+        case .commandBar: return .commandBarDefault
         }
     }
 
@@ -553,6 +562,7 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
             return FeatureStrings.menuBarOrganizer(L10n.shared.language).toggleAlwaysShortcut
         case .menuBarOrganizerSearch:
             return FeatureStrings.menuBarOrganizer(L10n.shared.language).searchShortcut
+        case .commandBar: return FeatureStrings.commandBar(L10n.shared.language).pageTitle
         }
     }
 
@@ -594,6 +604,7 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
         case .menuBarOrganizerSearch:
             return [DefaultsKey.menuBarOrganizerEnabled,
                     DefaultsKey.menuBarOrganizerSearchShortcutEnabled]
+        case .commandBar: return [DefaultsKey.commandBarShortcutEnabled]
         }
     }
 
@@ -619,6 +630,7 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
         case .snippetLibrary: return .textSnippets
         case .menuBarOrganizerToggle, .menuBarOrganizerAlways, .menuBarOrganizerSearch:
             return .menuBarOrganizer
+        case .commandBar: return .commandBar
         }
     }
 

@@ -1481,6 +1481,83 @@ final class AppVolumeMixer: ObservableObject {
         return false
     }
 
+    /// System volume as people mean it: the default output device's main
+    /// scalar. Static on purpose so callers (the command bar) never spin the
+    /// mixer up; false when the device exposes no software volume control.
+    @discardableResult
+    static func setSystemOutputVolume(_ volume: Double) -> Bool {
+        guard let device = defaultOutputDeviceID() else { return false }
+        let clamped = Float32(min(max(volume, 0), 1))
+        let applied = setOutputVolume(clamped, for: device)
+        // Mute is a separate switch from the level, so asking for a volume
+        // while the Mac is muted would set a number nobody can hear. Asking
+        // for sound means asking for sound, which is what the volume keys do.
+        if clamped > 0 { setOutputMuted(false, for: device) }
+        return applied
+    }
+
+    /// Whether the sound is currently cut, or nil when this output has no
+    /// mute switch of its own.
+    static func systemOutputIsMuted() -> Bool? {
+        guard let device = defaultOutputDeviceID() else { return nil }
+        return outputMuted(for: device)
+    }
+
+    @discardableResult
+    static func setSystemOutputMuted(_ muted: Bool) -> Bool {
+        guard let device = defaultOutputDeviceID() else { return false }
+        return setOutputMuted(muted, for: device)
+    }
+
+    private static func defaultOutputDeviceID() -> AudioObjectID? {
+        var device = AudioObjectID(0)
+        guard read(AudioObjectID(kAudioObjectSystemObject),
+                   kAudioHardwarePropertyDefaultOutputDevice, &device),
+              device != 0 else { return nil }
+        return device
+    }
+
+    /// The mute switch can sit on the device as a whole or on each channel,
+    /// depending on the driver, so both are tried before giving up.
+    private static func muteElements(for deviceID: AudioObjectID) -> [AudioObjectPropertyElement] {
+        [kAudioObjectPropertyElementMain, 1, 2]
+    }
+
+    private static func outputMuted(for deviceID: AudioObjectID) -> Bool? {
+        for element in muteElements(for: deviceID) {
+            var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyMute,
+                                                     mScope: kAudioObjectPropertyScopeOutput,
+                                                     mElement: element)
+            guard AudioObjectHasProperty(deviceID, &address) else { continue }
+            var value: UInt32 = 0
+            var size = UInt32(MemoryLayout<UInt32>.size)
+            guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &value) == noErr
+            else { continue }
+            return value != 0
+        }
+        return nil
+    }
+
+    @discardableResult
+    private static func setOutputMuted(_ muted: Bool, for deviceID: AudioObjectID) -> Bool {
+        var changed = false
+        for element in muteElements(for: deviceID) {
+            var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyMute,
+                                                     mScope: kAudioObjectPropertyScopeOutput,
+                                                     mElement: element)
+            guard AudioObjectHasProperty(deviceID, &address) else { continue }
+            var settable = DarwinBoolean(false)
+            guard AudioObjectIsPropertySettable(deviceID, &address, &settable) == noErr,
+                  settable.boolValue else { continue }
+            var value: UInt32 = muted ? 1 : 0
+            if AudioObjectSetPropertyData(deviceID, &address, 0, nil,
+                                          UInt32(MemoryLayout<UInt32>.size), &value) == noErr {
+                changed = true
+            }
+        }
+        return changed
+    }
+
     @discardableResult
     fileprivate static func read<T>(_ object: AudioObjectID,
                                     _ selector: AudioObjectPropertySelector,

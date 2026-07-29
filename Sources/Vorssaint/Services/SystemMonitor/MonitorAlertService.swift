@@ -11,6 +11,7 @@ final class MonitorAlertService {
 
     private var cancellables = Set<AnyCancellable>()
     private var highCPUSince: Date?
+    private var cpuTemperatureGate = TemperatureAlertGate()
     private var lastSent: [MonitorAlertKind: Date] = [:]
 
     private init() {}
@@ -51,12 +52,14 @@ final class MonitorAlertService {
     private func stopSink() {
         cancellables.removeAll()
         highCPUSince = nil
+        cpuTemperatureGate.reset()
     }
 
     private func evaluate(_ snapshot: SystemSnapshot) {
         let defaults = UserDefaults.standard
         guard Self.anyEnabled(in: defaults) else {
             highCPUSince = nil
+            cpuTemperatureGate.reset()
             return
         }
         let strings = FeatureStrings.monitorAlerts(L10n.shared.language)
@@ -71,11 +74,10 @@ final class MonitorAlertService {
             highCPUSince = nil
         }
 
-        if alertOn(DefaultsKey.monitorAlertCPUTemperature, .monitorCPU),
-           let temperature = highCPUTemperature(from: snapshot, defaults: defaults) {
-            send(.cpuTemperature,
-                 title: strings.cpuTemperatureTitle,
-                 body: String(format: strings.cpuTemperatureBodyFormat, temperature))
+        if alertOn(DefaultsKey.monitorAlertCPUTemperature, .monitorCPU) {
+            evaluateCPUTemperature(snapshot, defaults: defaults, strings: strings)
+        } else {
+            cpuTemperatureGate.reset()
         }
 
         if alertOn(DefaultsKey.monitorAlertMemory, .monitorMemory),
@@ -131,14 +133,19 @@ final class MonitorAlertService {
         return (device.name, threshold)
     }
 
-    private func highCPUTemperature(from snapshot: SystemSnapshot,
-                                    defaults: UserDefaults) -> Int? {
+    private func evaluateCPUTemperature(_ snapshot: SystemSnapshot,
+                                        defaults: UserDefaults,
+                                        strings: MonitorAlertFeatureStrings) {
         let threshold = Defaults.sanitizedPercent(defaults.integer(forKey: DefaultsKey.monitorAlertCPUTemperatureThreshold),
                                                   fallback: 90,
                                                   range: 70...105)
-        guard let temperature = snapshot.cpuTemperature,
-              temperature >= Double(threshold) else { return nil }
-        return Int(temperature.rounded())
+        guard cpuTemperatureGate.shouldAlert(temperature: snapshot.cpuTemperature,
+                                             threshold: Double(threshold),
+                                             readAt: snapshot.cpuTemperatureReadAt),
+              let temperature = snapshot.cpuTemperature else { return }
+        send(.cpuTemperature,
+             title: strings.cpuTemperatureTitle,
+             body: String(format: strings.cpuTemperatureBodyFormat, Int(temperature.rounded())))
     }
 
     private func lowBattery(from snapshot: SystemSnapshot,

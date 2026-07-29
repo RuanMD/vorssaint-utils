@@ -26,145 +26,9 @@ struct SettingsView: View {
     @ObservedObject private var features = FeatureRuntime.shared
     @State private var searchQuery = ""
 
-    private var categories: SettingsCategoryStrings {
-        FeatureStrings.settingsCategories(l10n.language)
-    }
-
-    private struct SidebarItem: Identifiable {
-        let page: SettingsPage
-        let title: String
-        let icon: String
-        /// Labels of options living inside the page, so the search finds a
-        /// page by what it contains, in the user's language.
-        var keywords: [String] = []
-        var id: SettingsPage { page }
-    }
-
-    private var sidebarSections: [(title: String, items: [SidebarItem])] {
-        [
-            (categories.essentials, [
-                SidebarItem(page: .general, title: l10n.s.tabGeneral, icon: "gearshape",
-                            keywords: [l10n.s.launchAtLogin, l10n.s.languageLabel, l10n.s.showMenuBarIcon,
-                                       l10n.s.musicBlockTitle, l10n.s.musicBlockSection,
-                                       FeatureStrings.appearance(l10n.language).label,
-                                       FeatureStrings.appearance(l10n.language).dark]),
-                // Searching any feature name lands here even when the feature
-                // is hidden, so the hub is always the way back.
-                SidebarItem(page: .features, title: FeatureStrings.hub(l10n.language).pageTitle,
-                            icon: "square.grid.2x2",
-                            keywords: AppFeature.allCases.map {
-                                $0.hubTitle(l10n.s, hub: FeatureStrings.hub(l10n.language))
-                            }),
-                SidebarItem(page: .energy, title: l10n.s.tabEnergy, icon: "bolt.fill",
-                            keywords: [l10n.s.keepAwakeTitle, l10n.s.clamshellTitle,
-                                       l10n.s.defaultDurationLabel, l10n.s.extraBrightnessName,
-                                       l10n.s.keepAwakeActiveIconLabel,
-                                       l10n.s.keepAwakeActiveIconCoffee,
-                                       l10n.s.keepAwakeActiveIconEye,
-                                       FeatureStrings.brightness(l10n.language).pageTitle,
-                                       FeatureStrings.brightness(l10n.language).osdToggle,
-                                       FeatureStrings.keepAwakeAutomation(l10n.language)
-                                           .externalDisplayToggle,
-                                       FeatureStrings.keepAwakeAutomation(l10n.language).powerToggle]),
-                SidebarItem(page: .monitor, title: l10n.s.tabMonitor, icon: "chart.line.uptrend.xyaxis",
-                            keywords: [l10n.s.menuBarSpacingLabel, l10n.s.menuBarHideIconToggle,
-                                       l10n.s.monitorMemoryPressureDot]),
-                SidebarItem(page: .menuBarOrganizer,
-                            title: FeatureStrings.menuBarOrganizer(l10n.language).pageTitle,
-                            icon: "menubar.rectangle",
-                            keywords: [FeatureStrings.menuBarOrganizer(l10n.language).enable,
-                                       FeatureStrings.menuBarOrganizer(l10n.language).search]),
-            ]),
-            (categories.windowsControls, [
-                SidebarItem(page: .mouse, title: l10n.s.tabMouse, icon: "computermouse",
-                            keywords: [l10n.s.invertMouseScroll, l10n.s.middleClickTapPicker,
-                                       l10n.s.smoothScrollName, l10n.s.mouseNavigationEnable,
-                                       FeatureStrings.mouseButtons(l10n.language).pageTitle,
-                                       FeatureStrings.mouseExceptions(l10n.language).listTitle]),
-                SidebarItem(page: .switcher, title: l10n.s.tabSwitcher, icon: "rectangle.on.rectangle",
-                            keywords: [l10n.s.switcherEnable, l10n.s.dockClickMinimize,
-                                       l10n.s.dockClickCycleWindows]),
-                SidebarItem(page: .windowLayout, title: FeatureStrings.windowLayout(l10n.language).title, icon: "rectangle.3.group",
-                            keywords: [l10n.s.dockClickCycleWindows,
-                                       FeatureStrings.windowLayout(l10n.language).gestureEnable,
-                                       FeatureStrings.windowLayout(l10n.language).gestureResize]),
-                SidebarItem(page: .autoQuit, title: l10n.s.autoQuitName, icon: "xmark.rectangle",
-                            keywords: [l10n.s.autoQuitEnable]),
-            ]),
-            (categories.files, [
-                SidebarItem(page: .clipboard, title: FeatureStrings.clipboard(l10n.language).title, icon: "doc.on.clipboard",
-                            keywords: [FeatureStrings.clipboard(l10n.language).limit,
-                                       FeatureStrings.clipboard(l10n.language).skipSensitive]),
-                SidebarItem(page: .cutPaste, title: l10n.s.cutPasteName, icon: "scissors",
-                            keywords: [l10n.s.cutPasteEnable]),
-                SidebarItem(page: .shelf, title: l10n.s.shelfName, icon: "tray.full",
-                            keywords: [l10n.s.shelfEnable, l10n.s.shelfDropZoneToggle]),
-                SidebarItem(page: .media, title: l10n.s.mediaName, icon: "photo.on.rectangle.angled",
-                            keywords: ["PDF", "GIF", l10n.s.mediaStartConvertPDF, l10n.s.ocrName]),
-            ]),
-            // Everything about the apps installed on the Mac lives together:
-            // what is out of date, what is junk and what should go.
-            (categories.appManagement, [
-                SidebarItem(page: .appUpdates,
-                            title: FeatureStrings.appUpdates(l10n.language).pageTitle,
-                            icon: "arrow.down.app",
-                            keywords: [FeatureStrings.appUpdates(l10n.language).checkNow,
-                                       FeatureStrings.appUpdates(l10n.language).frequencyLabel,
-                                       FeatureStrings.appUpdates(l10n.language).appStoreBadge,
-                                       l10n.s.homebrewName]),
-                SidebarItem(page: .cleaner, title: l10n.s.cleanerName, icon: "sparkles",
-                            keywords: [l10n.s.cleanerScheduleTitle,
-                                       FeatureStrings.whatsAppDownloads(l10n.language).title,
-                                       FeatureStrings.whatsAppDownloads(l10n.language).automatic,
-                                       FeatureStrings.whatsAppDownloads(l10n.language).fileTypes]),
-                SidebarItem(page: .homebrew, title: l10n.s.homebrewName, icon: "shippingbox"),
-                SidebarItem(page: .uninstaller, title: l10n.s.uninstallerName, icon: "trash"),
-            ]),
-            (categories.utilities, [
-                SidebarItem(page: .quickTools, title: l10n.s.quickToolsTab, icon: "wand.and.rays",
-                            keywords: [l10n.s.launcherName, l10n.s.colorPickerName,
-                                       l10n.s.micMuteName, l10n.s.ocrName,
-                                       l10n.s.colorPickerBareHexToggle, l10n.s.micMuteMenuBarToggle,
-                                       FeatureStrings.quickToggles(l10n.language).pageTitle,
-                                       FeatureStrings.quickToggles(l10n.language).darkModeToDark,
-                                       FeatureStrings.quickToggles(l10n.language).emptyTrashTitle,
-                                       FeatureStrings.cameraPreview(l10n.language).pageTitle,
-                                       FeatureStrings.scratchpad(l10n.language).pageTitle]),
-                SidebarItem(page: .screenshot,
-                            title: FeatureStrings.screenshot(l10n.language).pageTitle,
-                            icon: "camera.viewfinder",
-                            keywords: [FeatureStrings.screenshot(l10n.language).freezeToggle,
-                                       FeatureStrings.screenshot(l10n.language).pinButton,
-                                       FeatureStrings.screenshot(l10n.language).toolPixelate,
-                                       FeatureStrings.screenshot(l10n.language).toolArrow]),
-                SidebarItem(page: .urlCleaner, title: l10n.s.urlCleanerName, icon: "link"),
-                SidebarItem(page: .keyDebounce, title: l10n.s.keyDebounceName, icon: "keyboard"),
-                SidebarItem(page: .superKey,
-                            title: FeatureStrings.superKey(l10n.language).pageTitle,
-                            icon: "capslock",
-                            keywords: [FeatureStrings.superKey(l10n.language).capsLockKey,
-                                       FeatureStrings.superKey(l10n.language).enableToggle]),
-                SidebarItem(page: .textSnippets, title: FeatureStrings.snippets(l10n.language).pageTitle,
-                            icon: "text.append",
-                            keywords: [FeatureStrings.snippets(l10n.language).triggerLabel,
-                                       FeatureStrings.snippets(l10n.language).addButton]),
-                SidebarItem(page: .radialMenu, title: FeatureStrings.radialMenu(l10n.language).pageTitle,
-                            icon: "circle.grid.cross",
-                            keywords: [FeatureStrings.radialMenu(l10n.language).addButton,
-                                       FeatureStrings.radialMenu(l10n.language).kindApp,
-                                       FeatureStrings.radialMenu(l10n.language).kindMedia,
-                                       FeatureStrings.radialMenu(l10n.language).kindSubmenu]),
-            ]),
-            (categories.app, [
-                SidebarItem(page: .shortcuts, title: l10n.s.shortcutsPageTitle, icon: "command",
-                            keywords: [l10n.s.hotkeyToggle]),
-                SidebarItem(page: .advanced, title: l10n.s.tabAdvanced, icon: "wrench.and.screwdriver"),
-                SidebarItem(page: .about, title: l10n.s.tabAbout, icon: "info.circle",
-                            keywords: [l10n.s.reviewIntro]),
-                SidebarItem(page: .releaseNotes, title: l10n.s.tabReleaseNotes, icon: "sparkles"),
-                SidebarItem(page: .support, title: l10n.s.tabSupport, icon: "heart.fill"),
-            ]),
-        ]
+    /// The one map of pages, shared with the command bar (SettingsDirectory).
+    private var sidebarSections: [(title: String, items: [SettingsDirectoryItem])] {
+        SettingsDirectory.sections(l10n.s, language: l10n.language)
     }
 
     var body: some View {
@@ -245,6 +109,7 @@ struct SettingsView: View {
         case .features: FeatureHubSettings()
         case .textSnippets: TextSnippetsSettings()
         case .radialMenu: RadialMenuSettings()
+        case .commandBar: CommandBarSettings()
         case .energy: EnergySettings()
         case .monitor: MonitorSettings()
         case .menuBarOrganizer: MenuBarOrganizerSettings()

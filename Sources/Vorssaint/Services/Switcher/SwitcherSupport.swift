@@ -23,6 +23,12 @@ struct SwitcherSearchRecord: Equatable {
     let appName: String
 }
 
+/// What a letter typed with the panel open does. Anything else goes to search.
+enum SwitcherLetterAction: Equatable {
+    case closeWindow
+    case quitApp
+}
+
 struct SwitcherAppGroup: Identifiable, Equatable {
     let pid: pid_t
     let appName: String
@@ -628,6 +634,76 @@ enum SwitcherSupport {
                                   selectedIndex: clampedSelection(nextIndex, count: remaining.count),
                                   didRemove: true,
                                   shouldEndSession: false)
+    }
+
+    /// Which entry a release should raise while windows are already closing:
+    /// the highlight lands where the grid settles once they are gone, so
+    /// letting go right after closing one never raises it again. With nothing
+    /// left to raise, the release only dismisses the panel.
+    static func commitTargetID(itemIDs: [String],
+                               selectedIndex: Int,
+                               closingItemIDs: Set<String>) -> String? {
+        guard itemIDs.indices.contains(selectedIndex) else { return nil }
+        let selected = itemIDs[selectedIndex]
+        guard closingItemIDs.contains(selected) else { return selected }
+        let remaining = itemIDs.filter { !closingItemIDs.contains($0) }
+        guard !remaining.isEmpty else { return nil }
+        let position = itemIDs[..<selectedIndex].filter { !closingItemIDs.contains($0) }.count
+        return remaining[clampedSelection(position, count: remaining.count)]
+    }
+
+    /// Whether a click ends the session. The panel floats above everything and
+    /// never takes the keyboard from the app in front, so clicking another
+    /// window is what most people try when they want it gone, and a session
+    /// opened with no key held down has no release coming to close it either
+    /// (issue #384). Anything on the panel still belongs to the panel.
+    static func shouldDismissForClick(panelIsVisible: Bool,
+                                      panelFrame: CGRect,
+                                      location: CGPoint) -> Bool {
+        panelIsVisible && !panelFrame.contains(location)
+    }
+
+    /// The two letters the panel acts on: W closes the highlighted window and
+    /// Q quits its app. A keyboard answers by the letter it types, so both keys
+    /// stay where they are printed even on layouts that move them (measured:
+    /// French and Italian put W elsewhere, Turkish moves both). Layouts that
+    /// type no Latin letter at all, like Cyrillic and Greek, go by the key's
+    /// position instead, which is exactly where macOS resolves their command
+    /// shortcuts (measured: with Command held both translate that key to "w").
+    static func letterAction(typedCharacter: String?, keyCode: Int64) -> SwitcherLetterAction? {
+        guard let letter = latinLetter(in: typedCharacter) else {
+            switch keyCode {
+            case USKeyPosition.w: return .closeWindow
+            case USKeyPosition.q: return .quitApp
+            default: return nil
+            }
+        }
+        switch letter {
+        case "w": return .closeWindow
+        case "q": return .quitApp
+        default: return nil
+        }
+    }
+
+    /// Key positions on the US keyboard, the fallback for layouts with no
+    /// Latin letters of their own.
+    private enum USKeyPosition {
+        static let q: Int64 = 12
+        static let w: Int64 = 13
+    }
+
+    /// The plain letter a keystroke typed, when it typed one. Accents fold
+    /// away, so a letter of a Latin alphabet is never mistaken for one of the
+    /// keys above.
+    private static func latinLetter(in text: String?) -> Character? {
+        guard let folded = text?.folding(options: [.diacriticInsensitive, .caseInsensitive],
+                                         locale: .current),
+              folded.count == 1,
+              let letter = folded.first,
+              letter.isASCII,
+              letter.isLetter
+        else { return nil }
+        return letter
     }
 
     static func filteredSearchIDs(records: [SwitcherSearchRecord], query: String) -> [String] {

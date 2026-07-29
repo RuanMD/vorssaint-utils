@@ -26,6 +26,11 @@ enum MemoryPressure {
 /// is unavailable on the current hardware, and the UI hides those rows.
 struct SystemSnapshot {
     var cpuTemperature: Double?
+    /// When the CPU sensor behind `cpuTemperature` was last read, on the
+    /// system uptime clock. The value is carried between reads, so anything
+    /// judging how long the CPU has been hot has to tell repeats apart from
+    /// fresh readings.
+    var cpuTemperatureReadAt: TimeInterval?
     var gpuTemperature: Double?
     var batteryTemperature: Double?
     var cpuUsage: Double?          // 0...1
@@ -694,6 +699,9 @@ final class SystemMonitor: ObservableObject {
                 } else {
                     next.cpuTemperature = self.cpuTemperatureCache?.value
                 }
+                // The cache timestamp only moves on a real read, which is
+                // exactly what marks a value as fresh for the alert.
+                next.cpuTemperatureReadAt = self.cpuTemperatureCache?.updatedAt
             }
             if plan.needGPUTemperature {
                 if take(.temperature) {

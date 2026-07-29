@@ -7,11 +7,14 @@ All notable changes to this project are documented here. The format follows
 ## [3.2.0]
 
 ### Summary
-Vorssaint 3.2.0 adds app updates in one list, a searchable snippet menu, a
-super key on Caps Lock and mouse button shortcuts. Plus screenshot autopilot,
-new radial menu slices and a batch of fixes.
+Vorssaint 3.2.0 adds the Command Bar, one field that finds and runs anything on
+your Mac, plus app updates in one list, a searchable snippet menu, a super key
+on Caps Lock and mouse button shortcuts.
 
 ### Added
+- The Command Bar. One shortcut opens a field that finds and runs anything,
+  including the menu commands of the app in front. Under Command Bar, off by
+  default.
 - App updates. One list of the apps with a newer version, ticked the way you
   want, updated together. Under App updates.
 - A menu bar organizer with visible, hidden and always-hidden sections,
@@ -20,8 +23,12 @@ new radial menu slices and a batch of fixes.
   implemented independently for Vorssaint.
 - A snippet menu. A shortcut opens your snippets in a searchable list and
   picking one types it at the cursor. Under Text snippets.
+- A super key. Hold Caps Lock and it becomes Shift, Control, Option and
+  Command together, for shortcuts nothing else uses. Under Super key.
 - Mouse button shortcuts. Any extra mouse button can press a key
   combination for you. Under Mouse.
+- Full Screen joins the window layouts, the same one the green button gives.
+  Under Window layout.
 - Screenshots can copy themselves to the clipboard the moment they are
   taken. Under Screenshot. Thanks to @kingstyles.
 - Screenshots can run an action by themselves after each capture: save,
@@ -32,11 +39,13 @@ new radial menu slices and a batch of fixes.
   layouts. Thanks to @ruvelro.
 - A choice of how the radial menu opens: press to keep it open, or hold and
   release to run. Thanks to @ruvelro.
-- WhatsApp download cleanup in the Cleaner, always to the Trash and off by
-  default. An optional organizer files new downloads into a folder you
-  choose, with undo. Thanks to @ruvelro.
+- The Cleaner can clear the media a messaging app leaves in your downloads,
+  always to the Trash and off by default. An optional organizer files new
+  ones into a folder you pick. Thanks to @ruvelro.
 - The last capture outline in the screenshot selector can be hidden.
   Thanks to @ruvelro.
+- W closes the highlighted window in the app switcher, leaving the app
+  running.
 - Hide apps from the volume mixer with a right click. The same menu brings
   them back.
 - Each removable drive in the Drives tab now has its own eject button.
@@ -46,8 +55,6 @@ new radial menu slices and a batch of fixes.
   wheel and the buttons their own way. Under Mouse.
 - The app can stay light or dark on its own, apart from the Mac. Under
   General.
-- A super key. Hold Caps Lock and it becomes Shift, Control, Option and
-  Command together, for shortcuts nothing else uses. Under Super key.
 
 ### Changed
 - Settings groups App updates, Cleaner, Homebrew and Uninstaller under App
@@ -58,8 +65,13 @@ new radial menu slices and a batch of fixes.
   action, and existing setups keep working unchanged.
 - The scratchpad now closes when you click outside it. A toggle under Quick
   tools keeps it floating instead.
+- The app switcher now closes when you click outside it.
 
 ### Fixed
+- The hot CPU alert no longer fires on a momentary spike. The temperature
+  now has to stay above the limit for a few seconds.
+- Quit on close no longer leaves apps running after their last window is
+  closed, including apps that hide the window instead of closing it.
 - The red dot in the panel is gone. It marked the Cleaner as new since an
   older version and could stay on screen for good.
 - Showing the menu bar icon again waits for macOS to place it before
@@ -76,6 +88,8 @@ new radial menu slices and a batch of fixes.
   outside the applications folder.
 - The App Switcher and Dock previews now show windows from other desktops
   too, and an option keeps everything to the current one.
+- Q in the app switcher quits from the Q on your keyboard, on layouts that
+  put the letter somewhere else.
 - Undo works in the screenshot editor, and clicking an annotation selects
   it instead of drawing on top. Thanks to @ruvelro.
 - The Homebrew settings page no longer breaks in narrow windows.

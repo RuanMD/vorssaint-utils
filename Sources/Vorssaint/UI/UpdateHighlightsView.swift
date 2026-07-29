@@ -43,6 +43,17 @@ struct UpdateHighlightsView: View {
     /// uninstalled in the hub stay out; their Settings pages are gone too.
     private var highlights: [Highlight] {
         var pages: [Highlight] = []
+        // First, because it is the one page that shows what the whole app can
+        // do rather than one more thing it can do.
+        if AppFeature.commandBar.isAvailable {
+            pages.append(Highlight(
+                id: "commandbar", symbol: AppFeature.commandBar.symbolName,
+                imageName: "commandBar",
+                title: FeatureStrings.commandBar(l10n.language).pageTitle,
+                caption: FeatureStrings.commandBar(l10n.language).hubDescription,
+                actionLabel: s.highlightsConfigure,
+                action: { openSettings(.commandBar) }))
+        }
         if AppFeature.appUpdates.isAvailable {
             pages.append(Highlight(
                 id: "appupdates", symbol: AppFeature.appUpdates.symbolName,
@@ -163,7 +174,12 @@ struct UpdateHighlightsView: View {
     private func page(_ highlight: Highlight) -> some View {
         VStack(spacing: 14) {
             Group {
-                if let image = Self.asset(highlight.imageName) {
+                if let gif = Self.animatedAsset(highlight.imageName) {
+                    // A still cannot show a bar being typed into; this page
+                    // only makes sense moving.
+                    AnimatedGIFView(image: gif)
+                        .aspectRatio(gif.size, contentMode: .fit)
+                } else if let image = Self.asset(highlight.imageName) {
                     Image(nsImage: image)
                         .resizable()
                         .scaledToFit()
@@ -217,8 +233,24 @@ struct UpdateHighlightsView: View {
     /// At least one featured item survives in the hub, so the tour has a
     /// page to show. The gate reads this before opening the window.
     static var hasContent: Bool {
-        [AppFeature.appUpdates, .mouseButtonShortcuts, .textSnippets, .superKey, .micMute]
+        [AppFeature.commandBar, .appUpdates, .mouseButtonShortcuts, .textSnippets, .superKey,
+         .micMute]
             .contains { $0.isAvailable }
+    }
+
+    /// Decoded once and kept. A fresh image on every pass would be read from
+    /// disk again and, being a different object, would restart the animation
+    /// from the first frame every time the page is laid out.
+    private static var animatedAssets: [String: NSImage] = [:]
+
+    private static func animatedAsset(_ name: String) -> NSImage? {
+        if let cached = animatedAssets[name] { return cached }
+        guard let url = Bundle.main.url(forResource: name, withExtension: "gif",
+                                        subdirectory: "Gifs"),
+              let image = NSImage(contentsOf: url)
+        else { return nil }
+        animatedAssets[name] = image
+        return image
     }
 
     private static func asset(_ name: String) -> NSImage? {
