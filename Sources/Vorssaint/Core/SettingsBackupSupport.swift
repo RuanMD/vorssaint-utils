@@ -59,7 +59,6 @@ enum SettingsBackupSupport {
         // feature intros the user has already been through.
         DefaultsKey.hasOnboarded,
         DefaultsKey.onboardingStep,
-        DefaultsKey.dockPreviewIntroVersion,
         DefaultsKey.featuresOnboardingVersion,
         DefaultsKey.lastUpdateIntroVersion,
         DefaultsKey.supportUpdateIntroVersion,
@@ -81,6 +80,7 @@ enum SettingsBackupSupport {
         // When the last check ran and what it found belong to one Mac.
         DefaultsKey.appUpdatesLastCheck,
         DefaultsKey.appUpdatesLastCount,
+        DefaultsKey.appUpdatesNotifiedIDs,
         DefaultsKey.cleanerLastAutoFreed,
         DefaultsKey.whatsAppDownloadsAutomaticStartDate,
         DefaultsKey.whatsAppDownloadsLastAutoRun,

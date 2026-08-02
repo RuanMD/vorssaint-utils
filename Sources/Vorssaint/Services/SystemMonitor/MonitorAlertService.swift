@@ -10,8 +10,8 @@ final class MonitorAlertService {
     static let shared = MonitorAlertService()
 
     private var cancellables = Set<AnyCancellable>()
-    private var highCPUSince: Date?
-    private var cpuTemperatureGate = TemperatureAlertGate()
+    private var cpuUsageGate = SustainedAlertGate()
+    private var cpuTemperatureGate = SustainedAlertGate()
     private var lastSent: [MonitorAlertKind: Date] = [:]
 
     private init() {}
@@ -51,14 +51,14 @@ final class MonitorAlertService {
 
     private func stopSink() {
         cancellables.removeAll()
-        highCPUSince = nil
+        cpuUsageGate.reset()
         cpuTemperatureGate.reset()
     }
 
     private func evaluate(_ snapshot: SystemSnapshot) {
         let defaults = UserDefaults.standard
         guard Self.anyEnabled(in: defaults) else {
-            highCPUSince = nil
+            cpuUsageGate.reset()
             cpuTemperatureGate.reset()
             return
         }
@@ -69,9 +69,9 @@ final class MonitorAlertService {
         }
 
         if alertOn(DefaultsKey.monitorAlertCPU, .monitorCPU) {
-            evaluateCPU(snapshot.cpuUsage, defaults: defaults, strings: strings)
+            evaluateCPU(snapshot, defaults: defaults, strings: strings)
         } else {
-            highCPUSince = nil
+            cpuUsageGate.reset()
         }
 
         if alertOn(DefaultsKey.monitorAlertCPUTemperature, .monitorCPU) {
@@ -98,23 +98,15 @@ final class MonitorAlertService {
         }
     }
 
-    private func evaluateCPU(_ usage: Double?,
+    private func evaluateCPU(_ snapshot: SystemSnapshot,
                              defaults: UserDefaults,
                              strings: MonitorAlertFeatureStrings) {
         let threshold = Defaults.sanitizedPercent(defaults.integer(forKey: DefaultsKey.monitorAlertCPUThreshold),
                                                   fallback: 90,
                                                   range: 50...100)
-        guard let usage, usage >= Double(threshold) / 100.0 else {
-            highCPUSince = nil
-            return
-        }
-
-        let now = Date()
-        if highCPUSince == nil {
-            highCPUSince = now
-            return
-        }
-        guard let since = highCPUSince, now.timeIntervalSince(since) >= 12 else { return }
+        guard cpuUsageGate.shouldAlert(reading: snapshot.cpuUsage,
+                                       threshold: Double(threshold) / 100.0,
+                                       readAt: snapshot.cpuUsageReadAt) else { return }
         send(.cpu,
              title: strings.cpuTitle,
              body: String(format: strings.cpuBodyFormat, threshold))
@@ -139,7 +131,7 @@ final class MonitorAlertService {
         let threshold = Defaults.sanitizedPercent(defaults.integer(forKey: DefaultsKey.monitorAlertCPUTemperatureThreshold),
                                                   fallback: 90,
                                                   range: 70...105)
-        guard cpuTemperatureGate.shouldAlert(temperature: snapshot.cpuTemperature,
+        guard cpuTemperatureGate.shouldAlert(reading: snapshot.cpuTemperature,
                                              threshold: Double(threshold),
                                              readAt: snapshot.cpuTemperatureReadAt),
               let temperature = snapshot.cpuTemperature else { return }

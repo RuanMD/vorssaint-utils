@@ -78,6 +78,11 @@ if [[ -d "$PINNED_SDK" ]]; then
 else
     SDK="$(xcrun --show-sdk-path)"
 fi
+SDK_COMPAT_FLAGS=()
+if [[ "$SDK" == "$PINNED_SDK" ]]; then
+    # Swift 6.4 can read the SDK 26 interfaces when given their compiler version.
+    SDK_COMPAT_FLAGS=(-Xfrontend -interface-compiler-version -Xfrontend 6.3.2)
+fi
 
 # --test: compile and run the standalone unit tests (pure helpers only: metrics,
 # Homebrew parsing, defaults, localization contracts; no app, no UI, no IOKit),
@@ -86,7 +91,7 @@ if (( TEST )); then
     echo "▸ Building & running unit tests against $(basename "$SDK")…"
     rm -rf build
     mkdir -p build
-    swiftc -O -target "$TARGET" -sdk "$SDK" \
+    swiftc -O -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" \
         Sources/Vorssaint/Services/Media/MediaSupport.swift \
         Sources/Vorssaint/Core/Defaults.swift \
         Sources/Vorssaint/Core/FeatureCatalog.swift \
@@ -98,6 +103,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/BrightnessStrings.swift \
         Sources/Vorssaint/Core/QuickToggleStrings.swift \
         Sources/Vorssaint/Core/ScreenshotStrings.swift \
+        Sources/Vorssaint/Core/RecorderStrings.swift \
         Sources/Vorssaint/Core/CameraPreviewStrings.swift \
         Sources/Vorssaint/Core/ScratchpadStrings.swift \
         Sources/Vorssaint/Core/CommandBarStrings.swift \
@@ -112,6 +118,12 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Snippets/TextSnippetSupport.swift \
         Sources/Vorssaint/Services/RadialMenu/RadialMenuSupport.swift \
         Sources/Vorssaint/Services/QuickTools/ScratchpadSupport.swift \
+        Sources/Vorssaint/Services/Recorder/RecorderSupport.swift \
+        Sources/Vorssaint/Services/Recorder/RecorderMotion.swift \
+        Sources/Vorssaint/Services/Recorder/RecorderPointerTrack.swift \
+        Sources/Vorssaint/Services/Recorder/RecorderTimeline.swift \
+        Sources/Vorssaint/Services/Recorder/RecorderTextOverlay.swift \
+        Sources/Vorssaint/Services/Recorder/RecorderEditDocument.swift \
         Sources/Vorssaint/Core/AppInfo.swift \
         Sources/Vorssaint/Core/GlobalShortcut.swift \
         Sources/Vorssaint/Core/Localization.swift \
@@ -124,6 +136,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/GeneralPasteboardAccess.swift \
         Sources/Vorssaint/Services/Audio/MixerRoutingSupport.swift \
         Sources/Vorssaint/Services/Audio/BoostLimiter.swift \
+        Sources/Vorssaint/Services/Audio/MixerRender.swift \
         Sources/Vorssaint/Services/DockPreview/DockPreviewSupport.swift \
         Sources/Vorssaint/Services/Homebrew/HomebrewSupport.swift \
         Sources/Vorssaint/Services/AppUpdates/AppUpdatesSupport.swift \
@@ -146,6 +159,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/MouseExceptions/MouseAppExceptionSupport.swift \
         Sources/Vorssaint/Core/MouseButtonStrings.swift \
         Sources/Vorssaint/Core/MouseExceptionStrings.swift \
+        Sources/Vorssaint/Core/ClipboardIgnoredAppsStrings.swift \
         Sources/Vorssaint/Services/QuickTools/QuickToolsSupport.swift \
         Sources/Vorssaint/Services/CommandBar/CommandBarSupport.swift \
         Sources/Vorssaint/Services/CommandBar/CommandBarPreferences.swift \
@@ -166,6 +180,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Switcher/SwitcherModels.swift \
         Sources/Vorssaint/Services/Switcher/SwitcherSupport.swift \
         Sources/Vorssaint/Services/Switcher/SpaceHopSupport.swift \
+        Sources/Vorssaint/Services/Switcher/WindowUseOrder.swift \
         Sources/Vorssaint/Services/Metrics/MetricFormat.swift \
         Sources/Vorssaint/Services/KeepAwakeAutomationSupport.swift \
         Sources/Vorssaint/Services/SudoersSupport.swift \
@@ -176,7 +191,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Metrics/MonitorSamplingPolicy.swift \
         Sources/Vorssaint/Services/Metrics/MaxCapacityProbe.swift \
         Sources/Vorssaint/Services/Metrics/TemperatureSensorSelector.swift \
-        Sources/Vorssaint/Services/Metrics/TemperatureAlertGate.swift \
+        Sources/Vorssaint/Services/Metrics/SustainedAlertGate.swift \
         Sources/Vorssaint/Services/WindowLayout/WindowLayoutSupport.swift \
         Sources/Vorssaint/Services/WindowLayout/WindowGestureSupport.swift \
         Sources/Vorssaint/Services/CleaningMode/CleaningUnlockCounter.swift \
@@ -195,7 +210,7 @@ fi
 echo "▸ Compiling (release) against $(basename "$SDK")…"
 rm -rf build
 mkdir -p build
-swiftc -O -target "$TARGET" -sdk "$SDK" \
+swiftc -O -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" \
     Sources/Vorssaint/**/*.swift \
     -o "build/$EXECUTABLE"
 

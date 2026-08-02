@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Vorssaint
 
+import CoreAudio
 import CoreGraphics
 import Carbon.HIToolbox
 import Darwin
@@ -365,6 +366,31 @@ struct MetricsTests {
                "clipboard history still skips URLs with obvious secret words")
         expect(ClipboardHistorySensitiveText.looksSensitive("abc1234567890-xyz-abc"),
                "clipboard history still skips compact secret-looking text")
+        // Issue #423: an identifier code is ordinary content to copy around,
+        // and losing it is what stopped people from leaving the skip on.
+        expect(!ClipboardHistorySensitiveText.looksSensitive("3f2504e0-4f89-11d3-9a0c-0305e82c3301"),
+               "clipboard history keeps a plain identifier code")
+        expect(!ClipboardHistorySensitiveText.looksSensitive("3F2504E0-4F89-11D3-9A0C-0305E82C3301"),
+               "clipboard history keeps an identifier code written in capitals")
+        expect(!ClipboardHistorySensitiveText.looksSensitive("{3f2504e0-4f89-11d3-9a0c-0305e82c3301}"),
+               "clipboard history keeps an identifier code wrapped in braces")
+        expect(ClipboardHistorySensitiveText.looksSensitive("3f2504e0-4f89-11d3-9a0c-0305e82c33x1"),
+               "a string that only resembles an identifier code is still treated as a secret")
+        expect(ClipboardHistorySensitiveText.looksSensitive("3f2504e04f8911d39a0c0305e82c3301!x"),
+               "dropping the dashes does not turn a secret into an identifier code")
+        // The mark an app puts on the pasteboard when it hands over a secret.
+        // It travels with every item, so one read of the pasteboard types
+        // answers for a mark written on its own item too (measured).
+        expect(ClipboardHistorySensitiveText.isConcealed(["public.utf8-plain-text",
+                                                          ClipboardHistorySensitiveText
+                                                              .concealedPasteboardType]),
+               "clipboard history leaves out content an app marked as a secret")
+        expect(!ClipboardHistorySensitiveText.isConcealed(["public.utf8-plain-text",
+                                                            "NSStringPboardType"]),
+               "ordinary copied text carries no secret mark")
+        expectEqual(ClipboardHistorySensitiveText.concealedPasteboardType,
+                    "org.nspasteboard.ConcealedType",
+                    "the secret mark keeps the exact name the apps that write it use")
 
         let pasteboardAccess = GeneralPasteboardAccess(label: "Vorssaint.Tests.PasteboardAccess")
         let pasteboardGroup = DispatchGroup()
@@ -677,6 +703,50 @@ struct MetricsTests {
                "Back uses the standard Command left bracket menu command")
         expect(MouseNavigationSupport.commandCharacter(for: .forward) == "]",
                "Forward uses the standard Command right bracket menu command")
+        expect(MouseNavigationSupport.sanitizedCommandCharacter("ö") == "ö",
+               "a key equivalent the system moved the command to is taken as it is")
+        expect(MouseNavigationSupport.sanitizedCommandCharacter("[") == "[",
+               "a keyboard that types brackets keeps the declared command")
+        expect(MouseNavigationSupport.sanitizedCommandCharacter("") == nil,
+               "an empty key equivalent means no answer came back")
+        expect(MouseNavigationSupport.sanitizedCommandCharacter("ab") == nil,
+               "a key equivalent is a single key, never a string of them")
+        expect(MouseNavigationSupport.sanitizedCommandCharacter(" ") == nil,
+               "a blank key equivalent is not something to look for in a menu")
+        expect(MouseNavigationDirection.allCases.count == 2,
+               "the side buttons navigate in exactly two directions")
+        expect(MouseNavigationSupport.sanitizedCommandCharacter("\t") == nil,
+               "a control character is never a key to look for in a menu")
+        // Menus spell their shortcut key in upper case whatever the app wrote,
+        // and an upper case letter carries Shift on its own: both measured on
+        // a real menu, and both decide whether the command is found at all.
+        expect(MouseNavigationSupport.matchesCommand(menuCharacter: "Ö", menuModifiers: 0,
+                                                     character: "ö", modifiers: 0),
+               "a command the system moved onto a letter is found despite the menu's upper case")
+        expect(MouseNavigationSupport.matchesCommand(menuCharacter: "[", menuModifiers: 0,
+                                                     character: "[", modifiers: 0),
+               "the declared bracket keeps being found where the keyboard types it")
+        expect(!MouseNavigationSupport.matchesCommand(menuCharacter: "Ö", menuModifiers: 1,
+                                                      character: "ö", modifiers: 0),
+               "the same key with another modifier is a different command")
+        expect(!MouseNavigationSupport.matchesCommand(menuCharacter: "Ä", menuModifiers: 0,
+                                                      character: "ö", modifiers: 0),
+               "a different key is never the command being looked for")
+        expect(!MouseNavigationSupport.matchesCommand(menuCharacter: nil, menuModifiers: 0,
+                                                      character: "[", modifiers: 0),
+               "a menu item with no shortcut at all is never a match")
+        expect(MouseNavigationSupport.menuModifiers(shift: false, option: false, control: false,
+                                                    command: true, character: "ö") == 0,
+               "Command with a lower case key is the plain shortcut a menu reports as zero")
+        expect(MouseNavigationSupport.menuModifiers(shift: false, option: false, control: false,
+                                                    command: true, character: "Ö") == 1,
+               "an upper case key carries Shift even when nobody asked for it")
+        expect(MouseNavigationSupport.menuModifiers(shift: true, option: false, control: false,
+                                                    command: true, character: "f") == 1,
+               "Shift asked for reads the same as Shift implied by the key")
+        expect(MouseNavigationSupport.menuModifiers(shift: false, option: true, control: true,
+                                                    command: false, character: "[") == 14,
+               "Option, Control and no Command each add their own bit")
         expect(MouseNavigationSupport.shouldPassThrough(bundleIdentifier: "org.mozilla.firefox"),
                "the pass-through browser family keeps the raw side button events")
         expect(MouseNavigationSupport.shouldPassThrough(
@@ -914,43 +984,43 @@ struct MetricsTests {
 
         // MARK: Hot CPU alert
 
-        var spikeGate = TemperatureAlertGate()
-        expect(!spikeGate.shouldAlert(temperature: 99, threshold: 90, readAt: 100),
+        var spikeGate = SustainedAlertGate()
+        expect(!spikeGate.shouldAlert(reading: 99, threshold: 90, readAt: 100),
                "a single hot reading is not a hot CPU yet")
-        expect(!spikeGate.shouldAlert(temperature: 99, threshold: 90, readAt: 108),
+        expect(!spikeGate.shouldAlert(reading: 99, threshold: 90, readAt: 108),
                "a second hot reading inside the window still waits")
-        expect(spikeGate.shouldAlert(temperature: 99, threshold: 90, readAt: 112),
+        expect(spikeGate.shouldAlert(reading: 99, threshold: 90, readAt: 112),
                "a temperature that holds past the window alerts")
 
-        var carriedGate = TemperatureAlertGate()
-        expect(!carriedGate.shouldAlert(temperature: 101, threshold: 90, readAt: 200),
+        var carriedGate = SustainedAlertGate()
+        expect(!carriedGate.shouldAlert(reading: 101, threshold: 90, readAt: 200),
                "the reading behind a spike starts the window")
         var carriedAlerts = 0
         for _ in 0..<60 {
-            if carriedGate.shouldAlert(temperature: 101, threshold: 90, readAt: 200) {
+            if carriedGate.shouldAlert(reading: 101, threshold: 90, readAt: 200) {
                 carriedAlerts += 1
             }
         }
         expect(carriedAlerts == 0,
                "the same reading served again never ages into an alert on its own")
 
-        var coolingGate = TemperatureAlertGate()
-        _ = coolingGate.shouldAlert(temperature: 99, threshold: 90, readAt: 300)
-        expect(!coolingGate.shouldAlert(temperature: 52, threshold: 90, readAt: 315),
+        var coolingGate = SustainedAlertGate()
+        _ = coolingGate.shouldAlert(reading: 99, threshold: 90, readAt: 300)
+        expect(!coolingGate.shouldAlert(reading: 52, threshold: 90, readAt: 315),
                "a reading back under the limit does not alert")
-        expect(!coolingGate.shouldAlert(temperature: 99, threshold: 90, readAt: 330),
+        expect(!coolingGate.shouldAlert(reading: 99, threshold: 90, readAt: 330),
                "cooling down restarts the window instead of resuming the old one")
-        expect(coolingGate.shouldAlert(temperature: 99, threshold: 90, readAt: 345),
+        expect(coolingGate.shouldAlert(reading: 99, threshold: 90, readAt: 345),
                "the restarted window alerts on its own merits")
 
-        var quietGate = TemperatureAlertGate()
-        expect(!quietGate.shouldAlert(temperature: 89, threshold: 90, readAt: 400),
+        var quietGate = SustainedAlertGate()
+        expect(!quietGate.shouldAlert(reading: 89, threshold: 90, readAt: 400),
                "a reading under the limit is not hot")
-        expect(!quietGate.shouldAlert(temperature: 89, threshold: 90, readAt: 500),
+        expect(!quietGate.shouldAlert(reading: 89, threshold: 90, readAt: 500),
                "staying under the limit never alerts")
-        expect(!quietGate.shouldAlert(temperature: nil, threshold: 90, readAt: 600),
+        expect(!quietGate.shouldAlert(reading: nil, threshold: 90, readAt: 600),
                "a missing temperature does not alert")
-        expect(!quietGate.shouldAlert(temperature: 99, threshold: 90, readAt: nil),
+        expect(!quietGate.shouldAlert(reading: 99, threshold: 90, readAt: nil),
                "a temperature with no reading time does not alert")
 
         // MARK: Uptime formatting
@@ -1146,6 +1216,24 @@ struct MetricsTests {
             Defaults.migrateScreenshotOpenEditorDirectly(in: migrationDefaults)
             expect(migrationDefaults.object(forKey: DefaultsKey.screenshotDefaultAction) == nil,
                    "a setup that never used direct-to-editor keeps asking after capture")
+            migrationDefaults.set(false, forKey: DefaultsKey.switcherShowWindowlessFinder)
+            Defaults.migrateSwitcherWindowlessFinder(in: migrationDefaults)
+            expect(migrationDefaults.string(forKey: DefaultsKey.switcherWindowlessApps)
+                   == SwitcherWindowlessApps.off.rawValue
+                   && migrationDefaults.bool(forKey: DefaultsKey.switcherShowWindowlessFinder),
+                   "hiding the windowless desktop app migrates into showing no windowless app at all")
+            migrationDefaults.set(SwitcherWindowlessApps.all.rawValue,
+                                  forKey: DefaultsKey.switcherWindowlessApps)
+            Defaults.migrateSwitcherWindowlessFinder(in: migrationDefaults)
+            expect(migrationDefaults.string(forKey: DefaultsKey.switcherWindowlessApps)
+                   == SwitcherWindowlessApps.all.rawValue,
+                   "the windowless apps migration runs once and never fights a later choice")
+            migrationDefaults.removeObject(forKey: DefaultsKey.switcherShowWindowlessFinder)
+            migrationDefaults.removeObject(forKey: DefaultsKey.switcherWindowlessApps)
+            migrationDefaults.set(true, forKey: DefaultsKey.switcherShowWindowlessFinder)
+            Defaults.migrateSwitcherWindowlessFinder(in: migrationDefaults)
+            expect(migrationDefaults.object(forKey: DefaultsKey.switcherWindowlessApps) == nil,
+                   "a setup that kept the windowless desktop app is left exactly as it was")
             migrationDefaults.removePersistentDomain(forName: shortcutSuite)
         } else {
             expect(false, "test suite defaults are available")
@@ -1203,6 +1291,10 @@ struct MetricsTests {
                                           visibleSpaces: [0],
                                           target: 40) == nil,
                "space travel refuses hops beyond the press cap")
+        expect(SpaceHopSupport.firstStage(appHasWindowOnVisibleSpace: true) == .moveASpace,
+               "an app with a window on the visible Space cannot travel by being activated, so the move is asked for right away")
+        expect(SpaceHopSupport.firstStage(appHasWindowOnVisibleSpace: false) == .waitForActivationTravel,
+               "an app with no window on the visible Space travels on activation, so that travel is waited on")
         expect(SpaceHopSupport.eventFlags(fromCarbonModifiers: 0x840000) == [.maskControl, .maskSecondaryFn],
                "the registered control+function mask replays with both flags")
         expect(SpaceHopSupport.eventFlags(fromCarbonModifiers: 0x20000 | 0x100000) == [.maskShift, .maskCommand],
@@ -1349,11 +1441,88 @@ struct MetricsTests {
                                                  items: [embeddedWindow]) == nil,
                "App Switcher leaves the system shortcut alone without a foreground app")
         expect(registeredDefaults[DefaultsKey.switcherShowWindowlessFinder] as? Bool == true,
-               "Finder without windows stays visible in the switcher by default")
+               "the retired windowless Finder toggle keeps its shipped value so the migration can read it")
+        expect(registeredDefaults[DefaultsKey.switcherWindowlessApps] as? String
+               == SwitcherWindowlessApps.finder.rawValue,
+               "the switcher offers the desktop app without windows, and nothing else, by default")
         expect(registeredDefaults[DefaultsKey.switcherCurrentSpaceOnly] as? Bool == false,
                "the switcher keeps showing every desktop unless the user opts out (issue #337)")
+
+        // MARK: Switcher entries for apps with no window (issue #351)
+        expect(SwitcherWindowlessApps.mode(storedValue: nil) == .finder
+               && SwitcherWindowlessApps.mode(storedValue: "") == .finder
+               && SwitcherWindowlessApps.mode(storedValue: "bogus") == .finder,
+               "an unset or unreadable windowless apps choice falls back to what the app shipped with")
+        expect(SwitcherWindowlessApps.mode(storedValue: "off") == .off
+               && SwitcherWindowlessApps.mode(storedValue: "finder") == .finder
+               && SwitcherWindowlessApps.mode(storedValue: "all") == .all,
+               "every windowless apps choice survives a round trip through preferences")
+        expect(SwitcherWindowlessApps.migrated(showsWindowlessFinder: true) == .finder
+               && SwitcherWindowlessApps.migrated(showsWindowlessFinder: false) == .off,
+               "the old windowless Finder toggle maps onto the choice that keeps its behavior")
+
+        let desktopApp = SwitcherAppCandidate(pid: 501, bundleIdentifier: Defaults.finderBundleIdentifier)
+        let plainApp = SwitcherAppCandidate(pid: 502, bundleIdentifier: "com.example.editor")
+        let otherApp = SwitcherAppCandidate(pid: 503, bundleIdentifier: "com.example.notes")
+        let windowlessCandidates = [desktopApp, plainApp, otherApp]
+        expect(SwitcherSupport.windowlessAppPIDs(mode: .off,
+                                                 candidates: windowlessCandidates,
+                                                 pidsWithWindows: [],
+                                                 pidsWithWithheldWindows: [],
+                                                 desktopAppBundleIdentifier: Defaults.finderBundleIdentifier).isEmpty,
+               "asking for no windowless apps adds none of them")
+        expect(SwitcherSupport.windowlessAppPIDs(mode: .finder,
+                                                 candidates: windowlessCandidates,
+                                                 pidsWithWindows: [],
+                                                 pidsWithWithheldWindows: [],
+                                                 desktopAppBundleIdentifier: Defaults.finderBundleIdentifier) == [501],
+               "asking for the desktop app alone leaves every other windowless app out")
+        expect(SwitcherSupport.windowlessAppPIDs(mode: .all,
+                                                 candidates: windowlessCandidates,
+                                                 pidsWithWindows: [],
+                                                 pidsWithWithheldWindows: [],
+                                                 desktopAppBundleIdentifier: Defaults.finderBundleIdentifier) == [501, 502, 503],
+               "asking for every windowless app keeps them in the order the window server gave")
+        expect(SwitcherSupport.windowlessAppPIDs(mode: .all,
+                                                 candidates: windowlessCandidates,
+                                                 pidsWithWindows: [502],
+                                                 pidsWithWithheldWindows: [],
+                                                 desktopAppBundleIdentifier: Defaults.finderBundleIdentifier) == [501, 503],
+               "an app that already has a window in the list never gets a second entry for itself")
+        expect(SwitcherSupport.windowlessAppPIDs(mode: .all,
+                                                 candidates: windowlessCandidates,
+                                                 pidsWithWindows: [],
+                                                 pidsWithWithheldWindows: [503],
+                                                 desktopAppBundleIdentifier: Defaults.finderBundleIdentifier) == [501, 502],
+               "an app whose windows were held back for being on another desktop stays out (issue #337)")
+        expect(SwitcherSupport.windowlessAppPIDs(mode: .finder,
+                                                 candidates: windowlessCandidates,
+                                                 pidsWithWindows: [501],
+                                                 pidsWithWithheldWindows: [],
+                                                 desktopAppBundleIdentifier: Defaults.finderBundleIdentifier).isEmpty,
+               "the desktop app with a window of its own does not also get an entry for itself")
+
+        expect(WindowUseOrder.promoting(target: 7, previous: 3, in: [3, 5, 7]) == [7, 3, 5],
+               "committing to a window puts it first and the one left behind second")
+        expect(WindowUseOrder.promoting(target: nil, previous: 3, in: [5, 3, 9]) == [3, 5, 9],
+               "committing to an app with no window leaves the window behind as the most recent one")
+        expect(WindowUseOrder.promoting(target: nil, previous: nil, in: [5, 3]) == [5, 3],
+               "committing to an app with no window and coming from none changes no history")
         expect(registeredDefaults[DefaultsKey.dockPreviewEnabled] as? Bool == false,
                "Dock Preview is opt-in for clean installs")
+        expect(registeredDefaults[DefaultsKey.dockPreviewBackgroundOpacity] as? Double == 1.0,
+               "the Dock Preview panel starts fully solid")
+        expect(DockPreviewSupport.sanitizedBackgroundOpacity(0.7) == 0.7,
+               "a Dock Preview background opacity inside the range is kept")
+        expect(DockPreviewSupport.sanitizedBackgroundOpacity(0)
+               == DockPreviewSupport.backgroundOpacityRange.lowerBound
+               && DockPreviewSupport.sanitizedBackgroundOpacity(-3)
+               == DockPreviewSupport.backgroundOpacityRange.lowerBound,
+               "the Dock Preview panel never fades past the floor that keeps it looking like a panel")
+        expect(DockPreviewSupport.sanitizedBackgroundOpacity(4) == 1.0
+               && DockPreviewSupport.sanitizedBackgroundOpacity(.nan) == 1.0
+               && DockPreviewSupport.sanitizedBackgroundOpacity(.infinity) == 1.0,
+               "a broken stored Dock Preview opacity falls back to solid")
         expect(registeredDefaults[DefaultsKey.autoCheckUpdates] as? Bool == true,
                "update checks are on for clean installs")
         expect(registeredDefaults[DefaultsKey.updateShowcaseIntroVersion] as? String == "",
@@ -1386,8 +1555,10 @@ struct MetricsTests {
         // per-release decision: this check fails on every version bump so the
         // decision above is made consciously, never by omission.
         let plistVersion = (NSDictionary(contentsOfFile: "Resources/Info.plist")?["CFBundleShortVersionString"] as? String) ?? ""
-        expect(plistVersion == "3.2.0",
+        expect(plistVersion == "3.3.0",
                "bumping the app version requires re-deciding the support prompt pin above")
+        expect(SupportUpdateIntroInfo.releaseVersion == "3.1.13",
+               "3.3.0 deliberately does NOT re-show the support ask; the pin stays where it is")
         // 3.2.0 is a feature release, so the tour pin moves to it and the
         // pages are re-curated: mouse button shortcuts is the headline. Later
         // 3.2.0 tasks that add headline features extend the pages, the same
@@ -2537,6 +2708,63 @@ struct MetricsTests {
         expect(WindowLayoutAction.resolvedShortcut(storedValue: "garbage-value", defaultShortcut: nil) == nil,
                "a corrupt shortcut cannot assign an action that has no default")
 
+        // MARK: Window layout restore history (issue #414)
+
+        let historyWindow = WindowLayoutWindowKey(processID: 41,
+                                                  processLaunchTime: 100,
+                                                  windowID: 414)
+        let otherHistoryWindow = WindowLayoutWindowKey(processID: 42,
+                                                       processLaunchTime: 100,
+                                                       windowID: 414)
+        let reusedHistoryWindow = WindowLayoutWindowKey(processID: 41,
+                                                        processLaunchTime: 101,
+                                                        windowID: 414)
+        let historyFrames = (0...WindowLayoutHistory.perWindowLimit).map {
+            WindowLayoutFrame(origin: CGPoint(x: $0 * 10, y: $0 * 20),
+                              size: CGSize(width: 800 + $0, height: 500 + $0))
+        }
+        var layoutHistory = WindowLayoutHistory()
+        layoutHistory.record(historyFrames[0], for: historyWindow)
+        layoutHistory.record(historyFrames[1], for: historyWindow)
+        layoutHistory.record(historyFrames[2], for: historyWindow)
+        layoutHistory.record(historyFrames[3], for: otherHistoryWindow)
+        expect(layoutHistory.popPrevious(for: historyWindow, current: historyFrames[3]) == historyFrames[2]
+               && layoutHistory.popPrevious(for: historyWindow, current: historyFrames[2]) == historyFrames[1]
+               && layoutHistory.popPrevious(for: historyWindow, current: historyFrames[1]) == historyFrames[0],
+               "window layout restore walks backward through each window's placement history")
+        expect(layoutHistory.popPrevious(for: otherHistoryWindow, current: historyFrames[4]) == historyFrames[3],
+               "window layout restore histories stay isolated across processes")
+        layoutHistory.record(historyFrames[5], for: historyWindow)
+        layoutHistory.record(historyFrames[6], for: historyWindow)
+        layoutHistory.discardLatest(for: historyWindow)
+        expect(layoutHistory.popPrevious(for: historyWindow, current: historyFrames[7]) == historyFrames[5],
+               "a failed window layout action removes only the frame it recorded")
+        layoutHistory.record(historyFrames[8], for: historyWindow)
+        layoutHistory.record(historyFrames[9], for: historyWindow)
+        expect(layoutHistory.popPrevious(for: historyWindow, current: historyFrames[9]) == historyFrames[8],
+               "restore skips a saved frame that already matches the current placement")
+        layoutHistory.record(historyFrames[10], for: historyWindow)
+        layoutHistory.record(historyFrames[11], for: reusedHistoryWindow)
+        layoutHistory.removeStaleWindows(keeping: [reusedHistoryWindow])
+        expect(layoutHistory.popPrevious(for: historyWindow, current: historyFrames[12]) == nil
+               && layoutHistory.popPrevious(for: reusedHistoryWindow,
+                                            current: historyFrames[12]) == historyFrames[11],
+               "closed windows and earlier process lifetimes cannot leak restore history")
+        var boundedHistory = WindowLayoutHistory()
+        for frame in historyFrames {
+            boundedHistory.record(frame, for: historyWindow)
+        }
+        var boundedFrames: [WindowLayoutFrame] = []
+        var boundedCurrent = WindowLayoutFrame(origin: CGPoint(x: -1, y: -1),
+                                               size: CGSize(width: 1, height: 1))
+        while let previous = boundedHistory.popPrevious(for: historyWindow, current: boundedCurrent) {
+            boundedFrames.append(previous)
+            boundedCurrent = previous
+        }
+        expect(boundedFrames.count == WindowLayoutHistory.perWindowLimit
+               && boundedFrames.last == historyFrames[1],
+               "window layout history keeps only the most recent bounded set of placements")
+
         // MARK: Window layout geometry
 
         let visibleFrame = CGRect(x: 0, y: 40, width: 1440, height: 860)
@@ -3572,22 +3800,24 @@ struct MetricsTests {
             return samples
         }
         func limited(_ samples: [Float], channels: Int = 1,
+                     release: Float = BoostLimiter.release(sampleRate: 48000),
                      with limiter: inout BoostLimiter) -> [Float] {
             var output = samples
             output.withUnsafeMutableBufferPointer { buffer in
                 limiter.process(buffer.baseAddress!,
                                 frames: samples.count / channels,
-                                channels: channels)
+                                channels: channels,
+                                release: release)
             }
             return output
         }
 
-        var quietLimiter = BoostLimiter(sampleRate: 48000)
+        var quietLimiter = BoostLimiter()
         let quiet = sine(amplitude: 0.6, frames: 4800)
         expect(limited(quiet, with: &quietLimiter) == quiet,
                "audio inside the ceiling passes through bit-identical")
 
-        var loudLimiter = BoostLimiter(sampleRate: 48000)
+        var loudLimiter = BoostLimiter()
         let loud = limited(sine(amplitude: 1.5, frames: 9600), with: &loudLimiter)
         expect(loud.allSatisfy { abs($0) <= BoostLimiter.ceiling + 0.0001 },
                "boosted peaks never leave the ceiling")
@@ -3596,7 +3826,7 @@ struct MetricsTests {
         expect(pinned < steady.count / 5,
                "the limiter rides the level instead of flattening the wave into clipping")
 
-        var recoveryLimiter = BoostLimiter(sampleRate: 48000)
+        var recoveryLimiter = BoostLimiter()
         _ = limited(sine(amplitude: 1.5, frames: 4800), with: &recoveryLimiter)
         let afterLoud = limited(sine(amplitude: 0.5, frames: 48000), with: &recoveryLimiter)
         expect(afterLoud.prefix(480).max()! < 0.45,
@@ -3604,8 +3834,8 @@ struct MetricsTests {
         expect(afterLoud.suffix(4800).max()! > 0.499,
                "the gain recovers to unity once the audio gets quiet")
 
-        var wholeLimiter = BoostLimiter(sampleRate: 48000)
-        var chunkedLimiter = BoostLimiter(sampleRate: 48000)
+        var wholeLimiter = BoostLimiter()
+        var chunkedLimiter = BoostLimiter()
         let long = sine(amplitude: 1.5, frames: 2048)
         let whole = limited(long, with: &wholeLimiter)
         let chunked = limited(Array(long[0..<1024]), with: &chunkedLimiter)
@@ -3613,7 +3843,7 @@ struct MetricsTests {
         expect(whole == chunked,
                "splitting the stream into buffers does not change the result")
 
-        var stereoLimiter = BoostLimiter(sampleRate: 48000)
+        var stereoLimiter = BoostLimiter()
         var stereo = [Float](repeating: 0, count: 9600 * 2)
         for frame in 0..<9600 {
             let value = Float(sin(2 * Double.pi * 440 * Double(frame) / 48000))
@@ -3629,10 +3859,226 @@ struct MetricsTests {
         expect(stereoLinked,
                "both channels of a frame share one gain so the stereo image stays put")
 
-        var fallbackLimiter = BoostLimiter(sampleRate: 0)
-        let fallbackLimited = limited(sine(amplitude: 1.5, frames: 480), with: &fallbackLimiter)
+        var fallbackLimiter = BoostLimiter()
+        let fallbackLimited = limited(sine(amplitude: 1.5, frames: 480),
+                                      release: BoostLimiter.release(sampleRate: 0),
+                                      with: &fallbackLimiter)
         expect(fallbackLimited.allSatisfy { abs($0) <= BoostLimiter.ceiling + 0.0001 },
                "an unreadable sample rate still limits at the common device rate")
+
+        // A headset that takes the microphone for a call changes the rate the
+        // device runs at while the audio path stays up. The recovery has to
+        // stay the same length of time, not the same number of samples.
+
+        /// How many seconds the gain takes to come back after a loud stretch.
+        func recoverySeconds(rate: Double, release: Float) -> Double {
+            var limiter = BoostLimiter()
+            let step = max(Int(rate / 1000), 1)
+            func tone(_ amplitude: Float, seconds: Double) -> [Float] {
+                let frames = Int(rate * seconds)
+                var samples = [Float](repeating: 0, count: frames)
+                for frame in 0..<frames {
+                    samples[frame] = amplitude * Float(sin(2 * Double.pi * 440 * Double(frame) / rate))
+                }
+                return samples
+            }
+            _ = limited(tone(1.5, seconds: 0.1), release: release, with: &limiter)
+            let quiet = limited(tone(0.5, seconds: 1.0), release: release, with: &limiter)
+            let peaks = stride(from: 0, to: quiet.count, by: step).map { start in
+                quiet[start..<min(start + step, quiet.count)].map { abs($0) }.max() ?? 0
+            }
+            guard let recovered = peaks.firstIndex(where: { $0 > 0.499 }) else { return .infinity }
+            return Double(recovered) / 1000
+        }
+
+        let releaseAt48k = BoostLimiter.release(sampleRate: 48000)
+        let releaseAt16k = BoostLimiter.release(sampleRate: 16000)
+        expect(releaseAt16k < releaseAt48k,
+               "a slower rate keeps less of the previous level in each sample")
+
+        let recoveryAt48k = recoverySeconds(rate: 48000, release: releaseAt48k)
+        let recoveryAt16k = recoverySeconds(rate: 16000, release: releaseAt16k)
+        expect(abs(recoveryAt16k - recoveryAt48k) < 0.02,
+               "the gain takes the same time to come back whatever rate the device runs at")
+
+        // The defect this replaced: the figure was worked out once when the
+        // engine was built, so a device that changed rate afterwards recovered
+        // at the wrong speed for as long as it kept playing.
+        let staleRecovery = recoverySeconds(rate: 16000, release: releaseAt48k)
+        expect(staleRecovery > recoveryAt16k * 2,
+               "keeping the old rate's figure after a change drags the recovery out")
+
+        // MARK: Mixer render (issue #397)
+
+        // The tap always hands over two interleaved channels; the device on
+        // the other side does not have to match. Pouring stereo into a
+        // headset's single channel used to copy every sample straight across,
+        // which plays the audio an octave low and half as long.
+
+        /// Runs `render` over freshly allocated buffers and hands back what
+        /// each output buffer received, plus the frame count it reported.
+        var renderedFrames = 0
+        func rendered(source: [Float], sourceChannels: UInt32,
+                      outputs: [(channels: UInt32, frames: Int)],
+                      gain: Float = 1) -> [[Float]] {
+            let sourceStorage = UnsafeMutablePointer<Float>.allocate(capacity: max(source.count, 1))
+            sourceStorage.update(from: source, count: source.count)
+            var storages: [UnsafeMutablePointer<Float>] = []
+            let list = AudioBufferList.allocate(maximumBuffers: max(outputs.count, 1))
+            for (index, output) in outputs.enumerated() {
+                let count = max(output.frames * Int(output.channels), 1)
+                let storage = UnsafeMutablePointer<Float>.allocate(capacity: count)
+                storage.update(repeating: -99, count: count)
+                storages.append(storage)
+                list[index] = AudioBuffer(
+                    mNumberChannels: output.channels,
+                    mDataByteSize: UInt32(output.frames * Int(output.channels) * MemoryLayout<Float>.size),
+                    mData: UnsafeMutableRawPointer(storage))
+            }
+            let buffer = AudioBuffer(
+                mNumberChannels: sourceChannels,
+                mDataByteSize: UInt32(source.count * MemoryLayout<Float>.size),
+                mData: UnsafeMutableRawPointer(sourceStorage))
+            renderedFrames = MixerRender.render(source: buffer, into: list, gain: gain)
+            var results: [[Float]] = []
+            for (index, output) in outputs.enumerated() {
+                let count = output.frames * Int(output.channels)
+                results.append(Array(UnsafeBufferPointer(start: storages[index], count: count)))
+            }
+            storages.forEach { $0.deallocate() }
+            sourceStorage.deallocate()
+            free(list.unsafeMutablePointer)
+            return results
+        }
+
+        /// Positive-going zero crossings, the cheap way to hear speed change.
+        func crossings(_ samples: [Float], channels: Int) -> Int {
+            var count = 0
+            var previous: Float = 0
+            for frame in 0..<(samples.count / channels) {
+                let value = samples[frame * channels]
+                if previous <= 0, value > 0 { count += 1 }
+                previous = value
+            }
+            return count
+        }
+
+        expect(MixerRender.frames(bytes: 4096, channels: 2) == 512,
+               "a stereo buffer of 4096 bytes carries 512 frames")
+        expect(MixerRender.frames(bytes: 2048, channels: 1) == 512,
+               "a mono buffer of 2048 bytes carries the same 512 frames")
+        expect(MixerRender.frames(bytes: 4096, channels: 0) == 0,
+               "a buffer with no channels carries nothing")
+
+        let toneFrames = 4800
+        var toneStereo = [Float](repeating: 0, count: toneFrames * 2)
+        for frame in 0..<toneFrames {
+            let value = Float(sin(2 * Double.pi * 440 * Double(frame) / 48000))
+            toneStereo[frame * 2] = value
+            toneStereo[frame * 2 + 1] = value
+        }
+        let toneCrossings = crossings(toneStereo, channels: 2)
+
+        let toMono = rendered(source: toneStereo, sourceChannels: 2,
+                              outputs: [(channels: 1, frames: toneFrames)])[0]
+        expect(crossings(toMono, channels: 1) == toneCrossings,
+               "a device with one channel plays the tapped audio at its own speed")
+        var monoMatches = true
+        for frame in 0..<toneFrames
+        where abs(toMono[frame] - (toneStereo[frame * 2] + toneStereo[frame * 2 + 1]) / 2) > 0.0001 {
+            monoMatches = false
+            break
+        }
+        expect(monoMatches, "one channel gets both sides of the stereo, averaged")
+
+        let quieterMono = rendered(source: toneStereo, sourceChannels: 2,
+                                   outputs: [(channels: 1, frames: toneFrames)], gain: 0.4)[0]
+        var quieterMatches = true
+        for frame in 0..<toneFrames where abs(quieterMono[frame] - toMono[frame] * 0.4) > 0.0001 {
+            quieterMatches = false
+            break
+        }
+        expect(quieterMatches && quieterMono.map({ abs($0) }).max()! > 0.39,
+               "the chosen volume still applies when the audio is folded to one channel")
+        expect(renderedFrames == toneFrames,
+               "the fold reports every frame it wrote, which is what bounds the limiter")
+
+        let toStereo = rendered(source: toneStereo, sourceChannels: 2,
+                                outputs: [(channels: 2, frames: toneFrames)], gain: 0.5)[0]
+        var stereoMatches = true
+        for index in 0..<(toneFrames * 2) where abs(toStereo[index] - toneStereo[index] * 0.5) > 0.0001 {
+            stereoMatches = false
+            break
+        }
+        expect(stereoMatches, "a stereo device still gets a plain scaled copy")
+
+        let toSurround = rendered(source: [1, 2, 3, 4], sourceChannels: 2,
+                                  outputs: [(channels: 4, frames: 2)])[0]
+        expect(toSurround == [1, 2, 0, 0, 3, 4, 0, 0],
+               "a device with more channels than the tap fills the first pair and silences the rest")
+
+        let split = rendered(source: [1, 2, 3, 4], sourceChannels: 2,
+                             outputs: [(channels: 1, frames: 2), (channels: 1, frames: 2)])
+        expect(split == [[1, 3], [2, 4]],
+               "a device that keeps its channels in separate buffers gets one channel each")
+
+        let quieterSplit = rendered(source: [1, 2, 3, 4], sourceChannels: 2,
+                                    outputs: [(channels: 1, frames: 2), (channels: 1, frames: 2)],
+                                    gain: 0.5)
+        expect(quieterSplit == [[0.5, 1.5], [1, 2]],
+               "the chosen volume applies to every channel a spread-out device carries")
+
+        let quieterSurround = rendered(source: [1, 2, 3, 4], sourceChannels: 2,
+                                       outputs: [(channels: 4, frames: 2)], gain: 0.5)[0]
+        expect(quieterSurround == [0.5, 1, 0, 0, 1.5, 2, 0, 0],
+               "the chosen volume applies when the tap is spread over more channels")
+
+        let fromMono = rendered(source: [1, 2], sourceChannels: 1,
+                                outputs: [(channels: 2, frames: 2)])[0]
+        expect(fromMono == [1, 1, 2, 2],
+               "a single-channel source is heard on both sides, not only the left")
+
+        let shortOutput = rendered(source: [1, 2, 3, 4, 5, 6], sourceChannels: 2,
+                                   outputs: [(channels: 2, frames: 2)])[0]
+        expect(shortOutput == [1, 2, 3, 4] && renderedFrames == 2,
+               "an output buffer smaller than the tap's is filled without running past its end")
+
+        let tapOnly = AudioBufferList.allocate(maximumBuffers: 2)
+        let deviceInput = UnsafeMutablePointer<Float>.allocate(capacity: 1)
+        let tapSamples = UnsafeMutablePointer<Float>.allocate(capacity: 2)
+        defer {
+            deviceInput.deallocate()
+            tapSamples.deallocate()
+        }
+        tapOnly[0] = AudioBuffer(mNumberChannels: 1, mDataByteSize: 4,
+                                 mData: UnsafeMutableRawPointer(deviceInput))
+        tapOnly[1] = AudioBuffer(mNumberChannels: 2, mDataByteSize: 8,
+                                 mData: UnsafeMutableRawPointer(tapSamples))
+        expect(MixerRender.tapBufferIndex(in: tapOnly, tapChannels: 2) == 1,
+               "on an output device that also records, the tap is not the first buffer")
+        expect(MixerRender.tapBufferIndex(in: tapOnly, tapChannels: 1) == 0,
+               "the tap is picked by the shape it announced, not by its position")
+        expect(MixerRender.tapBufferIndex(in: tapOnly, tapChannels: 7) == nil,
+               "with nothing matching the tap, the microphone is never played out of the speakers")
+        tapOnly[1] = AudioBuffer(mNumberChannels: 2, mDataByteSize: 8, mData: nil)
+        expect(MixerRender.tapBufferIndex(in: tapOnly, tapChannels: 2) == nil,
+               "a buffer with no samples is never mistaken for the tap")
+        free(tapOnly.unsafeMutablePointer)
+
+        let lonely = AudioBufferList.allocate(maximumBuffers: 1)
+        lonely[0] = AudioBuffer(mNumberChannels: 2, mDataByteSize: 8,
+                                mData: UnsafeMutableRawPointer(tapSamples))
+        expect(MixerRender.tapBufferIndex(in: lonely, tapChannels: 7) == 0,
+               "an output device with nothing of its own leaves only the tap to render")
+        free(lonely.unsafeMutablePointer)
+
+        expect(MixerRender.sourceChannel(for: 0, sourceChannels: 2) == 0
+            && MixerRender.sourceChannel(for: 1, sourceChannels: 2) == 1,
+               "stereo feeds the first two channels in order")
+        expect(MixerRender.sourceChannel(for: 2, sourceChannels: 2) == nil,
+               "channels the tap cannot fill stay silent")
+        expect(MixerRender.sourceChannel(for: 1, sourceChannels: 1) == 0,
+               "a single channel is copied to the right as well as the left")
 
         // MARK: Shelf persistence
 
@@ -4190,6 +4636,15 @@ struct MetricsTests {
                                                    movingDown: false) == 1,
                "App Switcher up navigation keeps its existing column behavior")
         let previousPreviewSize = UserDefaults.standard.object(forKey: DefaultsKey.previewSize)
+        UserDefaults.standard.set("small", forKey: DefaultsKey.previewSize)
+        expectClose(Double(PreviewSizing.scale), 0.75,
+                    "Preview sizing accepts the Small option")
+        expectClose(Double(SwitcherIconRowLayout.scale), 0.75,
+                    "App Switcher icon-row mode honors the Small option")
+        expectClose(Double(DockPreviewSupport.cardSpacing), 6,
+                    "Dock Preview Small previews tighten card spacing")
+        expectClose(Double(DockPreviewSupport.panelPadding), 9,
+                    "Dock Preview Small previews tighten panel padding")
         UserDefaults.standard.set("xlarge", forKey: DefaultsKey.previewSize)
         let xlargeIconRowLayout = SwitcherIconRowLayout.compute(appCount: 6,
                                                                  selectedWindowCount: 1,
@@ -4755,16 +5210,74 @@ struct MetricsTests {
                                                                  selectedIndex: 2,
                                                                  delta: 1) == 2,
                "App Switcher icon-row window navigation stays put when the app has one window")
-        let afterFirstSwitch = SwitcherSupport.updatedMRU(afterActivating: "window-b",
-                                                          previousID: "window-a",
-                                                          existing: [])
-        expect(afterFirstSwitch == ["window-b", "window-a"],
-               "App Switcher MRU records the previous window immediately after a switch")
-        let afterSecondSwitch = SwitcherSupport.updatedMRU(afterActivating: "window-a",
-                                                           previousID: "window-b",
-                                                           existing: afterFirstSwitch)
-        expect(afterSecondSwitch == ["window-a", "window-b"],
-               "App Switcher MRU toggles back after two consecutive switcher uses")
+        let afterFirstSwitch = WindowUseOrder.promoting(2, previous: 1, in: [])
+        expect(afterFirstSwitch == [2, 1],
+               "App Switcher use history records the previous window immediately after a switch")
+        let afterSecondSwitch = WindowUseOrder.promoting(1, previous: 2, in: afterFirstSwitch)
+        expect(afterSecondSwitch == [1, 2],
+               "App Switcher use history toggles back after two consecutive switcher uses")
+
+        // Issue #388: the switcher put the app the user had just used far down
+        // the list. The order used to come from a history that only the
+        // switcher's own commits ever wrote to, so windows picked with the
+        // mouse were invisible to it and windows picked once through the
+        // switcher stayed ahead of them forever.
+        let mouseEntries = [WindowUseOrder.Entry(windowID: 10, pid: 1),   // used through the switcher, long ago
+                            WindowUseOrder.Entry(windowID: 11, pid: 2),   // used through the switcher, long ago
+                            WindowUseOrder.Entry(windowID: 12, pid: 3),   // clicked a moment ago
+                            WindowUseOrder.Entry(windowID: 13, pid: 4)]   // clicked just now, in front
+        let mouseOrder = WindowUseOrder.ordered(mouseEntries,
+                                                windowHistory: [13, 12, 11, 10],
+                                                appHistory: [4, 3, 2, 1],
+                                                frontToBack: [13, 12, 11, 10])
+        expect(mouseOrder.map(\.windowID) == [13, 12, 11, 10],
+               "App Switcher orders by real window use, so windows picked with the mouse keep their place")
+
+        // Two windows of the same app: the system posts no activation for a
+        // switch between them, so only the focus history can order them.
+        let sameAppEntries = [WindowUseOrder.Entry(windowID: 20, pid: 1),
+                              WindowUseOrder.Entry(windowID: 21, pid: 1),
+                              WindowUseOrder.Entry(windowID: 22, pid: 2)]
+        let sameAppOrder = WindowUseOrder.ordered(sameAppEntries,
+                                                  windowHistory: [21, 22, 20],
+                                                  appHistory: [1, 2],
+                                                  frontToBack: [21, 22, 20])
+        expect(sameAppOrder.map(\.windowID) == [21, 22, 20],
+               "App Switcher toggles back to the last window used even when it belongs to the current app")
+
+        // A window that was never focused cannot be ranked by use: it follows
+        // everything that was, ordered by its app and then by how deep it sits.
+        let unseenEntries = [WindowUseOrder.Entry(windowID: 30, pid: 1),
+                             WindowUseOrder.Entry(windowID: 31, pid: 2),
+                             WindowUseOrder.Entry(windowID: 32, pid: 3),
+                             WindowUseOrder.Entry(windowID: nil, pid: 3)]
+        let unseenOrder = WindowUseOrder.ordered(unseenEntries,
+                                                 windowHistory: [30],
+                                                 appHistory: [1, 2, 3],
+                                                 frontToBack: [30, 31, 32])
+        expect(unseenOrder.map(\.windowID) == [30, 31, 32, nil],
+               "App Switcher places never-focused windows after used ones, by app and then by depth")
+
+        // Cold start: nothing has been used yet, so front-to-back order is the
+        // only account of what came last, and it has to be used as one.
+        expect(WindowUseOrder.reconciled([], existing: [40, 41, 42], frontToBack: [42, 40, 41])
+               == [42, 40, 41],
+               "App Switcher seeds its use history from the window server instead of starting arbitrary")
+        expect(WindowUseOrder.reconciled([50, 51], existing: [51, 52], frontToBack: [52, 51])
+               == [51, 52],
+               "App Switcher use history drops closed windows and files new ones behind what was used")
+        expect(WindowUseOrder.reconciled([60, 61, 62], existing: [60, 61, 62], frontToBack: [62])
+               == [60, 61, 62],
+               "App Switcher use history is not reshuffled by the window server once it knows better")
+        expect(WindowUseOrder.reconciled([70, 71, 72], existing: [70, 71, 72], frontToBack: [], limit: 2)
+               == [70, 71],
+               "App Switcher use history stays bounded")
+        expect(WindowUseOrder.reconciled([], running: [80, 81, 82], frontToBack: [81, 82, 80])
+               == [81, 82, 80],
+               "App Switcher seeds its application history from the window server too")
+        expect(WindowUseOrder.reconciled([90, 91], running: [91, 92], frontToBack: [92, 91])
+               == [91, 92],
+               "App Switcher application history drops closed apps and files new ones behind")
         let groupedIconLayout = SwitcherIconRowLayout.compute(appCount: appGroups.count,
                                                               selectedWindowCount: appGroups[0].windowCount,
                                                               screenVisibleFrame: screen)
@@ -5680,6 +6193,28 @@ struct MetricsTests {
             expect(!strings.switcherCurrentSpaceOnlyCaption.isEmpty
                    && !strings.switcherCurrentSpaceOnlyCaption.contains("—"),
                    "\(prefix) App Switcher current-desktop caption is present without em dash")
+            expect(!strings.switcherWindowlessApps.isEmpty
+                   && !strings.switcherWindowlessApps.contains("—"),
+                   "\(prefix) App Switcher windowless apps title is present without em dash")
+            expect(!strings.switcherWindowlessAppsCaption.isEmpty
+                   && !strings.switcherWindowlessAppsCaption.contains("—"),
+                   "\(prefix) App Switcher windowless apps caption is present without em dash")
+            expect(!strings.switcherWindowlessAppsOff.isEmpty
+                   && !strings.switcherWindowlessAppsFinder.isEmpty
+                   && !strings.switcherWindowlessAppsAll.isEmpty
+                   && !strings.switcherWindowlessAppsOff.contains("—")
+                   && !strings.switcherWindowlessAppsFinder.contains("—")
+                   && !strings.switcherWindowlessAppsAll.contains("—"),
+                   "\(prefix) App Switcher windowless apps choices are all present without em dash")
+            expect(!strings.switcherNoOpenWindow.isEmpty
+                   && !strings.switcherNoOpenWindow.contains("—"),
+                   "\(prefix) App Switcher no-open-window tile label is present without em dash")
+            expect(!strings.dockPreviewBackgroundOpacity.isEmpty
+                   && !strings.dockPreviewBackgroundOpacity.contains("—"),
+                   "\(prefix) Dock Preview background title is present without em dash")
+            expect(!strings.dockPreviewBackgroundOpacityCaption.isEmpty
+                   && !strings.dockPreviewBackgroundOpacityCaption.contains("—"),
+                   "\(prefix) Dock Preview background caption is present without em dash")
             expect(!strings.switcherShortcutHintApps.isEmpty, "\(prefix) App Switcher app shortcut hint is present")
             expect(!strings.switcherShortcutHintWindows.isEmpty, "\(prefix) App Switcher window shortcut hint is present")
             expect(!strings.networkApps.isEmpty, "\(prefix) network app usage title is present")
@@ -5710,7 +6245,6 @@ struct MetricsTests {
             let highlightsStrings = [strings.highlightsTitle, strings.highlightsCaptionDockPreview,
                                      strings.highlightsCaptionScreenshot,
                                      strings.highlightsCaptionSnippetLibrary,
-                                     strings.highlightsCaptionMicMute,
                                      strings.highlightsConfigure,
                                      strings.highlightsTry, strings.highlightsSeeAll]
             expect(highlightsStrings.allSatisfy { !$0.isEmpty && !$0.contains("—") },
@@ -6064,7 +6598,7 @@ struct MetricsTests {
 
         // MARK: Features hub catalog
 
-        expect(AppFeature.allCases.count == 48, "feature catalog has 48 features")
+        expect(AppFeature.allCases.count == 49, "feature catalog has 49 features")
         expect(Set(AppFeature.allCases.map(\.rawValue)).count == AppFeature.allCases.count,
                "feature ids are unique")
         expect(AppFeature.allCases.map(\.rawValue) == [
@@ -6076,7 +6610,7 @@ struct MetricsTests {
             "keepAwake", "brightness", "extraBrightness", "menuBarOrganizer",
             "quickLauncher", "quickToggles", "colorPicker", "screenOCR", "cleaningMode", "mediaTools",
             "cleaner", "uninstaller", "homebrew", "appUpdates", "screenshot", "cameraPreview",
-            "radialMenu", "scratchpad", "commandBar",
+            "radialMenu", "scratchpad", "commandBar", "screenRecorder",
             "monitorCPU", "monitorGPU", "monitorMemory", "monitorNetwork", "monitorDisk", "monitorPower",
         ], "feature ids are stable (they persist inside availability keys)")
         expect(AppFeature.switcher.availabilityKey == "featureAvailable.switcher",
@@ -6089,6 +6623,10 @@ struct MetricsTests {
                "every feature belongs to exactly one group")
         expect(!FeatureGroup.allCases.contains { AppFeature.features(in: $0).isEmpty },
                "no hub group is empty")
+        expect(AppPermission.allCases.map(\.rawValue) == [
+            "accessibility", "screenRecording", "fullDiskAccess", "filesAndFolders", "notifications",
+            "automationFinder", "automationTerminal", "audioCapture", "camera", "appManagement",
+        ], "permission portal contains every supported permission")
 
         func activeSet(_ permission: AppPermission,
                        available: Set<AppFeature> = Set(AppFeature.allCases),
@@ -6125,11 +6663,11 @@ struct MetricsTests {
                "the enabled menu bar organizer uses accessibility for Command-drag")
 
         expect(activeSet(.screenRecording, on: [DefaultsKey.switcherEnabled])
-                == [.switcher, .screenOCR, .screenshot],
-               "switcher with previews uses screen recording; OCR and screenshots are on demand")
+                == [.switcher, .screenOCR, .screenshot, .screenRecorder],
+               "switcher with previews uses screen recording; OCR, screenshots and recordings are on demand")
         expect(activeSet(.screenRecording,
                          on: [DefaultsKey.switcherEnabled, DefaultsKey.switcherSimpleMode])
-                == [.screenOCR, .screenshot],
+                == [.screenOCR, .screenshot, .screenRecorder],
                "simple-mode switcher stops using screen recording")
         expect(activeSet(.screenRecording,
                          on: [DefaultsKey.switcherSimpleMode, DefaultsKey.dockPreviewEnabled])
@@ -6243,6 +6781,10 @@ struct MetricsTests {
         expect(AppFeature.quickToggles.permissions == [.automationFinder],
                "the quick toggles need no permission beyond the Trash's Finder ask")
         expect(activeSet(.automationTerminal) == [.homebrew], "homebrew drives the Terminal")
+        expect(activeSet(.appManagement) == [.homebrew, .appUpdates],
+               "package and app updates declare App Management access")
+        expect(AppFeature.homebrew.permissions == [.automationTerminal, .appManagement],
+               "the package manager declares both permissions used by its operations")
         expect(activeSet(.audioCapture) == [.mixer], "the mixer is the only audio capture user")
         expect(activeSet(.audioCapture, available: Set(AppFeature.allCases).subtracting([.mixer])) == [],
                "audio capture reads as unused once the mixer is off in the hub")
@@ -6398,7 +6940,7 @@ struct MetricsTests {
                    "no em-dash in visible radial menu strings (\(language.rawValue))")
             let scratchpadValues = Mirror(reflecting: FeatureStrings.scratchpad(language)).children
                 .compactMap { $0.value as? String }
-            expect(scratchpadValues.count == 16 && scratchpadValues.allSatisfy { !$0.isEmpty },
+            expect(scratchpadValues.count == 17 && scratchpadValues.allSatisfy { !$0.isEmpty },
                    "every scratchpad string is set for \(language.rawValue)")
             expect(scratchpadValues.allSatisfy { !$0.contains("—") },
                    "no em-dash in visible scratchpad strings (\(language.rawValue))")
@@ -6415,6 +6957,18 @@ struct MetricsTests {
                    "every WhatsApp organizer string is set for \(language.rawValue)")
             expect(organizerValues.allSatisfy { !$0.contains("—") },
                    "no em-dash in WhatsApp organizer strings (\(language.rawValue))")
+            let recorderValues = Mirror(reflecting: FeatureStrings.recorder(language)).children
+                .compactMap { $0.value as? String }
+            expect(recorderValues.count == 93 && recorderValues.allSatisfy { !$0.isEmpty },
+                   "every screen recorder string is set for \(language.rawValue)")
+            expect(recorderValues.allSatisfy { !$0.contains("—") },
+                   "no em-dash in visible screen recorder strings (\(language.rawValue))")
+            expect(FeatureStrings.recorder(language).countdownSecondsFormat.contains("%d"),
+                   "recorder countdown format keeps its specifier (\(language.rawValue))")
+            expect(FeatureStrings.recorder(language).frameRateFormat.contains("%d"),
+                   "recorder frame rate format keeps its specifier (\(language.rawValue))")
+            expect(FeatureStrings.recorder(language).savedHUDFormat.contains("%@"),
+                   "recorder saved format keeps its specifier (\(language.rawValue))")
             expect(FeatureStrings.screenshot(language).delaySecondsFormat.contains("%d"),
                    "screenshot delay format keeps its specifier (\(language.rawValue))")
             expect(FeatureStrings.screenshot(language).savedHUDFormat.contains("%@"),
@@ -7175,19 +7729,32 @@ struct MetricsTests {
                 && QuickTogglesSupport.finderFlag("maybe", default: true),
                "absent or unreadable values fall back to the given default")
         expect(QuickTogglesSupport.shouldOfferEject(isInternal: false, isRemovable: true,
-                                                    isEjectable: false, isLocal: true)
+                                                    isEjectable: false, isLocal: true,
+                                                    isRootFileSystem: false)
                 && QuickTogglesSupport.shouldOfferEject(isInternal: false, isRemovable: false,
-                                                        isEjectable: true, isLocal: true),
+                                                        isEjectable: true, isLocal: true,
+                                                        isRootFileSystem: false),
                "external removable or ejectable local volumes are offered")
-        expect(!QuickTogglesSupport.shouldOfferEject(isInternal: true, isRemovable: true,
-                                                     isEjectable: true, isLocal: true),
-               "internal volumes are never ejected")
+        expect(QuickTogglesSupport.shouldOfferEject(isInternal: false, isRemovable: false,
+                                                    isEjectable: false, isLocal: true,
+                                                    isRootFileSystem: false),
+               "an external drive with fixed media is offered, the common desk drive")
+        expect(QuickTogglesSupport.shouldOfferEject(isInternal: true, isRemovable: true,
+                                                    isEjectable: true, isLocal: true,
+                                                    isRootFileSystem: false),
+               "media that comes out of an internal reader is offered")
+        expect(!QuickTogglesSupport.shouldOfferEject(isInternal: true, isRemovable: false,
+                                                     isEjectable: false, isLocal: true,
+                                                     isRootFileSystem: false),
+               "internal fixed drives are never ejected")
         expect(!QuickTogglesSupport.shouldOfferEject(isInternal: false, isRemovable: true,
-                                                     isEjectable: true, isLocal: false),
+                                                     isEjectable: true, isLocal: false,
+                                                     isRootFileSystem: false),
                "network volumes are never ejected")
-        expect(!QuickTogglesSupport.shouldOfferEject(isInternal: false, isRemovable: false,
-                                                     isEjectable: false, isLocal: true),
-               "a fixed external volume without eject support is left alone")
+        expect(!QuickTogglesSupport.shouldOfferEject(isInternal: false, isRemovable: true,
+                                                     isEjectable: true, isLocal: true,
+                                                     isRootFileSystem: true),
+               "the volume the Mac booted from is never ejected, even on an external drive")
 
         // MARK: Screenshot tool
 
@@ -7678,6 +8245,10 @@ struct MetricsTests {
                 && ScratchpadRetention.week.maxIdleInterval == 7 * 86_400
                 && ScratchpadRetention.month.maxIdleInterval == 30 * 86_400,
                "scratchpad retention periods are a day, a week and thirty days")
+        expect(ScratchpadSupport.dismissesOnOutsideClick(isPinned: false, exportModalActive: false)
+                && !ScratchpadSupport.dismissesOnOutsideClick(isPinned: true, exportModalActive: false)
+                && !ScratchpadSupport.dismissesOnOutsideClick(isPinned: false, exportModalActive: true),
+               "the scratchpad pin and export dialog both block outside-click dismissal")
         let scratchpadNow = Date(timeIntervalSince1970: 1_784_000_000)
         expect(!ScratchpadSupport.shouldClear(lastEdited: nil, now: scratchpadNow, retention: .day)
                 && !ScratchpadSupport.shouldClear(lastEdited: scratchpadNow.addingTimeInterval(-90_000),
@@ -7724,10 +8295,12 @@ struct MetricsTests {
                "each microphone gets its own level back, then the older single level, then a usable one")
         expect(MicMuteSupport.restoreTargets(recorded: ["mic-a", "gone"],
                                              present: ["mic-a", "mic-b"]) == ["mic-a"]
-                && MicMuteSupport.restoreTargets(recorded: [],
+                && MicMuteSupport.restoreTargets(recorded: nil,
                                                  present: ["mic-a", "mic-b"]) == ["mic-a", "mic-b"]
+                && MicMuteSupport.restoreTargets(recorded: [],
+                                                 present: ["mic-a", "mic-b"]).isEmpty
                 && MicMuteSupport.restoreTargets(recorded: ["mic-a"], present: []).isEmpty,
-               "unmuting touches the microphones this app muted, and every one of them when it knows of none")
+               "unmuting touches the microphones this app muted, every one with no record, and none when the record is empty")
 
         expect(Defaults.registeredDefaults[DefaultsKey.radialMenuEnabled] as? Bool == false,
                "the radial menu ships off by default")
@@ -7758,6 +8331,10 @@ struct MetricsTests {
                 && RadialMenuActivationMode.hold.releaseAction(hasSelection: false) == .dismiss
                 && RadialMenuActivationMode.hold.releaseAction(hasSelection: true) == .select,
                "release keeps the adaptive wheel, dismisses an empty strict hold, or selects its target")
+        expect(RadialMenuSupport.shortcutIsStillHeld(modifiersHeld: true, superKeyHeld: false)
+                && RadialMenuSupport.shortcutIsStillHeld(modifiersHeld: false, superKeyHeld: true)
+                && !RadialMenuSupport.shortcutIsStillHeld(modifiersHeld: false, superKeyHeld: false),
+               "the radial hold follows physical modifiers or the virtual super key")
         expect(RadialMenuMouseTrigger.sanitized("back") == .back
                 && RadialMenuMouseTrigger.sanitized("forward").buttonNumber == 4
                 && RadialMenuMouseTrigger.back.buttonNumber == 3
@@ -7847,6 +8424,34 @@ struct MetricsTests {
                 && MouseButtonShortcutSupport.buttonName(for: 5, strings: .enUS) == "Button 6",
                "buttons are named by their job or their printed count")
 
+        // A synthesized press has to carry the same flags a finger produces,
+        // or the system matches it against no shortcut of its own (issue #401).
+        expect(GlobalShortcut(keyCode: Int64(kVK_ANSI_N), modifiers: [.command, .shift])
+                .syntheticEventFlags == [.maskCommand, .maskShift],
+               "an ordinary key goes out with its modifiers and nothing else")
+        expect(GlobalShortcut(keyCode: Int64(kVK_RightArrow), modifiers: [.control, .command])
+                .syntheticEventFlags == [.maskControl, .maskCommand, .maskSecondaryFn, .maskNumericPad],
+               "an arrow goes out as a function key of the numeric pad, the way it arrives")
+        expect(GlobalShortcut(keyCode: Int64(kVK_F13), modifiers: [.control, .option, .command])
+                .syntheticEventFlags
+                == [.maskControl, .maskAlternate, .maskCommand, .maskSecondaryFn],
+               "an F key goes out as a function key")
+        expect(GlobalShortcut(keyCode: Int64(kVK_PageDown), modifiers: [.command])
+                .syntheticEventFlags == [.maskCommand, .maskSecondaryFn]
+                && GlobalShortcut(keyCode: Int64(kVK_ForwardDelete), modifiers: [.command])
+                .syntheticEventFlags == [.maskCommand, .maskSecondaryFn],
+               "the navigation block counts as function keys too")
+        expect(GlobalShortcut(keyCode: Int64(kVK_ANSI_Keypad5), modifiers: [.control])
+                .syntheticEventFlags == [.maskControl, .maskNumericPad],
+               "a keypad key goes out as part of the keypad, without the function flag")
+        expect(GlobalShortcut(keyCode: Int64(kVK_Delete), modifiers: [.command])
+                .syntheticEventFlags == [.maskCommand]
+                && GlobalShortcut(keyCode: Int64(kVK_Escape), modifiers: [.command])
+                .syntheticEventFlags == [.maskCommand]
+                && GlobalShortcut(keyCode: Int64(kVK_Return), modifiers: [.control, .option])
+                .syntheticEventFlags == [.maskControl, .maskAlternate],
+               "the keys beside them are ordinary and stay ordinary")
+
         // MARK: Super key (issue #330)
 
         expect(Defaults.registeredDefaults[DefaultsKey.superKeyEnabled] as? Bool == false,
@@ -7924,11 +8529,25 @@ struct MetricsTests {
                "with the key up, typing is untouched")
         expect(superKeyState.decide(.triggerDown(isRepeat: false)) == .swallow,
                "the key itself never reaches an app")
-        expect(superKeyState.decide(.otherKey) == .addModifiers
+        expect(superKeyState.isHeld
+                && superKeyState.decide(.otherKey) == .addModifiers
                 && superKeyState.decide(.otherKey) == .addModifiers,
                "every key pressed while it is held carries the four modifiers")
-        expect(superKeyState.decide(.triggerUp) == .swallow,
+        expect(superKeyState.decide(.triggerUp) == .swallow && !superKeyState.isHeld,
                "releasing after a combination does nothing on its own")
+
+        // What the watchdog leans on: a press whose release never arrived is
+        // let go of, and typing goes back to normal without the key being
+        // touched again.
+        var lostReleaseState = SuperKeySupport.State()
+        _ = lostReleaseState.decide(.triggerDown(isRepeat: false))
+        expect(lostReleaseState.decide(.otherKey) == .addModifiers,
+               "a press with no release still carries the modifiers while it stands")
+        lostReleaseState.reset()
+        expect(lostReleaseState.decide(.otherKey) == .pass,
+               "letting go of a press whose release was lost gives typing back")
+        expect(lostReleaseState.decide(.triggerUp) == .swallow,
+               "a release arriving after the press was let go does nothing")
 
         var soloState = SuperKeySupport.State()
         _ = soloState.decide(.triggerDown(isRepeat: false))
@@ -8037,6 +8656,15 @@ struct MetricsTests {
                    "each list explains its own feature, never the same line twice (\(language.rawValue))")
         }
 
+        for language in AppLanguage.allCases {
+            let strings = FeatureStrings.clipboardIgnoredApps(language)
+            let values = Mirror(reflecting: strings).children.compactMap { $0.value as? String }
+            expect(values.count == 4 && values.allSatisfy { !$0.isEmpty },
+                   "every clipboard skip list string is set for \(language.rawValue)")
+            expect(values.allSatisfy { !$0.contains("—") },
+                   "no em-dash in visible clipboard skip list strings (\(language.rawValue))")
+        }
+
         // MARK: Settings backup
 
         let backupKeys = SettingsBackupSupport.exportKeys()
@@ -8110,6 +8738,8 @@ struct MetricsTests {
                "mouse button shortcuts travel with the settings backup")
         expect(MouseExceptionScope.allCases.allSatisfy { backupKeys.contains($0.defaultsKey) },
                "the apps each mouse feature leaves alone travel with the settings backup")
+        expect(backupKeys.contains(DefaultsKey.clipboardHistoryIgnoredApps),
+               "the apps the clipboard history skips travel with the settings backup")
         expect(backupKeys.contains(DefaultsKey.panelShowToggles)
                 && backupKeys.contains(DefaultsKey.panelToggleOrder)
                 && backupKeys.contains(DefaultsKey.panelToggleDarkMode),
@@ -8148,7 +8778,6 @@ struct MetricsTests {
         expect(!backupKeys.contains(DefaultsKey.startupDidNotFinish),
                "the backup never carries a note about a start that did not finish")
         expect(backupKeys.contains(DefaultsKey.hasOnboarded)
-                && backupKeys.contains(DefaultsKey.dockPreviewIntroVersion)
                 && backupKeys.contains(DefaultsKey.featuresOnboardingVersion)
                 && backupKeys.contains(DefaultsKey.lastUpdateIntroVersion),
                "a restored Mac does not replay onboarding or the intros already seen")
@@ -8207,6 +8836,12 @@ struct MetricsTests {
         expect(AppUpdatesSupport.compare("2026.723.1724", "2026.714.1952") == .orderedDescending
                 && AppUpdatesSupport.compare("00123", "123") == .orderedSame,
                "leading zeros never decide a comparison")
+        expect(!AppUpdatesSupport.isNewer("1.9a", than: "1.10")
+                && AppUpdatesSupport.isNewer("1.10", than: "1.9a")
+                && !AppUpdatesSupport.isNewer("3.5beta", than: "3.5")
+                && AppUpdatesSupport.isNewer("3.5", than: "3.5beta")
+                && AppUpdatesSupport.isNewer("1.9b", than: "1.9a"),
+               "a lettered part compares by its number first, and the bare number outranks its own suffixed run")
         expect(AppUpdatesSupport.versionCore("3.5.262,260717dcrpwg7m0") == "3.5.262"
                 && AppUpdatesSupport.versionCore("0.0.402") == "0.0.402",
                "the revision after a comma is not part of the version")
@@ -8409,9 +9044,9 @@ struct MetricsTests {
                 && !SettingsBackupSupport.exportKeys().contains(DefaultsKey.appUpdatesLastCheck),
                "the schedule travels in a backup, the last check does not")
         expect(AppFeature.appUpdates.enabledKeys.isEmpty
-                && AppFeature.appUpdates.permissions == [.notifications]
+                && AppFeature.appUpdates.permissions == [.notifications, .appManagement]
                 && AppFeature.appUpdates.group == .tools,
-               "app updates is an on demand tool that can only notify")
+               "app updates is an on demand tool that declares its update access")
         expect(FeatureVisibilitySupport.features(for: .appUpdates) == [.appUpdates]
                 && !FeatureVisibilitySupport.isPageVisible(.appUpdates, isAvailable: { _ in false }),
                "the page follows the feature in the hub")
@@ -8717,6 +9352,529 @@ struct MetricsTests {
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.commandBarShortcut)
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.commandBarLinks),
                "the command bar settings travel in backups")
+        // MARK: Screen recorder wiring
+
+        expect(Defaults.registeredDefaults[DefaultsKey.recorderShortcutEnabled] as? Bool == false,
+               "the screen recorder shortcut ships off like every new feature")
+        expect(Defaults.registeredDefaults[DefaultsKey.recorderShortcut] as? String
+                == "control+option+command:23",
+               "the default recording shortcut sits next to the screenshot's own")
+        expect(Defaults.registeredDefaults[DefaultsKey.panelUtilityScreenRecorder] as? Bool == true,
+               "the screen recorder panel tile ships visible like its siblings")
+        expect(Defaults.registeredDefaults[DefaultsKey.recorderSystemAudio] as? Bool == true,
+               "a recording carries the sound of the Mac unless the person turns it off")
+        expect(Defaults.registeredDefaults[DefaultsKey.recorderQuality] as? String == "balanced"
+                && Defaults.registeredDefaults[DefaultsKey.recorderFrameRate] as? Int == 60
+                && Defaults.registeredDefaults[DefaultsKey.recorderCountdown] as? Int == 3
+                && Defaults.registeredDefaults[DefaultsKey.recorderOpenEditor] as? Bool == true,
+               "the recorder ships balanced, smooth, with a short countdown and the editor on")
+        expect(GlobalShortcutRole.screenRecorder.requiredEnableKeys
+                == [DefaultsKey.recorderShortcutEnabled]
+                && GlobalShortcutRole.screenRecorder.feature == .screenRecorder,
+               "the recording shortcut role gates on its toggle and feature")
+        expect(AppFeature.screenRecorder.group == .tools
+                && AppFeature.screenRecorder.enabledKeys.isEmpty
+                && AppFeature.screenRecorder.permissions == [.screenRecording],
+               "the recorder is an on-demand tool and the sound rides the screen grant")
+        expect(AppFeature.screenRecorder.energyProfile == .idle,
+               "the recorder costs nothing between recordings")
+        expect(pageVisible(.screenRecorder, available: [.screenRecorder])
+                && !pageVisible(.screenRecorder, available: []),
+               "the screen recorder page follows its hub switch")
+        expect(SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderShortcutEnabled)
+                && SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderQuality)
+                && SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderGIFSize)
+                && SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderSaveFolder),
+               "the screen recorder settings travel in backups")
+
+        // MARK: Screen recorder geometry and policy
+
+        let displayPixels = CGRect(x: 0, y: 0, width: 2940, height: 1912)
+        let odd = RecorderSupport.snappedPixelRect(
+            CGRect(x: 10.7, y: 20.2, width: 641.4, height: 401.9), in: displayPixels)
+        expect(odd.width.truncatingRemainder(dividingBy: 2) == 0
+                && odd.height.truncatingRemainder(dividingBy: 2) == 0,
+               "a picked area is snapped to even pixels, which is what encoders accept")
+        expect(odd.origin.x == 10 && odd.origin.y == 20,
+               "snapping moves the origin to whole pixels without shifting the area")
+        let overflowing = RecorderSupport.snappedPixelRect(
+            CGRect(x: 2900, y: 1900, width: 400, height: 400), in: displayPixels)
+        expect(displayPixels.contains(overflowing),
+               "an area that runs off the display is brought back inside it")
+        expect(overflowing.width >= RecorderSupport.minimumSide
+                && overflowing.height >= RecorderSupport.minimumSide,
+               "a clamped area never collapses below the smallest recordable size")
+        let broken = RecorderSupport.snappedPixelRect(
+            CGRect(x: CGFloat.nan, y: 0, width: 100, height: 100), in: displayPixels)
+        expect(broken.width > 0 && broken.height > 0,
+               "a broken rectangle falls back to the whole display instead of failing")
+
+        expect(RecorderSupport.elapsedLabel(seconds: 0) == "0:00"
+                && RecorderSupport.elapsedLabel(seconds: 7) == "0:07"
+                && RecorderSupport.elapsedLabel(seconds: 754) == "12:34"
+                && RecorderSupport.elapsedLabel(seconds: 3723) == "1:02:03",
+               "elapsed time reads like a player position and grows an hour field only when needed")
+        expect(RecorderSupport.elapsedLabel(seconds: -5) == "0:00",
+               "a clock that never went forward still reads as zero")
+
+        expect(RecorderSupport.sanitizedFrameRate(60) == 60
+                && RecorderSupport.sanitizedFrameRate(30) == 30
+                && RecorderSupport.sanitizedFrameRate(144) == 60,
+               "an unknown frame rate falls back to the smooth default")
+        expect(RecorderSupport.sanitizedQuality("high") == .high
+                && RecorderSupport.sanitizedQuality("nonsense") == .balanced
+                && RecorderSupport.sanitizedQuality(nil) == .balanced,
+               "an unknown quality falls back to balanced")
+
+        let smallSize = RecorderSupport.outputSize(source: CGSize(width: 2940, height: 1912),
+                                                   quality: .small)
+        expect(smallSize == CGSize(width: 1470, height: 956),
+               "the small preset halves the picture and stays on even pixels")
+        expect(RecorderSupport.outputSize(source: CGSize(width: 2940, height: 1912), quality: .high)
+                == CGSize(width: 2940, height: 1912),
+               "the high preset keeps every pixel")
+        let highRate = RecorderSupport.averageBitRate(width: 2940, height: 1912, fps: 60,
+                                                      quality: .high)
+        let smallRate = RecorderSupport.averageBitRate(width: 1470, height: 956, fps: 60,
+                                                       quality: .small)
+        expect(highRate > smallRate,
+               "a bigger picture at a higher preset asks the encoder for more")
+        expect(RecorderSupport.averageBitRate(width: 64, height: 64, fps: 30, quality: .small)
+                >= 800_000,
+               "even a tiny area gets a usable stream")
+        expect(highRate <= 60_000_000,
+               "no preset asks for more than the media engine sustains")
+
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let beingEdited = UUID()
+        let leftBehind = UUID()
+        let beingWritten = UUID()
+        let deadOnArrival = UUID()
+        let takeHistory: [(id: UUID, finishedAt: Date?, createdAt: Date?)] = [
+            (id: beingEdited, finishedAt: now.addingTimeInterval(-600),
+             createdAt: now.addingTimeInterval(-700)),
+            (id: leftBehind, finishedAt: now.addingTimeInterval(-3 * 24 * 3600),
+             createdAt: now.addingTimeInterval(-3 * 24 * 3600)),
+            (id: beingWritten, finishedAt: nil, createdAt: now.addingTimeInterval(-5)),
+            (id: deadOnArrival, finishedAt: nil, createdAt: now.addingTimeInterval(-8 * 3600)),
+        ]
+        let swept = Set(RecorderSupport.orphanTakeIDs(takeHistory, now: now))
+        expect(swept == [leftBehind, deadOnArrival],
+               "the sweep only takes what a crash or a quit left behind")
+        expect(!swept.contains(beingEdited),
+               "a recording whose editor is open is never swept out from under it")
+        expect(!swept.contains(beingWritten),
+               "a recording being written right now has no file yet and is left alone")
+
+        expect(RecorderSupport.canStart(freeBytes: 10_000_000_000)
+                && !RecorderSupport.canStart(freeBytes: 100_000_000),
+               "a recording refuses to start when the disk is nearly full")
+        expect(RecorderSupport.shouldStopForDisk(freeBytes: 100_000_000)
+                && !RecorderSupport.shouldStopForDisk(freeBytes: 10_000_000_000),
+               "a recording already running stops before it fills the disk")
+        expect(RecorderSupport.minimumFreeBytesToContinue < RecorderSupport.minimumFreeBytesToStart,
+               "stopping a recording is allowed to get closer to full than starting one")
+
+        let wholeClip = RecorderSupport.sanitizedTrim(start: 0, end: 0, duration: 12)
+        expect(wholeClip.start == 0 && wholeClip.end == 12,
+               "an end of zero means the whole recording, so an untouched edit shows everything")
+        let inside = RecorderSupport.sanitizedTrim(start: 2, end: 9, duration: 12)
+        expect(inside.start == 2 && inside.end == 9 && inside.duration == 7,
+               "a trim inside the recording is kept as it is")
+        let collapsed = RecorderSupport.sanitizedTrim(start: 8, end: 8, duration: 12)
+        // A hair of tolerance: the floor is added to a start time in binary
+        // floating point, so the difference lands a few ulps under it.
+        expect(collapsed.duration >= RecorderSupport.minimumTrimSeconds - 1e-9,
+               "dragging both handles together still leaves a clip you can play")
+        let past = RecorderSupport.sanitizedTrim(start: 20, end: 30, duration: 12)
+        expect(past.end <= 12 && past.start >= 0 && past.duration > 0,
+               "a trim past the end of the recording is brought back inside it")
+        expect(RecorderSupport.sanitizedTrim(start: 0, end: 5, duration: 0).duration == 0,
+               "a recording with no duration produces no clip instead of a broken one")
+
+        expect(RecorderSupport.filmstripTimes(duration: 10, count: 4)
+                == [1.25, 3.75, 6.25, 8.75],
+               "filmstrip frames are sampled at the middle of each slot")
+        expect(RecorderSupport.filmstripTimes(duration: 0, count: 4).isEmpty
+                && RecorderSupport.filmstripTimes(duration: 10, count: 0).isEmpty,
+               "an empty recording asks for no thumbnails")
+
+        expect(RecorderSupport.gifFrameCount(duration: 10, fps: 12) == 120,
+               "a GIF holds one frame per tick of its own rate")
+        expect(RecorderSupport.gifFitsBudget(duration: 10, fps: 12)
+                && !RecorderSupport.gifFitsBudget(duration: 120, fps: 12),
+               "a GIF long enough to eat the memory of the machine is refused before it starts")
+        expect(Int(RecorderSupport.maximumGIFSeconds(fps: 12)) == 25,
+               "the refusal can say exactly how long a GIF may be at that rate")
+        expect(RecorderSupport.gifDelay(fps: 10) == 0.1,
+               "the frame delay is the reciprocal of the rate")
+        let gifSize = RecorderSupport.gifOutputSize(source: CGSize(width: 2940, height: 1912),
+                                                    size: .medium)
+        expect(max(gifSize.width, gifSize.height) <= RecorderSupport.GIFSize.medium.longEdge
+                && gifSize.width.truncatingRemainder(dividingBy: 2) == 0,
+               "a GIF is scaled down to its long edge and stays on even pixels")
+        expect(RecorderSupport.gifOutputSize(source: CGSize(width: 200, height: 120), size: .large)
+                == CGSize(width: 200, height: 120),
+               "a recording smaller than the GIF size is never blown up")
+        expect(RecorderSupport.sanitizedGIFFrameRate(99) == 12
+                && RecorderSupport.sanitizedGIFSize("nonsense") == .medium,
+               "unknown GIF settings fall back to the middle choice")
+
+        var document = RecorderEditDocument()
+        expect(!document.isEdited(duration: 12),
+               "a recording nobody touched is not treated as edited")
+        document.trimStart = 3
+        expect(document.isEdited(duration: 12),
+               "moving a handle marks the recording as edited")
+        document.trimStart = 100
+        document.trimEnd = -5
+        let repaired = document.sanitized(duration: 12)
+        expect(repaired.trimStart >= 0 && repaired.trimEnd <= 12
+                && repaired.trim(duration: 12).duration > 0,
+               "a damaged edit is repaired instead of wedging the editor")
+        let documentRoundTrip = RecorderEditDocument.decoded(
+            RecorderEditDocument(trimStart: 1, trimEnd: 4, keepsSystemAudio: false).encoded())
+        expect(documentRoundTrip.trimStart == 1 && documentRoundTrip.trimEnd == 4
+                && !documentRoundTrip.keepsSystemAudio,
+               "an edit written next to the recording comes back exactly as it was")
+        expect(RecorderEditDocument.decoded(Data("not json".utf8)).trimStart == 0,
+               "an unreadable edit opens the recording untouched instead of failing")
+
+        // MARK: Screen recorder motion
+
+        let flatAlpha = RecorderMotion.onePoleAlpha(cutoff: 2, dt: 1.0 / 60)
+        expect(abs(flatAlpha - 0.18899) < 0.0001,
+               "the one-pole coefficient matches the closed form at 60 fps")
+        expect(RecorderMotion.onePoleAlpha(cutoff: 0, dt: 1.0 / 60) == 1,
+               "no smoothing at all passes the signal straight through")
+
+        // A step is the hardest case: a causal filter lands late, a forward
+        // and backward pass lands on time. That is the whole reason the
+        // recording is finished before any of this runs.
+        let step = (0..<120).map { $0 < 60 ? 0.0 : 1.0 }
+        let filtered = RecorderMotion.filtfilt(step, alpha: 0.28)
+        expect(filtered.count == step.count,
+               "smoothing returns as many samples as it was given")
+        expect(abs(filtered[59] - 0.5) < 0.2,
+               "the smoothed step crosses halfway AT the step, not after it")
+        expect(filtered[0] < 0.02 && filtered[119] > 0.98,
+               "the padded ends are not dragged toward the middle of the clip")
+        var monotonic = true
+        for index in 1..<filtered.count where filtered[index] < filtered[index - 1] - 1e-9 {
+            monotonic = false
+        }
+        expect(monotonic, "smoothing a step never overshoots or rings")
+
+        let clicks = [RecorderMotion.Click(time: 1.0, isDown: true),
+                      RecorderMotion.Click(time: 1.3, isDown: false)]
+        expect(RecorderMotion.anchorWeight(at: 1.0, clicks: clicks) == 1,
+               "at the moment of the press the pointer is exactly where it really was")
+        expect(RecorderMotion.anchorWeight(at: 1.15, clicks: clicks) == 1,
+               "through a drag the pointer tracks the truth, or what is dragged comes loose")
+        expect(RecorderMotion.anchorWeight(at: 0.5, clicks: clicks) == 0,
+               "far from a click the smoothed path is used as it is")
+        expect(RecorderMotion.anchorWeight(at: 0.94, clicks: clicks) > 0
+                && RecorderMotion.anchorWeight(at: 0.94, clicks: clicks) < 1,
+               "the blend back to the truth eases in rather than snapping")
+
+        let openDrag = [RecorderMotion.Click(time: 2.0, isDown: true)]
+        expect(RecorderMotion.anchorWeight(at: 5.0, clicks: openDrag) == 1,
+               "a recording that ended mid drag keeps tracking to the end")
+
+        expect(RecorderMotion.smoothstep(0) == 0 && RecorderMotion.smoothstep(1) == 1
+                && RecorderMotion.smoothstep(0.5) == 0.5,
+               "the easing runs from nothing to everything through the middle")
+        expect(RecorderMotion.smootherstep(-4) == 0 && RecorderMotion.smootherstep(9) == 1,
+               "easing outside its range is clamped instead of exploding")
+
+        // MARK: Screen recorder zoom
+
+        let burst = [RecorderMotion.Click(time: 2.0, isDown: true),
+                     RecorderMotion.Click(time: 2.4, isDown: true),
+                     RecorderMotion.Click(time: 3.1, isDown: true)]
+        let oneZoom = RecorderMotion.zoomSegments(clicks: burst, duration: 20)
+        expect(oneZoom.count == 1,
+               "a burst of clicks is one zoom that holds, not a flicker")
+        expect(oneZoom.first.map { $0.start < 2.0 } == true,
+               "the zoom begins BEFORE the click, which is only possible offline")
+        let farApart = [RecorderMotion.Click(time: 2.0, isDown: true),
+                        RecorderMotion.Click(time: 12.0, isDown: true)]
+        expect(RecorderMotion.zoomSegments(clicks: farApart, duration: 20).count == 2,
+               "clicks far apart get a zoom each")
+        expect(RecorderMotion.zoomSegments(
+                clicks: [RecorderMotion.Click(time: 9.6, isDown: true)], duration: 10).isEmpty,
+               "the click that stopped the recording never causes a zoom")
+        expect(RecorderMotion.zoomSegments(clicks: burst, duration: 20)
+                .allSatisfy { $0.end <= 20 - RecorderMotion.zoomEndMargin + 0.001 },
+               "no clip ends in the middle of a zoom")
+        expect(RecorderMotion.zoomSegments(clicks: [], duration: 20).isEmpty,
+               "a recording with no clicks has no zoom")
+
+        let segment = RecorderMotion.ZoomSegment(start: 2, end: 6)
+        expect(RecorderMotion.zoomProgress(at: 1.5, segments: [segment]) == 0,
+               "before the segment the picture is untouched")
+        expect(RecorderMotion.zoomProgress(at: 4, segments: [segment]) == 1,
+               "in the middle of the segment the zoom is fully in")
+        let rampingIn = RecorderMotion.zoomProgress(at: 2.2, segments: [segment])
+        expect(rampingIn > 0 && rampingIn < 1, "the zoom eases in rather than cutting")
+        let rampingOut = RecorderMotion.zoomProgress(at: 6.3, segments: [segment])
+        expect(rampingOut > 0 && rampingOut < 1, "the zoom eases out rather than cutting")
+
+        // The viewport is parameterized in its own travel range, so it cannot
+        // leave the frame and never needs clamping afterwards.
+        for zoomLevel in [1.2, 1.8, 2.5, 3.0] {
+            for travelValue in [-1.0, 0.0, 0.37, 1.0, 2.0] {
+                let origin = RecorderMotion.viewportOrigin(
+                    travel: CGPoint(x: travelValue, y: travelValue), zoom: zoomLevel)
+                let span = 1 / zoomLevel
+                expect(origin.x >= -1e-9 && origin.x + span <= 1 + 1e-9
+                        && origin.y >= -1e-9 && origin.y + span <= 1 + 1e-9,
+                       "the zoomed viewport is inside the frame by construction")
+            }
+        }
+        expect(RecorderMotion.travelParameter(focus: 0.05) == 0
+                && RecorderMotion.travelParameter(focus: 0.95) == 1,
+               "a pointer near an edge pins the view flush to it, so corners stay reachable")
+        expect(abs(RecorderMotion.travelParameter(focus: 0.5) - 0.5) < 1e-9,
+               "a pointer in the middle keeps the view centred")
+
+        var spring = RecorderMotion.Spring(value: 0)
+        for _ in 0..<400 { spring.step(toward: 1, dt: 1.0 / 240) }
+        expect(abs(spring.value - 1) < 0.02,
+               "the spring settles on its target instead of orbiting it")
+        let springTrace = RecorderMotion.springed(
+            [0, 0] + Array(repeating: 1.0, count: 40), frameRate: 60)
+        expect(springTrace.first == 0 && springTrace.last ?? 0 > 0.9,
+               "a springed timeline starts where it started and settles on the target")
+        expect(springTrace.max() ?? 0 <= 1.2,
+               "the spring is damped enough not to fly past what it was asked for")
+
+        let cluster = RecorderMotion.focusClusters(
+            [CGPoint(x: 0.1, y: 0.1), CGPoint(x: 0.11, y: 0.1), CGPoint(x: 0.9, y: 0.9)],
+            frameRate: 60, zoom: 2)
+        expect(cluster.count >= 2,
+               "a jump across the screen starts a new place to look at")
+        expect(RecorderMotion.focus(at: 0, clusters: cluster) == cluster[0].center,
+               "at the start the picture looks where the pointer started")
+
+        expect(RecorderMotion.pressScale(at: 1.0, clicks: clicks) == RecorderMotion.pressPunchScale,
+               "the pointer is at its smallest exactly while the button is down")
+        expect(RecorderMotion.pressScale(at: 0.5, clicks: clicks) == 1,
+               "away from a click the pointer is its normal size")
+        expect(RecorderMotion.ringProgress(at: 1.0, clicks: clicks) == 0,
+               "the ring is born at the click")
+        expect(RecorderMotion.ringProgress(at: 2.0, clicks: clicks) == nil,
+               "the ring is gone well before the next second")
+
+        let uniform = RecorderMotion.resampled(
+            [RecorderMotion.Sample(time: 0, point: CGPoint(x: 0, y: 0)),
+             RecorderMotion.Sample(time: 1, point: CGPoint(x: 1, y: 1))],
+            frameRate: 10, duration: 1)
+        expect(uniform.count == 10, "the track is resampled onto the output grid")
+        expect(abs(uniform[5].x - 0.5) < 0.01,
+               "positions between two samples are interpolated in time")
+        expect(RecorderMotion.resampled([], frameRate: 10, duration: 1).count == 10,
+               "an empty track still yields a full grid instead of crashing the export")
+
+        // MARK: Screen recorder timeline
+
+        let cutTrim = RecorderSupport.Trim(start: 0, end: 20)
+        let oneCut = [RecorderTimeline.Cut(start: 5, end: 8)]
+        let kept = RecorderTimeline.keptRanges(trim: cutTrim, cuts: oneCut)
+        expect(kept.count == 2 && kept[0] == 0...5 && kept[1] == 8...20,
+               "a cut in the middle leaves the two pieces around it")
+        expect(abs(RecorderTimeline.outputDuration(trim: cutTrim, cuts: oneCut) - 17) < 0.001,
+               "the finished video is shorter by exactly what was cut")
+        expect(abs(RecorderTimeline.sourceTime(forOutput: 4, trim: cutTrim, cuts: oneCut) - 4) < 0.001,
+               "before the cut the two clocks agree")
+        expect(abs(RecorderTimeline.sourceTime(forOutput: 6, trim: cutTrim, cuts: oneCut) - 9) < 0.001,
+               "after the cut the recording is ahead of the video by the cut's length")
+        expect(RecorderTimeline.outputTime(forSource: 6.5, trim: cutTrim, cuts: oneCut) == nil,
+               "a moment that was cut out does not exist in the finished video")
+        expect(abs((RecorderTimeline.outputTime(forSource: 12, trim: cutTrim, cuts: oneCut) ?? 0)
+                    - 9) < 0.001,
+               "a moment after the cut maps back to where it really lands")
+        // The two clocks are inverses everywhere the moment survives.
+        for step in stride(from: 0.0, through: 17.0, by: 0.37) {
+            let source = RecorderTimeline.sourceTime(forOutput: step, trim: cutTrim, cuts: oneCut)
+            let back = RecorderTimeline.outputTime(forSource: source, trim: cutTrim, cuts: oneCut)
+            expect(abs((back ?? -99) - step) < 0.01,
+                   "the recording clock and the video clock are inverses of each other")
+        }
+        expect(RecorderTimeline.normalized(cuts: [RecorderTimeline.Cut(start: 2, end: 6),
+                                                  RecorderTimeline.Cut(start: 5, end: 9)],
+                                           duration: 20)
+                == [RecorderTimeline.Cut(start: 2, end: 9)],
+               "two cuts that touch become one")
+        expect(RecorderTimeline.normalized(cuts: [RecorderTimeline.Cut(start: 3, end: 3.02)],
+                                           duration: 20).isEmpty,
+               "a cut too short to see is not a cut")
+
+        let overlapping = [
+            RecorderTimeline.ZoomSegment(start: 1, end: 4, amount: 2),
+            RecorderTimeline.ZoomSegment(start: 3, end: 6, amount: 2),
+        ]
+        let tidy = RecorderTimeline.normalized(segments: overlapping, duration: 20)
+        expect(tidy.count == 2 && tidy[0].end <= tidy[1].start + 0.001,
+               "two zooms that overlap are pushed apart instead of one being dropped")
+        let moved = RecorderTimeline.moved(tidy[1], to: 0, among: tidy, duration: 20)
+        expect(moved.start >= tidy[0].end - 0.001,
+               "dragging a zoom stops at its neighbour instead of pushing it")
+        expect(abs(moved.duration - tidy[1].duration) < 0.001,
+               "moving a zoom never changes how long it is")
+        let squeezed = RecorderTimeline.resized(tidy[0], edge: .end, to: 1.05,
+                                                among: tidy, duration: 20)
+        expect(squeezed.duration >= RecorderTimeline.minimumSegment - 1e-9,
+               "a zoom cannot be dragged shorter than something you could grab again")
+        expect(RecorderTimeline.slotForNewSegment(at: 10, existing: tidy, duration: 20) != nil,
+               "there is room for a new zoom in an empty stretch")
+        expect(RecorderTimeline.slotForNewSegment(at: 2, existing: tidy, duration: 20)
+                .map { $0.start >= tidy[0].end - 0.001 } ?? false,
+               "adding a zoom inside another one puts it after that one, never on top")
+
+        let aimed = RecorderTimeline.ZoomSegment(start: 0, end: 3, amount: 2,
+                                                 focusX: 0.9, focusY: 0.5)
+        let state = RecorderTimeline.zoomState(at: 1.5, segments: [aimed])
+        expect(state.progress == 1 && state.amount == 2 && state.focus != nil,
+               "in the middle of a zoom it is fully in, at its own strength, aimed where it was put")
+        // A hand-aimed spot near the edge must land there, not be pulled in by
+        // the calming band the automatic follow uses.
+        expect(abs(RecorderMotion.travelParameter(exactFocus: 0.9, zoom: 2) - 1) < 0.001,
+               "a spot picked near the edge pins the view to that edge")
+        expect(abs(RecorderMotion.travelParameter(exactFocus: 0.5, zoom: 2) - 0.5) < 0.001,
+               "a spot picked in the middle keeps the view centred")
+
+        // A pointer parked in a corner fades away, and is back before it
+        // moves again. Both halves only work because the whole path is known.
+        var parked = [CGPoint](repeating: CGPoint(x: 0.5, y: 0.5), count: 60 * 8)
+        for index in (60 * 6)..<parked.count {
+            parked[index] = CGPoint(x: 0.5 + Double(index - 60 * 6) * 0.01, y: 0.5)
+        }
+        let opacity = RecorderMotion.pointerOpacity(parked, frameRate: 60)
+        expect(opacity.count == parked.count, "every frame gets an opacity")
+        expect(opacity[10] > 0.95, "a pointer that just stopped is still solid")
+        expect(opacity[60 * 5] < 0.05, "a pointer parked for seconds is out of the way")
+        expect(opacity[60 * 6] > 0.95, "it is fully back the instant it moves, not after")
+        expect(opacity.allSatisfy { $0 >= 0 && $0 <= 1 }, "opacity never leaves its range")
+        let alwaysMoving = (0..<120).map { CGPoint(x: Double($0) * 0.01, y: 0.5) }
+        expect(RecorderMotion.pointerOpacity(alwaysMoving, frameRate: 60).allSatisfy { $0 > 0.95 },
+               "a pointer that keeps moving is never faded")
+
+        // MARK: Screen recorder text
+
+        let caption = RecorderTextOverlay(text: "Hello", start: 2, end: 6)
+        expect(caption.opacity(at: 1.9) == 0 && caption.opacity(at: 6.1) == 0,
+               "text is not there before it starts or after it ends")
+        expect(caption.opacity(at: 4) == 1, "text is solid in the middle of its own time")
+        expect(caption.opacity(at: 2.1) > 0 && caption.opacity(at: 2.1) < 1,
+               "text eases in instead of appearing on one frame")
+        expect(caption.opacity(at: 5.9) > 0 && caption.opacity(at: 5.9) < 1,
+               "text eases out the same way")
+        let blink = RecorderTextOverlay(text: "Hi", start: 1, end: 1.3)
+        expect(blink.opacity(at: 1.15) > 0,
+               "a very short caption still gets to be visible at its middle")
+        expect(RecorderTextOverlay(text: "x", start: 5, end: 5.05)
+                .sanitized(duration: 10) == nil,
+               "a caption too short to read is not kept")
+        expect(RecorderTextOverlay(text: "x", start: 9, end: 30)
+                .sanitized(duration: 10)?.end == 10,
+               "a caption that runs past the recording is brought back inside it")
+        expect(RecorderTextOverlay(text: "x", start: 1, end: 3, size: 9)
+                .sanitized(duration: 10)?.size == RecorderTextOverlay.sizeRange.upperBound,
+               "an impossible text size is clamped instead of filling the frame")
+        expect(RecorderTextOverlay.Anchor.bottom.unitPoint.y == 1
+                && RecorderTextOverlay.Anchor.topLeading.unitPoint == CGPoint(x: 0, y: 0),
+               "the nine places mean what they say, counting down from the top")
+
+        // MARK: Screen recorder pointer track
+
+        let trackRoundTrip = RecorderPointerTrack.decoded(
+            RecorderPointerTrack(
+                samples: [RecorderMotion.Sample(time: 0.5, point: CGPoint(x: 0.25, y: 0.75))],
+                clicks: [RecorderMotion.Click(time: 1.5, isDown: true)],
+                systemScale: 2).encoded())
+        expect(trackRoundTrip.samples.count == 1 && trackRoundTrip.clicks.count == 1
+                && trackRoundTrip.systemScale == 2,
+               "a pointer track survives being written and read back")
+        expect(abs(trackRoundTrip.samples[0].point.x - 0.25) < 1e-6
+                && trackRoundTrip.clicks[0].isDown,
+               "the positions and the presses come back as they went in")
+        let truncated = RecorderPointerTrack(
+            samples: (0..<50).map {
+                RecorderMotion.Sample(time: Double($0), point: CGPoint(x: 0.5, y: 0.5))
+            }).encoded().prefix(120)
+        expect(!RecorderPointerTrack.decoded(Data(truncated)).samples.isEmpty,
+               "a track cut short by a crash still gives back everything it did write")
+        expect(RecorderPointerTrack.decoded(Data("nonsense".utf8)).isEmpty,
+               "an unrelated file is not mistaken for a pointer track")
+        expect(RecorderPointerTrack.decoded(nil).isEmpty,
+               "a recording with no track at all reads as no track")
+
+        // MARK: Screen recorder canvas
+
+        let plainCanvas = RecorderSupport.canvasSize(source: CGSize(width: 960, height: 640),
+                                                     padding: 0, aspect: .original)
+        expect(plainCanvas == CGSize(width: 960, height: 640),
+               "with no margin and no shape the canvas is the recording itself")
+        let padded = RecorderSupport.canvasSize(source: CGSize(width: 960, height: 640),
+                                                padding: 0.1, aspect: .original)
+        expect(padded.width > 960 && padded.height > 640,
+               "a margin grows the canvas instead of shrinking the recording")
+        let wide = RecorderSupport.canvasSize(source: CGSize(width: 640, height: 640),
+                                              padding: 0, aspect: .wide)
+        expect(abs(wide.width / wide.height - 16.0 / 9.0) < 0.02,
+               "a shape preset gives the canvas that shape")
+        let huge = RecorderSupport.canvasSize(source: CGSize(width: 6000, height: 4000),
+                                              padding: 0.3, aspect: .original)
+        expect(max(huge.width, huge.height) <= RecorderSupport.maximumCanvasEdge,
+               "no background can ask for a picture bigger than the ceiling")
+
+        let card = RecorderSupport.cardRect(canvas: CGSize(width: 1200, height: 800),
+                                            source: CGSize(width: 960, height: 640),
+                                            padding: 0.1)
+        expect(abs(card.width / card.height - 960.0 / 640.0) < 0.01,
+               "the recording keeps its own proportions inside the canvas")
+        expect(abs(card.midX - 600) < 1 && abs(card.midY - 400) < 1,
+               "the recording is centred in the canvas")
+        expect(card.minX >= 0 && card.maxX <= 1200 && card.minY >= 0 && card.maxY <= 800,
+               "the recording never hangs off the canvas")
+
+        expect(RecorderSupport.sanitizedZoomAmount(99) == RecorderSupport.zoomAmountRange.upperBound
+                && RecorderSupport.sanitizedZoomAmount(.nan) == 1.8,
+               "a broken zoom amount falls back instead of magnifying to nothing")
+        let visibleTrack = RecorderPointerTrack.decoded(
+            RecorderPointerTrack(samples: [
+                RecorderMotion.Sample(time: 0, point: .zero, isPointerVisible: true),
+                RecorderMotion.Sample(time: 1, point: .zero, isPointerVisible: false),
+            ]).encoded())
+        expect(visibleTrack.samples.count == 2
+                && visibleTrack.samples[0].isPointerVisible
+                && !visibleTrack.samples[1].isPointerVisible,
+               "whether the system was showing a pointer survives the round trip")
+        expect(RecorderMotion.resampledVisibility(visibleTrack.samples,
+                                                  frameRate: 4, duration: 2)
+                == [true, true, true, true, false, false, false, false],
+               "a stretch where the system hid the pointer stays hidden in the video")
+
+        let studio = RecorderEditDocument().applying(.studio)
+        expect(studio.zoomEnabled && studio.showsPointer && !studio.backdrop.isEmpty,
+               "the studio look turns on everything it promises")
+        let bare = RecorderEditDocument().applying(.raw)
+        expect(!bare.zoomEnabled && !bare.showsClickRing && bare.backdrop.isEmpty,
+               "the raw look leaves the recording exactly as it was")
+        expect(bare.showsPointer && bare.resolvedSmoothing == .off,
+               "raw still draws the pointer, because the capture itself has none, but eases nothing")
+        expect(RecorderEditDocument().applying(.clean).zoomEnabled
+                && RecorderEditDocument().applying(.clean).backdrop.isEmpty,
+               "the clean look smooths and zooms without putting anything behind it")
+
+        let takeID = UUID()
+        expect(RecorderSupport.takeID(fromFolderName: RecorderSupport.takeFolderName(id: takeID))
+                == takeID,
+               "a recording folder name round-trips its id")
+        expect(RecorderSupport.takeID(fromFolderName: "Downloads") == nil,
+               "an unrelated folder is never mistaken for a recording")
+
         // A translated format string whose placeholders drifted from the
         // English one does not misprint: String(format:) reads the argument
         // list by the specifiers, so a "%@" where a "%d" belongs walks off the
@@ -8981,6 +10139,22 @@ struct MetricsTests {
             CommandBarLink(name: "", kind: .link, destination: "x"),
             CommandBarLink(name: "ok", kind: .link, destination: "x"),
         ])).count == 1, "a half-written shortcut never survives a round trip")
+        expect(CommandBarLinks.rankingTitle(name: "gh", query: "gh vorssaint utils")
+                == "gh vorssaint utils",
+               "once an argument follows the name, the row is scored against the whole query")
+        expect(CommandBarLinks.rankingTitle(name: "gh", query: "gh") == "gh",
+               "the name alone still scores against its own name")
+        expect(CommandBarLinks.rankingTitle(name: "gh", query: "ghost writer") == "gh",
+               "a word that only starts with the name is not an argument, so scoring is untouched")
+        // The defect itself: scored against its own name, a saved search left
+        // the list on the first word of the argument, which is the moment it
+        // was about to run.
+        expect(CommandBarSearch.score(title: "gh", keywords: "Link",
+                                      query: "gh vorssaint utils") == nil
+                && CommandBarSearch.score(
+                    title: CommandBarLinks.rankingTitle(name: "gh", query: "gh vorssaint utils"),
+                    keywords: "Link", query: "gh vorssaint utils") != nil,
+               "a saved search stays in the list while what to look for is typed")
 
         expect(CommandBarText.wordCount("uma frase com cinco palavras") == 5
                 && CommandBarText.wordCount("  espaços   demais  ") == 2

@@ -87,13 +87,11 @@ final class AppSwitcher: ObservableObject {
     /// Mouse position when the panel appeared; hover is inert until it moves.
     private var hoverAnchor: NSPoint?
 
-    /// Most-recently-used order of windows, most recent first. This is what lets
-    /// ⌘Tab toggle to the last window used, even another window of the same app.
-    /// Driven by the switcher's own commits (see `recordUse`).
-    private var itemMRU: [String] = []
     /// The on-screen window when the current session opened — becomes the
     /// second-most-recent window on commit, so a flick toggles straight back.
-    private var sessionStartItemID: String?
+    /// Cleared if that window is closed during the session: a window the user
+    /// just got rid of is not somewhere to send them back to.
+    private var sessionStartWindowID: CGWindowID?
     private var sessionSourceContext: SwitcherSourceContext?
     private var sessionShortcut: GlobalShortcut?
     private var shiftBackNavigationHeld = false
@@ -475,7 +473,7 @@ final class AppSwitcher: ObservableObject {
                                   windowOwnerPID: source.windowOwnerPID,
                                   isFullscreen: source.isFullscreen)
         }
-        sessionStartItemID = source?.id
+        sessionStartWindowID = source?.windowID
         recomputeLayouts(for: list)
         if !capturesPreviews {
             previews = [:]
@@ -524,27 +522,16 @@ final class AppSwitcher: ObservableObject {
         return true
     }
 
-    /// Orders a session's windows so the on-screen window is first and the rest
-    /// follow most-recently-used order, falling back to the app-activation
-    /// order the enumerator already applied. This is what lets ⌘Tab toggle
-    /// between two windows of the same app, not just two apps. With no
-    /// on-screen window to lead the list, plain most-recently-used order is
-    /// already the right answer.
+    /// Puts the window the user is looking at first. The enumerator already
+    /// ordered everything else by how recently it was used, so the entry right
+    /// after the current one is the window they came from — this only has to
+    /// make sure the current one leads, even in the moment right after a
+    /// switch, when the window server has not caught up yet.
     private func orderedForSession(_ items: [SwitcherItem], currentID: String?) -> [SwitcherItem] {
-        return items.enumerated()
-            .sorted { lhs, rhs in
-                sortKey(lhs.element, currentID: currentID, original: lhs.offset)
-                    < sortKey(rhs.element, currentID: currentID, original: rhs.offset)
-            }
-            .map(\.element)
-    }
-
-    /// Sort key: on-screen item first (0), then items seen in the MRU by
-    /// recency (1, rank), then everything else in its incoming order (2).
-    private func sortKey(_ item: SwitcherItem, currentID: String?, original: Int) -> (Int, Int, Int) {
-        if item.id == currentID { return (0, 0, 0) }
-        if let rank = itemMRU.firstIndex(of: item.id) { return (1, rank, 0) }
-        return (2, 0, original)
+        guard let currentID, let index = items.firstIndex(where: { $0.id == currentID }) else { return items }
+        var ordered = items
+        ordered.insert(ordered.remove(at: index), at: 0)
+        return ordered
     }
 
     private func initialSelectionIndex(in items: [SwitcherItem],
@@ -585,14 +572,11 @@ final class AppSwitcher: ObservableObject {
         return AXWindowResolver.windowID(for: window)
     }
 
-    /// Records a switch into the window MRU: the activated window moves to the
-    /// front and the window the user came from becomes second, so the very next
-    /// ⌘Tab toggles straight back — the standard most-recently-used behavior,
-    /// at window granularity (including two windows of the same app).
-    private func recordUse(_ activatedID: String, previousID: String?) {
-        itemMRU = SwitcherSupport.updatedMRU(afterActivating: activatedID,
-                                             previousID: previousID,
-                                             existing: itemMRU)
+    /// Records a switch straight away instead of waiting for the window server
+    /// and Accessibility to report it: a flick of the shortcut is faster than
+    /// either, and it is exactly the moment the toggle has to be right.
+    private func recordUse(_ activated: SwitcherItem, previous: CGWindowID?) {
+        WindowUseTracker.shared.recordSwitch(to: activated.windowID, from: previous)
     }
 
     func select(index: Int) {
@@ -789,9 +773,8 @@ final class AppSwitcher: ObservableObject {
         let remainingPreviews = Set(windows.compactMap(\.previewWindowID))
         previews = previews.filter { remainingPreviews.contains($0.key) && $0.key != windowID }
         closingItemIDs.remove(itemID)
-        itemMRU.removeAll { $0 == itemID }
-        if sessionStartItemID == itemID {
-            sessionStartItemID = nil
+        if sessionSourceContext?.itemID == itemID {
+            sessionStartWindowID = nil
         }
 
         guard !state.shouldEndSession else {
@@ -837,10 +820,10 @@ final class AppSwitcher: ObservableObject {
                                                        closingItemIDs: closingItemIDs)
             .flatMap { id in windows.first { $0.id == id } }
         let source = sessionSourceContext
-        let previousID = sessionStartItemID
+        let previousWindowID = sessionStartWindowID
         endSession()
         if let selection {
-            recordUse(selection.id, previousID: previousID)
+            recordUse(selection, previous: previousWindowID)
             WindowActivator.activate(selection,
                                      sourceWasFullscreen: source?.isFullscreen ?? false,
                                      sourcePID: source?.pid,
@@ -871,7 +854,7 @@ final class AppSwitcher: ObservableObject {
         totalWindowCount = 0
         hoverAnchor = nil
         userNavigated = false
-        sessionStartItemID = nil
+        sessionStartWindowID = nil
         sessionSourceContext = nil
         sessionShortcut = nil
         shiftBackNavigationHeld = false
@@ -898,7 +881,10 @@ final class AppSwitcher: ObservableObject {
         hoverAnchor = NSEvent.mouseLocation
         panel.setFrame(centeredFrame(for: currentPanelSize), display: true)
         panel.invalidateShadow()
+        let animationBehavior = panel.animationBehavior
+        panel.animationBehavior = .none
         panel.orderFrontRegardless()
+        panel.animationBehavior = animationBehavior
         installDismissMonitors()
     }
 
@@ -1040,12 +1026,12 @@ struct SwitcherGrid: Equatable {
     let visibleRows: Int
     let panelSize: CGSize
 
-    // Base sizes scaled by the user's preview-size preference (Normal/Large/
-    // Extra), so one setting grows the switcher and the Dock preview together.
+    // Base sizes and breathing room scale together, so making previews smaller
+    // also keeps the panel from spending that saved space on empty gaps.
     static var cardWidth: CGFloat { 288 * PreviewSizing.scale }
     static var cardHeight: CGFloat { 214 * PreviewSizing.scale }
-    static let spacing: CGFloat = 12
-    static let padding: CGFloat = 20
+    static var spacing: CGFloat { 12 * PreviewSizing.scale }
+    static var padding: CGFloat { 20 * PreviewSizing.scale }
 
     static let empty = SwitcherGrid(columns: 1, rows: 1, visibleRows: 1, panelSize: .zero)
 

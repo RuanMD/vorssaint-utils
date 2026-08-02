@@ -68,7 +68,7 @@ struct CommandBarView: View {
             footer
         }
         .frame(width: 560)
-        .background(HUDBackdrop(cornerRadius: 22))
+        .background(HUDBackdrop(cornerRadius: 22, contrast: .high))
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .onAppear { focusSearch() }
         .onChange(of: service.presentationID) { _, _ in focusSearch() }
