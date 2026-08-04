@@ -478,7 +478,6 @@ private enum UtilityPanelItem: String, PanelOrderItem, Identifiable {
         case .cleaning: return .cleaningMode
         case .screenOCR: return .screenOCR
         case .colorPicker: return .colorPicker
-        case .micMute: return .micMute
         case .screenshot: return .screenshot
         case .screenRecorder: return .screenRecorder
         case .cameraPreview: return .cameraPreview
@@ -515,12 +514,10 @@ struct UtilitiesSection: View {
     @AppStorage(DefaultsKey.panelUtilityScreenshot) private var showScreenshot = true
     @AppStorage(DefaultsKey.panelUtilityQuickLauncher) private var showQuickLauncher = true
     @AppStorage(DefaultsKey.panelUtilityColorPicker) private var showColorPicker = true
-    @AppStorage(DefaultsKey.panelUtilityMicMute) private var showMicMute = true
     @AppStorage(DefaultsKey.panelUtilityCameraPreview) private var showCameraPreview = true
     @AppStorage(DefaultsKey.panelUtilityScratchpad) private var showScratchpad = true
     @AppStorage(DefaultsKey.panelUtilityCommandBar) private var showCommandBar = true
     @AppStorage(DefaultsKey.panelUtilityScreenRecorder) private var showScreenRecorder = true
-    @ObservedObject private var micMute = MicMuteService.shared
     @ObservedObject private var recorder = ScreenRecorderService.shared
     @AppStorage(DefaultsKey.clipboardHistoryEnabled) private var clipboardEnabled = false
     @AppStorage(DefaultsKey.panelUtilityOrder) private var utilityOrderRaw = ""
@@ -641,7 +638,6 @@ struct UtilitiesSection: View {
         case .cleaning: return showCleaning
         case .screenOCR: return showScreenOCR
         case .colorPicker: return showColorPicker
-        case .micMute: return showMicMute
         case .cameraPreview: return showCameraPreview
         case .scratchpad: return showScratchpad
         case .commandBar: return showCommandBar
@@ -840,17 +836,6 @@ struct UtilitiesSection: View {
                                         ColorSamplerService.shared.pick()
                                     }
                                 })
-        case .micMute:
-            UtilityActionButton(title: micMute.isMuted ? l10n.s.micUnmuteName : l10n.s.micMuteName,
-                                caption: l10n.s.micMuteCaption,
-                                systemImage: micMute.isMuted ? "mic.slash.fill" : "mic",
-                                isEditing: editing,
-                                showsDragHandle: true,
-                                visibility: $showMicMute,
-                                shortcutHint: shortcutHint(.micMute),
-                                action: {
-                                    MicMuteService.shared.toggle()
-                                })
         case .cameraPreview:
             UtilityActionButton(title: FeatureStrings.cameraPreview(l10n.language).pageTitle,
                                 caption: cameraPreviewCaption,
@@ -979,7 +964,6 @@ struct UtilitiesSection: View {
         showScreenOCR = true
         showScreenshot = true
         showColorPicker = true
-        showMicMute = true
         showCameraPreview = true
         showScratchpad = true
         showQuickLauncher = true
