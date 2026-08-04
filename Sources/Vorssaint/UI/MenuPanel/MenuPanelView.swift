@@ -457,7 +457,7 @@ private enum UtilityPanelItem: String, PanelOrderItem, Identifiable {
     // to allCases). Screenshot leads in 3.1.13; existing orders that predate it
     // are migrated once without disturbing the rest of the user's layout.
     case screenshot, quickLauncher, appUpdates, menuBarOrganizer, cleaner, homebrew, media, clipboard,
-         windowLayout, uninstaller, cleanURL, cleaning, screenOCR, colorPicker, micMute, cameraPreview,
+         windowLayout, uninstaller, cleanURL, cleaning, screenOCR, colorPicker, cameraPreview,
          scratchpad, commandBar, screenRecorder
 
     var id: String { rawValue }
