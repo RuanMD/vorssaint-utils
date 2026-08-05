@@ -63,6 +63,7 @@ struct MenuBarOrganizerSettings: View {
                 permissionSection
                 editorSection
                 presetsSection
+                groupsSection
                 behaviorSections
             }
 
@@ -199,6 +200,60 @@ struct MenuBarOrganizerSettings: View {
         }
     }
 
+    private var groupsSection: some View {
+        Section {
+            Text(text.groupsCaption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(MenuBarOrganizerGroupSlot.allCases) { slot in
+                groupRow(slot)
+            }
+        } header: {
+            Text(text.groupsTitle)
+        }
+    }
+
+    private func groupRow(_ slot: MenuBarOrganizerGroupSlot) -> some View {
+        let groupItems = service.items(inGroup: slot)
+        return VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 8) {
+                Label(groupTitle(slot), systemImage: "folder")
+                Spacer()
+                Button(text.groupOpen) { service.showGroup(slot: slot) }
+                    .disabled(groupItems.isEmpty)
+                Button(text.groupClear, role: .destructive) { service.clearGroup(slot: slot) }
+                    .disabled(groupItems.isEmpty)
+            }
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    if groupItems.isEmpty {
+                        Text(text.groupEmpty)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .frame(minWidth: 180, minHeight: 34, alignment: .leading)
+                    }
+                    ForEach(groupItems) { item in
+                        MenuBarOrganizerEditorItem(item: item)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    service.removeFromGroup(itemID: item.id)
+                                } label: {
+                                    Label(text.groupRemoveFrom, systemImage: "minus.circle")
+                                }
+                            }
+                    }
+                }
+                .padding(7)
+            }
+            .frame(height: 52)
+            .background(RoundedRectangle(cornerRadius: 8)
+                .fill(Color.secondary.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.secondary.opacity(0.16)))
+        }
+        .padding(.vertical, 2)
+    }
+
     @ViewBuilder
     private var behaviorSections: some View {
         Section(text.sectionsTitle) {
@@ -281,6 +336,15 @@ struct MenuBarOrganizerSettings: View {
         }
     }
 
+    private func groupTitle(_ slot: MenuBarOrganizerGroupSlot) -> String {
+        switch slot {
+        case .cloud: return text.groupCloud
+        case .audio: return text.groupAudio
+        case .work: return text.groupWork
+        case .custom: return text.groupCustom
+        }
+    }
+
     private func organizerLane(_ section: MenuBarOrganizerSection, title: String) -> some View {
         let laneItems = MenuBarOrganizerSupport.orderedItems(service.items, in: section)
         return VStack(alignment: .leading, spacing: 7) {
@@ -311,6 +375,21 @@ struct MenuBarOrganizerSettings: View {
                                     sectionMoveButton(for: item,
                                                       to: .alwaysHidden,
                                                       title: text.alwaysHidden)
+                                }
+                                Divider()
+                                Menu(text.groupAddTo) {
+                                    ForEach(MenuBarOrganizerGroupSlot.allCases) { slot in
+                                        Button(groupTitle(slot)) {
+                                            service.addToGroup(itemID: item.id, slot: slot)
+                                        }
+                                    }
+                                }
+                                if service.group(for: item.id) != nil {
+                                    Button(role: .destructive) {
+                                        service.removeFromGroup(itemID: item.id)
+                                    } label: {
+                                        Label(text.groupRemoveFrom, systemImage: "minus.circle")
+                                    }
                                 }
                             }
                     }

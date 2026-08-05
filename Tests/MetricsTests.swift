@@ -6910,6 +6910,13 @@ struct MetricsTests {
         ])
         expect(MenuBarOrganizerSupport.decodePresets(encodedPresets)[.work]?.visible == [presetIdentity],
                "menu bar presets round-trip through preference storage")
+        let encodedGroups = MenuBarOrganizerSupport.encodeGroups([
+            .cloud: MenuBarOrganizerSupport.group(slot: .cloud,
+                                                 items: [presetIdentity, presetIdentity],
+                                                 now: Date(timeIntervalSince1970: 2)),
+        ])
+        expect(MenuBarOrganizerSupport.decodeGroups(encodedGroups)[.cloud]?.items == [presetIdentity],
+               "menu bar groups round-trip through preference storage without duplicate items")
         let duplicateMenuRecords = [
             MenuBarOrganizerWindowRecord(windowID: 1, ownerPID: 1, ownerName: "App",
                                          bundleIdentifier: "com.example.app", title: "State",
@@ -7737,8 +7744,9 @@ struct MetricsTests {
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerRehideDelay] as? Int == 10,
                "menu bar presentation defaults remain predictable")
         expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerSmartNotchMode] as? Bool == true
-                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresets] as? String == "",
-               "smart notch mode and presets have portable defaults")
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresets] as? String == ""
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerGroups] as? String == "",
+               "smart notch mode, presets and groups have portable defaults")
         expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerToggleShortcut] as? String
                     == GlobalShortcut.menuBarOrganizerToggleDefault.storageValue
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerAlwaysShortcut] as? String

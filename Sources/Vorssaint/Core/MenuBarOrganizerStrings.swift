@@ -58,6 +58,17 @@ struct MenuBarOrganizerStrings {
     let presetSave: String
     let presetApply: String
     let presetClear: String
+    let groupsTitle: String
+    let groupsCaption: String
+    let groupCloud: String
+    let groupAudio: String
+    let groupWork: String
+    let groupCustom: String
+    let groupEmpty: String
+    let groupAddTo: String
+    let groupRemoveFrom: String
+    let groupOpen: String
+    let groupClear: String
     let shortcutsTitle: String
     let toggleHiddenShortcut: String
     let toggleAlwaysShortcut: String
@@ -141,6 +152,17 @@ extension MenuBarOrganizerStrings {
         presetSave: "Save",
         presetApply: "Apply",
         presetClear: "Clear",
+        groupsTitle: "Groups",
+        groupsCaption: "Collect related items so they can be opened together from Search or the secondary bar.",
+        groupCloud: "Cloud",
+        groupAudio: "Audio",
+        groupWork: "Work",
+        groupCustom: "Custom",
+        groupEmpty: "No items in this group yet",
+        groupAddTo: "Add to group",
+        groupRemoveFrom: "Remove from group",
+        groupOpen: "Open group",
+        groupClear: "Clear",
         shortcutsTitle: "Keyboard shortcuts",
         toggleHiddenShortcut: "Toggle hidden items",
         toggleAlwaysShortcut: "Toggle always-hidden items",
@@ -203,6 +225,17 @@ extension MenuBarOrganizerStrings {
         presetSave: "Guardar",
         presetApply: "Aplicar",
         presetClear: "Borrar",
+        groupsTitle: "Grupos",
+        groupsCaption: "Agrupa elementos relacionados para abrirlos juntos desde la búsqueda o la barra secundaria.",
+        groupCloud: "Cloud",
+        groupAudio: "Audio",
+        groupWork: "Trabajo",
+        groupCustom: "Custom",
+        groupEmpty: "Este grupo todavía no tiene elementos",
+        groupAddTo: "Añadir a grupo",
+        groupRemoveFrom: "Quitar del grupo",
+        groupOpen: "Abrir grupo",
+        groupClear: "Borrar",
         shortcutsTitle: "Atajos de teclado",
         toggleHiddenShortcut: "Alternar elementos ocultos",
         toggleAlwaysShortcut: "Alternar elementos siempre ocultos",

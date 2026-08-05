@@ -41,6 +41,15 @@ enum MenuBarOrganizerPresetSlot: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
 }
 
+enum MenuBarOrganizerGroupSlot: String, CaseIterable, Codable, Identifiable {
+    case cloud
+    case audio
+    case work
+    case custom
+
+    var id: String { rawValue }
+}
+
 struct MenuBarOrganizerPreset: Codable, Equatable, Identifiable {
     let slot: MenuBarOrganizerPresetSlot
     let savedAt: Date
@@ -57,6 +66,14 @@ struct MenuBarOrganizerPreset: Codable, Equatable, Identifiable {
         case .alwaysHidden: return alwaysHidden
         }
     }
+}
+
+struct MenuBarOrganizerGroup: Codable, Equatable, Identifiable {
+    let slot: MenuBarOrganizerGroupSlot
+    let savedAt: Date
+    var items: [MenuBarItemIdentity]
+
+    var id: MenuBarOrganizerGroupSlot { slot }
 }
 
 struct MenuBarOrganizerCapabilities: Equatable {
@@ -150,6 +167,27 @@ enum MenuBarOrganizerSupport {
 
     static func encodePresets(_ presets: [MenuBarOrganizerPresetSlot: MenuBarOrganizerPreset]) -> String {
         let ordered = MenuBarOrganizerPresetSlot.allCases.compactMap { presets[$0] }
+        guard let data = try? JSONEncoder().encode(ordered) else { return "" }
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+
+    static func group(slot: MenuBarOrganizerGroupSlot,
+                      items: [MenuBarItemIdentity],
+                      now: Date = Date()) -> MenuBarOrganizerGroup {
+        var seen = Set<MenuBarItemIdentity>()
+        let unique = items.filter { seen.insert($0).inserted }
+        return MenuBarOrganizerGroup(slot: slot, savedAt: now, items: unique)
+    }
+
+    static func decodeGroups(_ raw: String?) -> [MenuBarOrganizerGroupSlot: MenuBarOrganizerGroup] {
+        guard let raw, let data = raw.data(using: .utf8), !raw.isEmpty,
+              let groups = try? JSONDecoder().decode([MenuBarOrganizerGroup].self, from: data)
+        else { return [:] }
+        return Dictionary(uniqueKeysWithValues: groups.map { ($0.slot, $0) })
+    }
+
+    static func encodeGroups(_ groups: [MenuBarOrganizerGroupSlot: MenuBarOrganizerGroup]) -> String {
+        let ordered = MenuBarOrganizerGroupSlot.allCases.compactMap { groups[$0] }
         guard let data = try? JSONEncoder().encode(ordered) else { return "" }
         return String(data: data, encoding: .utf8) ?? ""
     }

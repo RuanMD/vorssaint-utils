@@ -23,6 +23,7 @@ final class MenuBarOrganizerService: ObservableObject {
     @Published private(set) var canUndo = false
     @Published private(set) var hotkeyRegistrationFailed = false
     @Published private(set) var presets: [MenuBarOrganizerPresetSlot: MenuBarOrganizerPreset] = [:]
+    @Published private(set) var groups: [MenuBarOrganizerGroupSlot: MenuBarOrganizerGroup] = [:]
 
     private let provider = MenuBarWindowProvider()
     private let mover = MenuBarItemMover()
@@ -32,6 +33,7 @@ final class MenuBarOrganizerService: ObservableObject {
     private var alwaysHiddenDivider: MenuBarDividerItem?
     private var searchPanel: MenuBarOrganizerPanelController?
     private var secondaryPanel: MenuBarOrganizerPanelController?
+    private var groupPanels: [MenuBarOrganizerGroupSlot: MenuBarOrganizerPanelController] = [:]
     private var refreshTimer: Timer?
     private var rehideTimer: Timer?
     private var globalMouseMonitor: Any?
@@ -59,6 +61,7 @@ final class MenuBarOrganizerService: ObservableObject {
             && defaults.bool(forKey: DefaultsKey.menuBarOrganizerEnabled)
         if enabled {
             loadPresets()
+            loadGroups()
             startIfNeeded()
             syncAlwaysHiddenDivider()
             syncHotkeys()
@@ -80,6 +83,8 @@ final class MenuBarOrganizerService: ObservableObject {
         applyDividerState()
         searchPanel?.close()
         secondaryPanel?.close()
+        groupPanels.values.forEach { $0.close() }
+        groupPanels = [:]
         refreshTimer?.invalidate()
         refreshTimer = nil
         snapshotTask?.cancel()
@@ -137,7 +142,9 @@ final class MenuBarOrganizerService: ObservableObject {
 
     func toggleHiddenSection() {
         guard isRunning else { return }
-        if hiddenSectionShown || secondaryPanel?.isVisible == true {
+        if hiddenSectionShown
+            || secondaryPanel?.isVisible == true
+            || groupPanels.values.contains(where: { $0.isVisible }) {
             hideAll()
         } else {
             show(.hidden)
@@ -176,6 +183,18 @@ final class MenuBarOrganizerService: ObservableObject {
             secondaryPanel = MenuBarOrganizerPanelController(kind: .secondary, service: self)
         }
         secondaryPanel?.show(anchor: controlItem?.frame)
+        scheduleRehide()
+    }
+
+    func showGroup(slot: MenuBarOrganizerGroupSlot) {
+        guard isRunning else { return }
+        refresh()
+        searchPanel?.close()
+        secondaryPanel?.close()
+        if groupPanels[slot] == nil {
+            groupPanels[slot] = MenuBarOrganizerPanelController(kind: .group(slot), service: self)
+        }
+        groupPanels[slot]?.show(anchor: controlItem?.frame)
         scheduleRehide()
     }
 
@@ -218,11 +237,48 @@ final class MenuBarOrganizerService: ObservableObject {
         persistPresets()
     }
 
+    func addToGroup(itemID: MenuBarItemIdentity, slot: MenuBarOrganizerGroupSlot) {
+        refresh()
+        guard items.contains(where: { $0.id == itemID }) else { return }
+        removeFromGroup(itemID: itemID, persists: false)
+        var group = groups[slot] ?? MenuBarOrganizerSupport.group(slot: slot, items: [])
+        if !group.items.contains(itemID) {
+            group.items.append(itemID)
+        }
+        groups[slot] = MenuBarOrganizerSupport.group(slot: slot, items: group.items)
+        persistGroups()
+    }
+
+    func removeFromGroup(itemID: MenuBarItemIdentity) {
+        removeFromGroup(itemID: itemID, persists: true)
+    }
+
+    func clearGroup(slot: MenuBarOrganizerGroupSlot) {
+        groups.removeValue(forKey: slot)
+        groupPanels[slot]?.close()
+        groupPanels.removeValue(forKey: slot)
+        persistGroups()
+    }
+
+    func items(inGroup slot: MenuBarOrganizerGroupSlot) -> [ManagedMenuBarItem] {
+        guard let group = groups[slot] else { return [] }
+        return group.items.compactMap { id in items.first(where: { $0.id == id }) }
+    }
+
+    func group(for itemID: MenuBarItemIdentity) -> MenuBarOrganizerGroupSlot? {
+        MenuBarOrganizerGroupSlot.allCases.first { groups[$0]?.items.contains(itemID) == true }
+    }
+
+    func isGrouped(itemID: MenuBarItemIdentity) -> Bool {
+        group(for: itemID) != nil
+    }
+
     func activate(itemID: MenuBarItemIdentity) {
         Task {
             guard let original = items.first(where: { $0.id == itemID }) else { return }
             searchPanel?.close()
             secondaryPanel?.close()
+            groupPanels.values.forEach { $0.close() }
             if original.section != .visible {
                 showInMenuBar(original.section)
                 try? await Task.sleep(for: .milliseconds(140))
@@ -245,6 +301,7 @@ final class MenuBarOrganizerService: ObservableObject {
         Task {
             guard let item = items.first(where: { $0.id == itemID }) else { return }
             searchPanel?.close()
+            groupPanels.values.forEach { $0.close() }
             if item.section != .visible {
                 showInMenuBar(item.section)
                 scheduleRehide()
@@ -564,6 +621,7 @@ final class MenuBarOrganizerService: ObservableObject {
 
     private func hideAllRestoringBorrowedItems() async {
         secondaryPanel?.close()
+        groupPanels.values.forEach { $0.close() }
         await restoreNotchBorrowedItems()
         hiddenSectionShown = false
         alwaysHiddenSectionShown = false
@@ -704,6 +762,37 @@ final class MenuBarOrganizerService: ObservableObject {
     private func persistPresets() {
         UserDefaults.standard.set(MenuBarOrganizerSupport.encodePresets(presets),
                                   forKey: DefaultsKey.menuBarOrganizerPresets)
+    }
+
+    private func loadGroups() {
+        groups = MenuBarOrganizerSupport.decodeGroups(
+            UserDefaults.standard.string(forKey: DefaultsKey.menuBarOrganizerGroups))
+    }
+
+    private func persistGroups() {
+        UserDefaults.standard.set(MenuBarOrganizerSupport.encodeGroups(groups),
+                                  forKey: DefaultsKey.menuBarOrganizerGroups)
+    }
+
+    private func removeFromGroup(itemID: MenuBarItemIdentity, persists: Bool) {
+        var changed = false
+        for slot in MenuBarOrganizerGroupSlot.allCases {
+            guard var group = groups[slot] else { continue }
+            let originalCount = group.items.count
+            group.items.removeAll { $0 == itemID }
+            guard group.items.count != originalCount else { continue }
+            changed = true
+            if group.items.isEmpty {
+                groups.removeValue(forKey: slot)
+                groupPanels[slot]?.close()
+                groupPanels.removeValue(forKey: slot)
+            } else {
+                groups[slot] = MenuBarOrganizerSupport.group(slot: slot, items: group.items)
+            }
+        }
+        if changed, persists {
+            persistGroups()
+        }
     }
 
     private func applyPreset(_ preset: MenuBarOrganizerPreset) async {
