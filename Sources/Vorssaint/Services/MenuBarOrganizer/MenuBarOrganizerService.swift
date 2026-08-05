@@ -45,6 +45,7 @@ final class MenuBarOrganizerService: ObservableObject {
     private var undoRecord: UndoRecord?
     private var suppressUndo = false
     private var snapshotTask: Task<Void, Never>?
+    private var groupAutoHideTask: Task<Void, Never>?
     private var imageCache: [MenuBarItemIdentity: NSImage] = [:]
     private var notchBorrowedItems: [UndoRecord] = []
 
@@ -70,6 +71,7 @@ final class MenuBarOrganizerService: ObservableObject {
             installEventMonitors()
             applyDividerState()
             refresh()
+            applyGroupedItemVisibilityPreference()
         } else {
             stop()
         }
@@ -93,6 +95,8 @@ final class MenuBarOrganizerService: ObservableObject {
         refreshTimer = nil
         snapshotTask?.cancel()
         snapshotTask = nil
+        groupAutoHideTask?.cancel()
+        groupAutoHideTask = nil
         rehideTimer?.invalidate()
         rehideTimer = nil
         removeEventMonitors()
@@ -252,6 +256,7 @@ final class MenuBarOrganizerService: ObservableObject {
         groups[slot] = MenuBarOrganizerSupport.group(slot: slot, items: group.items)
         persistGroups()
         syncGroupStatusItems()
+        applyGroupedItemVisibilityPreference()
     }
 
     func removeFromGroup(itemID: MenuBarItemIdentity) {
@@ -799,6 +804,39 @@ final class MenuBarOrganizerService: ObservableObject {
             item.update(title: groupTitle(slot), itemCount: groupItems.count, isVisible: true)
             groupStatusItems[slot] = item
         }
+    }
+
+    private func applyGroupedItemVisibilityPreference(itemIDs: [MenuBarItemIdentity]? = nil) {
+        guard UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerAutoHideGroupedItems) else {
+            groupAutoHideTask?.cancel()
+            groupAutoHideTask = nil
+            return
+        }
+        groupAutoHideTask?.cancel()
+        groupAutoHideTask = Task { [weak self] in
+            guard let self else { return }
+            await self.hideGroupedVisibleItems(itemIDs: itemIDs)
+        }
+    }
+
+    private func hideGroupedVisibleItems(itemIDs: [MenuBarItemIdentity]?) async {
+        refresh(captureImages: false)
+        let groupedIDs = Set(itemIDs ?? MenuBarOrganizerGroupSlot.allCases.flatMap {
+            groups[$0]?.items ?? []
+        })
+        let candidates = MenuBarOrganizerSupport.orderedItems(items, in: .visible)
+            .filter { groupedIDs.contains($0.id) && $0.isMovable }
+        guard !candidates.isEmpty else { return }
+        suppressUndo = true
+        for item in candidates {
+            guard !Task.isCancelled else { break }
+            await performMove(itemID: item.id, before: nil, to: .hidden)
+        }
+        suppressUndo = false
+        undoRecord = nil
+        canUndo = false
+        refresh()
+        scheduleRehide()
     }
 
     private func removeFromGroup(itemID: MenuBarItemIdentity, persists: Bool) {

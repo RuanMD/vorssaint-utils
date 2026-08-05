@@ -24,6 +24,7 @@ struct MenuBarOrganizerSettings: View {
     @AppStorage(DefaultsKey.menuBarOrganizerShowOnScroll) private var showOnScroll = false
     @AppStorage(DefaultsKey.menuBarOrganizerSmartNotchMode) private var smartNotchMode = true
     @AppStorage(DefaultsKey.menuBarOrganizerGroupStatusItems) private var groupStatusItems = true
+    @AppStorage(DefaultsKey.menuBarOrganizerAutoHideGroupedItems) private var autoHideGroupedItems = false
     @AppStorage(DefaultsKey.menuBarOrganizerToggleShortcutEnabled) private var toggleShortcutEnabled = false
     @AppStorage(DefaultsKey.menuBarOrganizerAlwaysShortcutEnabled) private var alwaysShortcutEnabled = false
     @AppStorage(DefaultsKey.menuBarOrganizerSearchShortcutEnabled) private var searchShortcutEnabled = false
@@ -104,6 +105,7 @@ struct MenuBarOrganizerSettings: View {
         .onChange(of: showOnScroll) { _, _ in service.syncWithPreferences() }
         .onChange(of: smartNotchMode) { _, _ in service.syncWithPreferences() }
         .onChange(of: groupStatusItems) { _, _ in service.syncWithPreferences() }
+        .onChange(of: autoHideGroupedItems) { _, _ in service.syncWithPreferences() }
         .onChange(of: toggleShortcutEnabled) { _, _ in service.syncWithPreferences() }
         .onChange(of: alwaysShortcutEnabled) { _, _ in service.syncWithPreferences() }
         .onChange(of: searchShortcutEnabled) { _, _ in service.syncWithPreferences() }
@@ -206,6 +208,10 @@ struct MenuBarOrganizerSettings: View {
         Section {
             Toggle(text.groupStatusItems, isOn: $groupStatusItems)
             Text(text.groupStatusItemsCaption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Toggle(text.groupAutoHide, isOn: $autoHideGroupedItems)
+            Text(text.groupAutoHideCaption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(text.groupsCaption)
