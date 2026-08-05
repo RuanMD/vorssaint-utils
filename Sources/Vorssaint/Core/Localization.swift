@@ -757,13 +757,6 @@ struct Strings {
     let panelNavigationCaption: String
     let panelFooterSections: String
     let panelFooterList: String
-    let fanControlBetaShow: String
-    let fanControlBetaSection: String
-    let fanControlBetaTitle: String
-    let fanControlBetaStatus: String
-    let fanControlBetaCaption: String
-    let fanControlModeAutomatic: String
-    let fanControlModeManual: String
     let betaBadge: String
     let betaFeatureWarning: String
 
@@ -1241,7 +1234,7 @@ extension Strings {
         switcherSimpleModeCaption: "Mostra ícones de apps e títulos das janelas, sem previews nem captura da tela pelo alternador.",
         switcherShortcutHintApps: "Apps",
         switcherShortcutHintWindows: "Janelas",
-        switcherWindowShortcutCaption: "Com o seletor aberto, pula entre as janelas do app selecionado.",
+        switcherWindowShortcutCaption: "Abre um seletor das janelas do app em primeiro plano. Com o seletor de apps aberto, pula entre as janelas do app selecionado.",
         switcherMergeTabs: "Mostrar uma entrada por app",
         switcherMergeTabsCaption: "Junta todas as janelas de um app em uma só entrada no alternador, em vez de uma por janela.",
         switcherWindowlessApps: "Apps sem janela aberta",
@@ -1664,13 +1657,6 @@ extension Strings {
         panelNavigationCaption: "Mostra uma seção por vez. Escolha Lista para ver tudo em uma rolagem contínua.",
         panelFooterSections: "Seções",
         panelFooterList: "Lista",
-        fanControlBetaShow: "Mostrar Fan Control (Beta) no painel",
-        fanControlBetaSection: "Fan Control",
-        fanControlBetaTitle: "Fan Control",
-        fanControlBetaStatus: "Automático",
-        fanControlBetaCaption: "Beta. O controle manual fica desativado até validação por modelo de Mac.",
-        fanControlModeAutomatic: "Automático",
-        fanControlModeManual: "Manual",
         betaBadge: "BETA",
         betaFeatureWarning: "Beta. Você pode encontrar alguns bugs.",
 
@@ -2135,7 +2121,7 @@ extension Strings {
         switcherSimpleModeCaption: "Shows app icons and window titles, without previews or screen capture by the switcher.",
         switcherShortcutHintApps: "Apps",
         switcherShortcutHintWindows: "Windows",
-        switcherWindowShortcutCaption: "While the switcher is open, jumps between the selected app's windows.",
+        switcherWindowShortcutCaption: "Opens a switcher for the frontmost app's windows. While the Apps switcher is open, jumps between the selected app's windows.",
         switcherMergeTabs: "Show one entry per app",
         switcherMergeTabsCaption: "Collapses all of an app's windows into one entry in the switcher, instead of one entry per window.",
         switcherWindowlessApps: "Apps with no open window",
@@ -2558,13 +2544,6 @@ extension Strings {
         panelNavigationCaption: "Shows one section at a time. Choose List to see everything in one continuous scroll.",
         panelFooterSections: "Sections",
         panelFooterList: "List",
-        fanControlBetaShow: "Show Fan Control (Beta) in the panel",
-        fanControlBetaSection: "Fan Control",
-        fanControlBetaTitle: "Fan Control",
-        fanControlBetaStatus: "Automatic",
-        fanControlBetaCaption: "Beta. Manual control stays disabled until each Mac model is validated.",
-        fanControlModeAutomatic: "Automatic",
-        fanControlModeManual: "Manual",
         betaBadge: "BETA",
         betaFeatureWarning: "Beta. You may run into some bugs.",
 

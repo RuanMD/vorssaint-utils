@@ -65,7 +65,7 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 
 ### Know what your Mac is doing
 
-- **System monitor.** CPU, GPU, memory pressure and temperatures with history graphs, plus battery health, time remaining, cycle count, power draw, the apps burning energy right now and a shortcut to the Mac's full process inspector.
+- **System monitor.** CPU, GPU, memory pressure and temperatures with history graphs, plus battery health, time remaining, cycle count, power draw, an optional Fan Control beta for temporary maximum cooling with automatic return, the apps burning energy right now and a shortcut to the Mac's full process inspector.
 - **Menu bar readouts.** Keep the readings you care about in the bar itself, with values or compact usage bars, including optional battery time remaining, combined or as separate items.
 - **Network.** Live rates, session totals and a built in speed test.
 - **Alerts.** Optional notifications for sustained CPU load, high temperature, memory pressure, low disk space and low battery.
@@ -87,7 +87,7 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 
 ### Windows and the Dock
 
-- **App switcher.** A richer take on pressing ⌘Tab, with adjustable live window thumbnails, minimized windows included, and more than one window per app. Choose apps where Vorssaint pauses both switcher and Dock thumbnail capture while they are in front.
+- **App switcher.** A richer take on pressing ⌘Tab, with adjustable live window thumbnails, minimized windows included, and more than one window per app. Press the window shortcut directly to move between windows of the app in front. Choose apps where Vorssaint pauses both switcher and Dock thumbnail capture while they are in front.
 - **Window layout.** Snap the active window to halves, thirds, sixths, corners, center or another display, each with its own optional shortcut. Restore steps back through recent placements. On a trackpad or mouse, hold chosen modifiers and drag anywhere to move a window, then add Shift to resize it. A mouse can also resize with the right button.
 - **Dock Preview.** Hover a Dock icon to peek at that app's windows and jump straight into the right one.
 - **Dock clicks.** Click the Dock icon of the active app to minimize its windows, or cycle through them one by one.

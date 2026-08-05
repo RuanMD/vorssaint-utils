@@ -226,6 +226,11 @@ private struct FeatureHubRow: View {
 
     private var installed: Bool { feature.isAvailable }
 
+    private var accessibilityTitle: String {
+        let title = feature.hubTitle(l10n.s, hub: hub)
+        return feature.isBeta ? "\(title). \(l10n.s.betaFeatureWarning)" : title
+    }
+
     private var energyLabel: String {
         switch feature.energyProfile {
         case .idle: return hub.energyIdle
@@ -253,6 +258,15 @@ private struct FeatureHubRow: View {
                 HStack(spacing: 6) {
                     Text(feature.hubTitle(l10n.s, hub: hub))
                         .foregroundStyle(installed ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    if feature.isBeta {
+                        Text(l10n.s.betaBadge)
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Capsule().fill(Color.accentColor))
+                            .accessibilityHidden(true)
+                    }
                     ForEach(feature.permissions, id: \.self) { permission in
                         Image(systemName: permission.symbolName)
                             .font(.system(size: 9))
@@ -289,7 +303,7 @@ private struct FeatureHubRow: View {
         }
         .padding(.vertical, 1)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(feature.hubTitle(l10n.s, hub: hub))
+        .accessibilityLabel(accessibilityTitle)
         .accessibilityValue(installed ? "1" : "0")
     }
 
@@ -584,6 +598,7 @@ extension AppFeature {
         case .monitorNetwork: return s.monitorShowNetwork
         case .monitorDisk: return s.diskSection
         case .monitorPower: return s.powerSection
+        case .fanControl: return FeatureStrings.fanControl(L10n.shared.language).title
         }
     }
 
@@ -641,6 +656,7 @@ extension AppFeature {
         case .monitorNetwork: return hub.descMonitorNetwork
         case .monitorDisk: return hub.descMonitorDisk
         case .monitorPower: return hub.descMonitorPower
+        case .fanControl: return FeatureStrings.fanControl(L10n.shared.language).hubDescription
         }
     }
 }

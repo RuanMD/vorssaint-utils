@@ -243,7 +243,13 @@ enum DefaultsKey {
     static let monitorShowDisk = "monitorShowDisk"
     static let monitorShowPower = "monitorShowPower"
     static let monitorShowMixer = "monitorShowMixer"
+    static let panelShowFanControl = "panelShowFanControl"
+    // Previous panel visibility key, read once by the migration below.
     static let monitorShowFanControlBeta = "monitorShowFanControlBeta"
+    // Machine-only recovery state. A true value means the helper must confirm
+    // automatic fan control before this marker can be cleared.
+    static let fanControlRecoveryNeeded = "fanControlRecoveryNeeded"
+    static let fanControlHelperVersion = "fanControlHelperVersion"
     // System monitor — per-metric history graphs (each independently toggleable).
     static let monitorGraphCPU = "monitorGraphCPU"
     static let monitorGraphGPU = "monitorGraphGPU"
@@ -879,7 +885,9 @@ enum Defaults {
         DefaultsKey.monitorShowDisk: true,
         DefaultsKey.monitorShowPower: true,
         DefaultsKey.monitorShowMixer: true,
-        DefaultsKey.monitorShowFanControlBeta: false,
+        DefaultsKey.panelShowFanControl: true,
+        DefaultsKey.fanControlRecoveryNeeded: false,
+        DefaultsKey.fanControlHelperVersion: "",
         DefaultsKey.panelNavigationEnabled: true,
         DefaultsKey.monitorGraphCPU: true,
         DefaultsKey.monitorGraphGPU: true,
@@ -1060,6 +1068,7 @@ enum Defaults {
 
     static func register() {
         let defaults = UserDefaults.standard
+        migrateFanControlVisibility(in: defaults)
         defaults.register(defaults: registeredDefaults)
         defaults.register(defaults: AppFeature.availabilityDefaults)
         migrateLegacyMenuBarTemperatureMetric(in: defaults)
@@ -1070,6 +1079,19 @@ enum Defaults {
         migrateScreenshotOpenEditorDirectly(in: defaults)
         migrateSilentHeadphonesDisconnectVolume(in: defaults)
         migrateSwitcherWindowlessFinder(in: defaults)
+    }
+
+    static func migrateFanControlVisibility(in defaults: UserDefaults) {
+        if let oldValue = defaults.object(forKey: DefaultsKey.monitorShowFanControlBeta) as? Bool {
+            if defaults.object(forKey: DefaultsKey.panelShowFanControl) == nil {
+                defaults.set(oldValue, forKey: DefaultsKey.panelShowFanControl)
+            }
+            if oldValue,
+               defaults.object(forKey: AppFeature.fanControl.availabilityKey) == nil {
+                defaults.set(true, forKey: AppFeature.fanControl.availabilityKey)
+            }
+        }
+        defaults.removeObject(forKey: DefaultsKey.monitorShowFanControlBeta)
     }
 
     /// The "show the desktop app without windows" toggle became one choice of

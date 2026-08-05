@@ -1493,6 +1493,22 @@ struct MetricsTests {
             executablePath: nil,
             localizedName: nil),
                "App Switcher requires a positive signal before relaxing window rules")
+        expect(SwitcherSupport.isAdobeFloatingWindow(
+            bundleIdentifier: "com.adobe.AfterEffects.application",
+            subrole: "AXFloatingWindow"),
+               "App Switcher accepts Adobe main windows with current bundle suffixes")
+        expect(SwitcherSupport.isAdobeFloatingWindow(
+            bundleIdentifier: "com.adobe.PremierePro.26",
+            subrole: "AXFloatingWindow"),
+               "App Switcher accepts versioned Adobe main windows")
+        expect(!SwitcherSupport.isAdobeFloatingWindow(
+            bundleIdentifier: "com.adobe.AfterEffects.application",
+            subrole: "AXDialog"),
+               "App Switcher does not relax ordinary Adobe dialogs")
+        expect(!SwitcherSupport.isAdobeFloatingWindow(
+            bundleIdentifier: "com.example.editor",
+            subrole: "AXFloatingWindow"),
+               "App Switcher keeps floating windows from unrelated apps filtered")
         expect(SwitcherSupport.sessionSourceItem(frontmostPID: nil,
                                                  focusedWindowID: nil,
                                                  items: [embeddedWindow]) == nil,
@@ -1606,7 +1622,7 @@ struct MetricsTests {
         // per-release decision: this check fails on every version bump so the
         // decision above is made consciously, never by omission.
         let plistVersion = (NSDictionary(contentsOfFile: "Resources/Info.plist")?["CFBundleShortVersionString"] as? String) ?? ""
-        expect(plistVersion == "3.3.0",
+        expect(plistVersion == "3.3.1",
                "bumping the app version requires re-deciding the support prompt pin above")
         expect(SupportUpdateIntroInfo.releaseVersion == "3.3.0",
                "3.3.0 shows the deliberately curated community and support intro")
@@ -4765,6 +4781,10 @@ struct MetricsTests {
                     "Preview sizing accepts the Small option")
         expectClose(Double(SwitcherIconRowLayout.scale), 0.75,
                     "App Switcher icon-row mode honors the Small option")
+        expectClose(Double(SwitcherIconRowLayout.appEntryIconSize), 49.5,
+                    "App Switcher Small keeps a windowless app icon inside its preview")
+        expectClose(Double(SwitcherIconRowLayout.appEntrySpacing), 5.25,
+                    "App Switcher Small keeps windowless app content proportionally spaced")
         expectClose(Double(DockPreviewSupport.cardSpacing), 6,
                     "Dock Preview Small previews tighten card spacing")
         expectClose(Double(DockPreviewSupport.panelPadding), 9,
@@ -5334,6 +5354,34 @@ struct MetricsTests {
                                                                  selectedIndex: 2,
                                                                  delta: 1) == 2,
                "App Switcher icon-row window navigation stays put when the app has one window")
+        let frontmostScoped = SwitcherSupport.frontmostAppWindows(allItems: groupedSwitcherItems,
+                                                                    frontmostPID: 101)
+        expect(frontmostScoped.count == 2
+               && frontmostScoped.allSatisfy { $0.pid == 101 },
+               "Window-scoped session keeps only the frontmost app's windows")
+        expect(SwitcherSupport.frontmostAppWindows(allItems: groupedSwitcherItems,
+                                                   frontmostPID: 999).isEmpty,
+               "Window-scoped session has no entries when the frontmost app has no windows")
+        expect(SwitcherSupport.initialWindowScopedSelectionIndex(itemCount: 3,
+                                                                 hasForegroundItem: true,
+                                                                 reversed: false) == 1,
+               "Window-scoped session starts on the next window when several are open")
+        expect(SwitcherSupport.initialWindowScopedSelectionIndex(itemCount: 1,
+                                                                 hasForegroundItem: true,
+                                                                 reversed: false) == 0,
+               "Window-scoped session keeps the lone window selected")
+        expect(SwitcherSupport.initialWindowScopedSelectionIndex(itemCount: 3,
+                                                                 hasForegroundItem: true,
+                                                                 reversed: true) == 2,
+               "Window-scoped session starts at the far end when Shift reverses")
+        expect(SwitcherSupport.windowNavigationDelta(positionalMatch: true,
+                                                      shiftIsNavigationModifier: true,
+                                                      shiftHeld: true) == -1,
+               "Window shortcut Shift reverses a positional match")
+        expect(SwitcherSupport.windowNavigationDelta(positionalMatch: false,
+                                                      shiftIsNavigationModifier: true,
+                                                      shiftHeld: true) == 1,
+               "Window shortcut Shift stays forward when the layout needs it for the character")
         let afterFirstSwitch = WindowUseOrder.promoting(2, previous: 1, in: [])
         expect(afterFirstSwitch == [2, 1],
                "App Switcher use history records the previous window immediately after a switch")
@@ -6730,7 +6778,7 @@ struct MetricsTests {
 
         // MARK: Features hub catalog
 
-        expect(AppFeature.allCases.count == 50, "feature catalog has 50 features")
+        expect(AppFeature.allCases.count == 51, "feature catalog has 51 features")
         expect(Set(AppFeature.allCases.map(\.rawValue)).count == AppFeature.allCases.count,
                "feature ids are unique")
         expect(AppFeature.allCases.map(\.rawValue) == [
@@ -6744,12 +6792,16 @@ struct MetricsTests {
             "cleaner", "uninstaller", "homebrew", "appUpdates", "screenshot", "cameraPreview",
             "radialMenu", "scratchpad", "commandBar", "screenRecorder",
             "monitorCPU", "monitorGPU", "monitorMemory", "monitorNetwork", "monitorDisk", "monitorPower",
+            "fanControl",
         ], "feature ids are stable (they persist inside availability keys)")
         expect(AppFeature.switcher.availabilityKey == "featureAvailable.switcher",
                "availability key derives from the raw value")
         expect(AppFeature.availabilityDefaults.count == AppFeature.allCases.count
-                && AppFeature.availabilityDefaults.values.allSatisfy { ($0 as? Bool) == true },
-               "every feature registers as available by default")
+                && (AppFeature.availabilityDefaults[AppFeature.fanControl.availabilityKey] as? Bool) == false
+                && AppFeature.allCases.filter { $0 != .fanControl }.allSatisfy {
+                    (AppFeature.availabilityDefaults[$0.availabilityKey] as? Bool) == true
+                },
+               "fan control ships uninstalled while existing features remain available")
         expect(FeatureGroup.allCases.map { AppFeature.features(in: $0).count }.reduce(0, +)
                 == AppFeature.allCases.count,
                "every feature belongs to exactly one group")
@@ -6773,6 +6825,127 @@ struct MetricsTests {
         expect(AppFeature.cleaner.onboardingPermissions.isEmpty
                 && AppFeature.cameraPreview.onboardingPermissions.isEmpty,
                "contextual grants are not requested during first setup")
+        expect(AppFeature.fanControl.group == .monitor
+                && AppFeature.fanControl.enabledKeys.isEmpty
+                && AppFeature.fanControl.permissions.isEmpty
+                && AppFeature.fanControl.energyProfile == .idle
+                && AppFeature.fanControl.isBeta
+                && !AppFeature.monitorPower.isBeta,
+               "fan control is an on-demand beta with no broad permission")
+        expect((Defaults.registeredDefaults[DefaultsKey.panelShowFanControl] as? Bool) == true,
+               "installing fan control reveals its panel section by default")
+
+        // MARK: Fan Control safety policy
+
+        expect(FanControlPolicy.coolingDuration == 15 * 60
+                && FanControlPolicy.heartbeatLimit < 10,
+               "maximum cooling is time-bounded and loses control quickly with its client")
+        expect(FanControlPolicy.fanCount(from: 1) == 1
+                && FanControlPolicy.fanCount(from: 8) == 8
+                && FanControlPolicy.fanCount(from: 0) == nil
+                && FanControlPolicy.fanCount(from: 9) == nil
+                && FanControlPolicy.fanCount(from: 1.5) == nil
+                && FanControlPolicy.fanCount(from: .nan) == nil,
+               "fan discovery accepts only a small integral hardware count")
+        expect(FanControlPolicy.validBounds(minimum: 1_200, maximum: 5_800)
+                && !FanControlPolicy.validBounds(minimum: -1, maximum: 5_800)
+                && !FanControlPolicy.validBounds(minimum: 5_800, maximum: 5_800)
+                && !FanControlPolicy.validBounds(minimum: 1_200, maximum: 25_000),
+               "fan bounds must be finite, ordered and physically sane")
+        expect(FanControlPolicy.validReading(0)
+                && FanControlPolicy.validReading(8_000)
+                && !FanControlPolicy.validReading(-1)
+                && !FanControlPolicy.validReading(.infinity),
+               "fan readings stay within a safe display and verification range")
+
+        let floatRPM = SMCValueCodec.encode(4_850, type: "flt ", size: 4)
+        expect(floatRPM.flatMap { SMCValueCodec.decode($0, type: "flt ") } == 4_850,
+               "native fan RPM floats round-trip exactly")
+        let fixedRPM = SMCValueCodec.encode(4_850.25, type: "fpe2", size: 2)
+        expect(fixedRPM.flatMap { SMCValueCodec.decode($0, type: "fpe2") } == 4_850.25,
+               "fixed-point fan RPM values round-trip at quarter-RPM precision")
+        expect(SMCValueCodec.decode([0x12, 0x34], type: "ui16") == 0x1234
+                && SMCValueCodec.decode([0, 0, 1, 2], type: "ui32") == 258
+                && SMCValueCodec.encode(1, type: "ui8 ", size: 1) == [1],
+               "SMC integer types preserve their documented byte order")
+        expect(SMCValueCodec.encode(-1, type: "flt ", size: 4) == nil
+                && SMCValueCodec.encode(30_000, type: "fpe2", size: 2) == nil
+                && SMCValueCodec.encode(1, type: "myst", size: 1) == nil,
+               "SMC writes reject negative, overflowing and unknown encodings")
+
+        let watchdogEnd = Date(timeIntervalSince1970: 2_000)
+        expect(FanControlPolicy.restoreReason(now: watchdogEnd,
+                                              endsAt: watchdogEnd,
+                                              heartbeatAge: 0,
+                                              verificationFailures: 0,
+                                              thermalState: .nominal) == .timeLimit,
+               "the watchdog restores automatic control at the fixed deadline")
+        expect(FanControlPolicy.restoreReason(now: Date(timeIntervalSince1970: 1_900),
+                                              endsAt: watchdogEnd,
+                                              heartbeatAge: FanControlPolicy.heartbeatLimit + 0.1,
+                                              verificationFailures: 0,
+                                              thermalState: .nominal) == .heartbeatLost,
+               "the watchdog restores when the app heartbeat stops")
+        expect(FanControlPolicy.restoreReason(now: Date(timeIntervalSince1970: 1_900),
+                                              endsAt: watchdogEnd,
+                                              heartbeatAge: 0,
+                                              verificationFailures: FanControlPolicy.verificationFailureLimit,
+                                              thermalState: .nominal) == .hardwareChanged,
+               "the watchdog restores after repeated hardware verification failures")
+        expect(FanControlPolicy.restoreReason(now: Date(timeIntervalSince1970: 1_900),
+                                              endsAt: watchdogEnd,
+                                              heartbeatAge: 0,
+                                              verificationFailures: 0,
+                                              thermalState: .serious) == .thermalPressure,
+               "the watchdog returns control to the system under thermal pressure")
+        expect(FanControlPolicy.restoreReason(now: Date(timeIntervalSince1970: 1_900),
+                                              endsAt: watchdogEnd,
+                                              heartbeatAge: 0,
+                                              verificationFailures: 0,
+                                              thermalState: .nominal) == nil,
+               "a healthy maximum-cooling session remains active")
+
+        for language in AppLanguage.allCases {
+            let strings = FeatureStrings.fanControl(language)
+            let values = Mirror(reflecting: strings).children.compactMap { $0.value as? String }
+            expect(values.count == 20 && values.allSatisfy { !$0.isEmpty },
+                   "fan control has every localized field for \(language.rawValue)")
+            expect(values.allSatisfy { !$0.contains("—") },
+                   "fan control text uses human punctuation for \(language.rawValue)")
+            expectFormat(strings.fanNameFormat, ["d"],
+                         "fan name format stays valid for \(language.rawValue)")
+            expectFormat(strings.rpmFormat, ["d"],
+                         "fan speed format stays valid for \(language.rawValue)")
+        }
+
+        let fanMigrationSuite = "com.vorssaint.tests.fan-migration.\(UUID().uuidString)"
+        if let fanMigration = UserDefaults(suiteName: fanMigrationSuite) {
+            fanMigration.set(true, forKey: DefaultsKey.monitorShowFanControlBeta)
+            Defaults.migrateFanControlVisibility(in: fanMigration)
+            expect(fanMigration.bool(forKey: DefaultsKey.panelShowFanControl)
+                    && fanMigration.bool(forKey: AppFeature.fanControl.availabilityKey)
+                    && fanMigration.object(forKey: DefaultsKey.monitorShowFanControlBeta) == nil,
+                   "an old fan opt-in keeps the feature installed and visible")
+
+            fanMigration.removePersistentDomain(forName: fanMigrationSuite)
+            fanMigration.set(false, forKey: DefaultsKey.monitorShowFanControlBeta)
+            Defaults.migrateFanControlVisibility(in: fanMigration)
+            expect(!fanMigration.bool(forKey: DefaultsKey.panelShowFanControl)
+                    && fanMigration.object(forKey: AppFeature.fanControl.availabilityKey) == nil,
+                   "an old fan opt-out does not install the feature")
+
+            fanMigration.removePersistentDomain(forName: fanMigrationSuite)
+            fanMigration.set(false, forKey: DefaultsKey.panelShowFanControl)
+            fanMigration.set(false, forKey: AppFeature.fanControl.availabilityKey)
+            fanMigration.set(true, forKey: DefaultsKey.monitorShowFanControlBeta)
+            Defaults.migrateFanControlVisibility(in: fanMigration)
+            expect(!fanMigration.bool(forKey: DefaultsKey.panelShowFanControl)
+                    && !fanMigration.bool(forKey: AppFeature.fanControl.availabilityKey),
+                   "newer fan choices win over the legacy opt-in")
+            fanMigration.removePersistentDomain(forName: fanMigrationSuite)
+        } else {
+            expect(false, "fan visibility migration suite can be created")
+        }
 
         func activeSet(_ permission: AppPermission,
                        available: Set<AppFeature> = Set(AppFeature.allCases),
@@ -9227,6 +9400,10 @@ struct MetricsTests {
                 && backupKeys.contains(DefaultsKey.panelToggleDarkMode)
                 && backupKeys.contains(DefaultsKey.panelToggleMicMute),
                "the quick toggles layout travels with the settings backup")
+        expect(backupKeys.contains(DefaultsKey.panelShowFanControl)
+                && !backupKeys.contains(DefaultsKey.fanControlRecoveryNeeded)
+                && !backupKeys.contains(DefaultsKey.fanControlHelperVersion),
+               "fan panel preference travels while helper recovery state stays on one Mac")
         expect(!backupKeys.contains(DefaultsKey.clipboardHistoryEntries)
                 && !backupKeys.contains(DefaultsKey.shelfItems)
                 && !backupKeys.contains(DefaultsKey.sleepDisabledFlag)
@@ -9967,6 +10144,54 @@ struct MetricsTests {
                "a recording whose editor is open is never swept out from under it")
         expect(!swept.contains(beingWritten),
                "a recording being written right now has no file yet and is left alone")
+
+        let directSaveRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("vorssaint-recorder-save-\(UUID().uuidString)",
+                                    isDirectory: true)
+        try? FileManager.default.createDirectory(at: directSaveRoot,
+                                                 withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directSaveRoot) }
+
+        let savedID = UUID()
+        let savedFolder = directSaveRoot.appendingPathComponent(
+            RecorderSupport.takeFolderName(id: savedID), isDirectory: true)
+        try? FileManager.default.createDirectory(at: savedFolder,
+                                                 withIntermediateDirectories: true)
+        let savedTake = RecorderTakeStore.Take(id: savedID, folder: savedFolder)
+        let masterBytes = Data("finished recording".utf8)
+        try? masterBytes.write(to: savedTake.videoURL)
+        let savedDestination = directSaveRoot.appendingPathComponent("saved.mov")
+        do {
+            try RecorderTakeStore.shared.saveDirectly(savedTake, to: savedDestination)
+            expect((try? Data(contentsOf: savedDestination)) == masterBytes,
+                   "direct save copies the complete recording to its destination")
+            expect(!FileManager.default.fileExists(atPath: savedFolder.path),
+                   "direct save removes its internal take after the copy succeeds")
+        } catch {
+            expect(false, "a valid direct save succeeds")
+        }
+
+        let recoverableID = UUID()
+        let recoverableFolder = directSaveRoot.appendingPathComponent(
+            RecorderSupport.takeFolderName(id: recoverableID), isDirectory: true)
+        try? FileManager.default.createDirectory(at: recoverableFolder,
+                                                 withIntermediateDirectories: true)
+        let recoverableTake = RecorderTakeStore.Take(id: recoverableID, folder: recoverableFolder)
+        try? masterBytes.write(to: recoverableTake.videoURL)
+        let unavailableDestination = directSaveRoot
+            .appendingPathComponent("missing", isDirectory: true)
+            .appendingPathComponent("saved.mov")
+        var directSaveFailed = false
+        do {
+            try RecorderTakeStore.shared.saveDirectly(recoverableTake,
+                                                      to: unavailableDestination)
+        } catch {
+            directSaveFailed = true
+        }
+        expect(directSaveFailed,
+               "direct save reports a destination that cannot be written")
+        expect(FileManager.default.fileExists(atPath: recoverableTake.videoURL.path),
+               "a failed direct save keeps the take available for recovery")
 
         expect(RecorderSupport.canStart(freeBytes: 10_000_000_000)
                 && !RecorderSupport.canStart(freeBytes: 100_000_000),
