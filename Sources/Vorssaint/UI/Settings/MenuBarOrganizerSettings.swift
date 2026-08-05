@@ -25,6 +25,26 @@ struct MenuBarOrganizerSettings: View {
     @AppStorage(DefaultsKey.menuBarOrganizerSmartNotchMode) private var smartNotchMode = true
     @AppStorage(DefaultsKey.menuBarOrganizerGroupStatusItems) private var groupStatusItems = true
     @AppStorage(DefaultsKey.menuBarOrganizerAutoHideGroupedItems) private var autoHideGroupedItems = false
+    @AppStorage(DefaultsKey.menuBarOrganizerSpacerCount) private var spacerCount = 0
+    @AppStorage(DefaultsKey.menuBarOrganizerSpacerWidth) private var spacerWidth = 16
+    @AppStorage(DefaultsKey.menuBarOrganizerBarStyle) private var barStyle =
+        MenuBarOrganizerBarStyle.system.rawValue
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerLowBatteryEnabled) private var lowBatteryTrigger = false
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerLowBatteryThreshold) private var lowBatteryThreshold = 25
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerLowBatteryPreset) private var lowBatteryPreset =
+        MenuBarOrganizerPresetSlot.minimal.rawValue
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerChargingEnabled) private var chargingTrigger = false
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerChargingPreset) private var chargingPreset =
+        MenuBarOrganizerPresetSlot.home.rawValue
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerExternalDisplayEnabled) private var externalDisplayTrigger = false
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerExternalDisplayPreset) private var externalDisplayPreset =
+        MenuBarOrganizerPresetSlot.work.rawValue
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerWorkHoursEnabled) private var workHoursTrigger = false
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerWorkHoursPreset) private var workHoursPreset =
+        MenuBarOrganizerPresetSlot.work.rawValue
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerWorkHoursStart) private var workHoursStart = 9
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerWorkHoursEnd) private var workHoursEnd = 17
+    @AppStorage(DefaultsKey.menuBarOrganizerTriggerWorkHoursWeekdaysOnly) private var workHoursWeekdays = true
     @AppStorage(DefaultsKey.menuBarOrganizerToggleShortcutEnabled) private var toggleShortcutEnabled = false
     @AppStorage(DefaultsKey.menuBarOrganizerAlwaysShortcutEnabled) private var alwaysShortcutEnabled = false
     @AppStorage(DefaultsKey.menuBarOrganizerSearchShortcutEnabled) private var searchShortcutEnabled = false
@@ -66,6 +86,7 @@ struct MenuBarOrganizerSettings: View {
                 editorSection
                 presetsSection
                 groupsSection
+                spacingAndStyleSection
                 behaviorSections
             }
 
@@ -90,25 +111,43 @@ struct MenuBarOrganizerSettings: View {
             service.syncWithPreferences()
             updateEditingSession()
         }
-        .onChange(of: alwaysHiddenEnabled) { _, _ in service.syncWithPreferences() }
-        .onChange(of: showDividers) { _, _ in service.syncWithPreferences() }
-        .onChange(of: capturePreviews) { _, _ in service.refresh() }
-        .onChange(of: presentationMode) { _, _ in service.syncWithPreferences() }
-        .onChange(of: rehideMode) { _, _ in service.syncWithPreferences() }
-        .onChange(of: rehideDelay) { _, value in
-            let sanitized = MenuBarOrganizerSupport.sanitizedRehideDelay(value)
-            if sanitized != value { rehideDelay = sanitized }
+        .onChange(of: preferenceSignature) { _, _ in
+            sanitizePreferences()
             service.syncWithPreferences()
         }
-        .onChange(of: showOnHover) { _, _ in service.syncWithPreferences() }
-        .onChange(of: showOnEmptyClick) { _, _ in service.syncWithPreferences() }
-        .onChange(of: showOnScroll) { _, _ in service.syncWithPreferences() }
-        .onChange(of: smartNotchMode) { _, _ in service.syncWithPreferences() }
-        .onChange(of: groupStatusItems) { _, _ in service.syncWithPreferences() }
-        .onChange(of: autoHideGroupedItems) { _, _ in service.syncWithPreferences() }
-        .onChange(of: toggleShortcutEnabled) { _, _ in service.syncWithPreferences() }
-        .onChange(of: alwaysShortcutEnabled) { _, _ in service.syncWithPreferences() }
-        .onChange(of: searchShortcutEnabled) { _, _ in service.syncWithPreferences() }
+    }
+
+    private var preferenceSignature: String {
+        [
+            alwaysHiddenEnabled, showDividers, capturePreviews,
+            showOnHover, showOnEmptyClick, showOnScroll, smartNotchMode,
+            groupStatusItems, autoHideGroupedItems, lowBatteryTrigger,
+            chargingTrigger, externalDisplayTrigger, workHoursTrigger,
+            workHoursWeekdays, toggleShortcutEnabled, alwaysShortcutEnabled,
+            searchShortcutEnabled,
+        ].map(String.init).joined(separator: "|")
+        + "|"
+        + [
+            presentationMode, rehideMode, String(rehideDelay),
+            String(spacerCount), String(spacerWidth), barStyle,
+            String(lowBatteryThreshold), lowBatteryPreset, chargingPreset,
+            externalDisplayPreset, workHoursPreset, String(workHoursStart),
+            String(workHoursEnd),
+        ].joined(separator: "|")
+    }
+
+    private func sanitizePreferences() {
+        let sanitizedDelay = MenuBarOrganizerSupport.sanitizedRehideDelay(rehideDelay)
+        if sanitizedDelay != rehideDelay { rehideDelay = sanitizedDelay }
+        let sanitizedSpacerCount = MenuBarOrganizerSupport.sanitizedSpacerCount(spacerCount)
+        if sanitizedSpacerCount != spacerCount { spacerCount = sanitizedSpacerCount }
+        let sanitizedSpacerWidth = MenuBarOrganizerSupport.sanitizedSpacerWidth(spacerWidth)
+        if sanitizedSpacerWidth != spacerWidth { spacerWidth = sanitizedSpacerWidth }
+        let sanitizedStyle = MenuBarOrganizerBarStyle.sanitized(barStyle).rawValue
+        if sanitizedStyle != barStyle { barStyle = sanitizedStyle }
+        lowBatteryThreshold = min(max(lowBatteryThreshold, 1), 100)
+        workHoursStart = min(max(workHoursStart, 0), 23)
+        workHoursEnd = min(max(workHoursEnd, 0), 23)
     }
 
     @ViewBuilder
@@ -266,6 +305,25 @@ struct MenuBarOrganizerSettings: View {
         .padding(.vertical, 2)
     }
 
+    private var spacingAndStyleSection: some View {
+        Section {
+            Stepper("\(text.spacerCount): \(spacerCount)", value: $spacerCount, in: 0...6)
+            Picker(text.spacerWidth, selection: $spacerWidth) {
+                ForEach(MenuBarOrganizerSupport.allowedSpacerWidths, id: \.self) { width in
+                    Text("\(width) px").tag(width)
+                }
+            }
+            Picker(text.barStyle, selection: $barStyle) {
+                Text(text.barStyleSystem).tag(MenuBarOrganizerBarStyle.system.rawValue)
+                Text(text.barStyleTinted).tag(MenuBarOrganizerBarStyle.tinted.rawValue)
+                Text(text.barStyleGraphite).tag(MenuBarOrganizerBarStyle.graphite.rawValue)
+                Text(text.barStyleVibrant).tag(MenuBarOrganizerBarStyle.vibrant.rawValue)
+            }
+        } header: {
+            Text(text.spacingTitle)
+        }
+    }
+
     @ViewBuilder
     private var behaviorSections: some View {
         Section(text.sectionsTitle) {
@@ -306,6 +364,32 @@ struct MenuBarOrganizerSettings: View {
             Text(text.smartNotchCaption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Divider()
+            Text(text.advancedTriggersCaption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            triggerRow(title: text.triggerLowBattery,
+                       enabled: $lowBatteryTrigger,
+                       preset: $lowBatteryPreset)
+            if lowBatteryTrigger {
+                Stepper("\(text.triggerLowBattery): \(lowBatteryThreshold)%",
+                        value: $lowBatteryThreshold,
+                        in: 1...100)
+            }
+            triggerRow(title: text.triggerCharging,
+                       enabled: $chargingTrigger,
+                       preset: $chargingPreset)
+            triggerRow(title: text.triggerExternalDisplay,
+                       enabled: $externalDisplayTrigger,
+                       preset: $externalDisplayPreset)
+            triggerRow(title: text.triggerWorkHours,
+                       enabled: $workHoursTrigger,
+                       preset: $workHoursPreset)
+            if workHoursTrigger {
+                Stepper("\(workHoursStart):00", value: $workHoursStart, in: 0...23)
+                Stepper("\(workHoursEnd):00", value: $workHoursEnd, in: 0...23)
+                Toggle(text.triggerWorkHoursWeekdays, isOn: $workHoursWeekdays)
+            }
         }
 
         Section(text.shortcutsTitle) {
@@ -334,6 +418,20 @@ struct MenuBarOrganizerSettings: View {
             Toggle(title, isOn: enabled)
             ShortcutPreferenceRow(role: role, isEnabled: enabled.wrappedValue) {
                 service.syncWithPreferences()
+            }
+            .disabled(!enabled.wrappedValue)
+        }
+    }
+
+    private func triggerRow(title: String,
+                            enabled: Binding<Bool>,
+                            preset: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(title, isOn: enabled)
+            Picker(text.triggerPreset, selection: preset) {
+                ForEach(MenuBarOrganizerPresetSlot.allCases) { slot in
+                    Text(presetTitle(slot)).tag(slot.rawValue)
+                }
             }
             .disabled(!enabled.wrappedValue)
         }

@@ -35,7 +35,9 @@ final class MenuBarOrganizerService: ObservableObject {
     private var secondaryPanel: MenuBarOrganizerPanelController?
     private var groupPanels: [MenuBarOrganizerGroupSlot: MenuBarOrganizerPanelController] = [:]
     private var groupStatusItems: [MenuBarOrganizerGroupSlot: MenuBarGroupStatusItem] = [:]
+    private var spacerItems: [MenuBarSpacerItem] = []
     private var refreshTimer: Timer?
+    private var triggerTimer: Timer?
     private var rehideTimer: Timer?
     private var globalMouseMonitor: Any?
     private var globalScrollMonitor: Any?
@@ -46,6 +48,8 @@ final class MenuBarOrganizerService: ObservableObject {
     private var suppressUndo = false
     private var snapshotTask: Task<Void, Never>?
     private var groupAutoHideTask: Task<Void, Never>?
+    private var automationTask: Task<Void, Never>?
+    private var lastAutomationSignature: String?
     private var imageCache: [MenuBarItemIdentity: NSImage] = [:]
     private var notchBorrowedItems: [UndoRecord] = []
 
@@ -67,11 +71,13 @@ final class MenuBarOrganizerService: ObservableObject {
             startIfNeeded()
             syncAlwaysHiddenDivider()
             syncGroupStatusItems()
+            syncSpacerItems()
             syncHotkeys()
             installEventMonitors()
             applyDividerState()
             refresh()
             applyGroupedItemVisibilityPreference()
+            evaluateAutomationTriggers()
         } else {
             stop()
         }
@@ -91,12 +97,19 @@ final class MenuBarOrganizerService: ObservableObject {
         groupPanels = [:]
         groupStatusItems.values.forEach { $0.removePreservingPosition() }
         groupStatusItems = [:]
+        spacerItems.forEach { $0.removePreservingPosition() }
+        spacerItems = []
         refreshTimer?.invalidate()
         refreshTimer = nil
+        triggerTimer?.invalidate()
+        triggerTimer = nil
         snapshotTask?.cancel()
         snapshotTask = nil
         groupAutoHideTask?.cancel()
         groupAutoHideTask = nil
+        automationTask?.cancel()
+        automationTask = nil
+        lastAutomationSignature = nil
         rehideTimer?.invalidate()
         rehideTimer = nil
         removeEventMonitors()
@@ -346,6 +359,10 @@ final class MenuBarOrganizerService: ObservableObject {
             Task { @MainActor in self?.refresh(captureImages: false) }
         }
         refreshTimer?.tolerance = 0.5
+        triggerTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.evaluateAutomationTriggers() }
+        }
+        triggerTimer?.tolerance = 4
         workspaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
@@ -409,7 +426,8 @@ final class MenuBarOrganizerService: ObservableObject {
         let records = provider.records()
         let ownWindowIDs = Set(([controlItem?.windowID, hiddenDivider?.windowID,
                                  alwaysHiddenDivider?.windowID]
-            + groupStatusItems.values.map(\.windowID)).compactMap { $0 })
+            + groupStatusItems.values.map(\.windowID)
+            + spacerItems.map(\.windowID)).compactMap { $0 })
         let filtered = records.filter { !ownWindowIDs.contains($0.windowID) }
         let identities = MenuBarOrganizerSupport.identities(for: filtered)
         let hiddenX = hiddenDivider?.frame?.midX
@@ -804,6 +822,88 @@ final class MenuBarOrganizerService: ObservableObject {
             item.update(title: groupTitle(slot), itemCount: groupItems.count, isVisible: true)
             groupStatusItems[slot] = item
         }
+    }
+
+    private func syncSpacerItems() {
+        let defaults = UserDefaults.standard
+        let count = MenuBarOrganizerSupport.sanitizedSpacerCount(
+            defaults.integer(forKey: DefaultsKey.menuBarOrganizerSpacerCount))
+        let width = CGFloat(MenuBarOrganizerSupport.sanitizedSpacerWidth(
+            defaults.integer(forKey: DefaultsKey.menuBarOrganizerSpacerWidth)))
+        if spacerItems.count > count {
+            for spacer in spacerItems.dropFirst(count) {
+                spacer.removePreservingPosition()
+            }
+            spacerItems = Array(spacerItems.prefix(count))
+        }
+        while spacerItems.count < count {
+            spacerItems.append(MenuBarSpacerItem(index: spacerItems.count, width: width))
+        }
+        spacerItems.forEach { $0.update(width: width) }
+    }
+
+    private func evaluateAutomationTriggers() {
+        guard isRunning, editingCount == 0, automationTask?.isCancelled != false else { return }
+        let defaults = UserDefaults.standard
+        let battery = SystemInfo.batterySnapshot()
+        let components = Calendar.current.dateComponents([.hour, .weekday], from: Date())
+        let hour = components.hour ?? 0
+        let weekday = components.weekday ?? 1
+        let match: (String, MenuBarOrganizerPresetSlot)?
+        if defaults.bool(forKey: DefaultsKey.menuBarOrganizerTriggerLowBatteryEnabled),
+           MenuBarOrganizerSupport.lowBatteryTriggerMatches(
+                percent: battery?.percent,
+                isOnBattery: battery?.isOnBattery ?? false,
+                threshold: defaults.integer(forKey: DefaultsKey.menuBarOrganizerTriggerLowBatteryThreshold)),
+           let slot = MenuBarOrganizerPresetSlot(
+                rawValue: defaults.string(forKey: DefaultsKey.menuBarOrganizerTriggerLowBatteryPreset) ?? "") {
+            match = ("lowBattery", slot)
+        } else if defaults.bool(forKey: DefaultsKey.menuBarOrganizerTriggerExternalDisplayEnabled),
+                  hasExternalDisplay(),
+                  let slot = MenuBarOrganizerPresetSlot(
+                    rawValue: defaults.string(forKey: DefaultsKey.menuBarOrganizerTriggerExternalDisplayPreset) ?? "") {
+            match = ("externalDisplay", slot)
+        } else if defaults.bool(forKey: DefaultsKey.menuBarOrganizerTriggerWorkHoursEnabled),
+                  MenuBarOrganizerSupport.workHoursTriggerMatches(
+                    hour: hour,
+                    weekday: weekday,
+                    startHour: defaults.integer(forKey: DefaultsKey.menuBarOrganizerTriggerWorkHoursStart),
+                    endHour: defaults.integer(forKey: DefaultsKey.menuBarOrganizerTriggerWorkHoursEnd),
+                    weekdaysOnly: defaults.bool(
+                        forKey: DefaultsKey.menuBarOrganizerTriggerWorkHoursWeekdaysOnly)),
+                  let slot = MenuBarOrganizerPresetSlot(
+                    rawValue: defaults.string(forKey: DefaultsKey.menuBarOrganizerTriggerWorkHoursPreset) ?? "") {
+            match = ("workHours", slot)
+        } else if defaults.bool(forKey: DefaultsKey.menuBarOrganizerTriggerChargingEnabled),
+                  battery?.isCharging == true || battery?.isOnBattery == false,
+                  let slot = MenuBarOrganizerPresetSlot(
+                    rawValue: defaults.string(forKey: DefaultsKey.menuBarOrganizerTriggerChargingPreset) ?? "") {
+            match = ("charging", slot)
+        } else {
+            match = nil
+        }
+
+        guard let match else {
+            lastAutomationSignature = nil
+            return
+        }
+        let signature = "\(match.0):\(match.1.rawValue)"
+        guard signature != lastAutomationSignature, let preset = presets[match.1] else { return }
+        lastAutomationSignature = signature
+        automationTask = Task { [weak self] in
+            guard let self else { return }
+            await self.applyPreset(preset)
+            self.automationTask = nil
+        }
+    }
+
+    private func hasExternalDisplay() -> Bool {
+        var count: UInt32 = 0
+        guard CGGetOnlineDisplayList(0, nil, &count) == .success, count > 0 else { return false }
+        var displays = Array(repeating: CGDirectDisplayID(), count: Int(count))
+        guard CGGetOnlineDisplayList(count, &displays, &count) == .success else { return false }
+        return KeepAwakeAutomationSupport.hasExternalDisplay(
+            builtInFlags: displays.prefix(Int(count)).map { CGDisplayIsBuiltin($0) != 0 })
     }
 
     private func applyGroupedItemVisibilityPreference(itemIDs: [MenuBarItemIdentity]? = nil) {

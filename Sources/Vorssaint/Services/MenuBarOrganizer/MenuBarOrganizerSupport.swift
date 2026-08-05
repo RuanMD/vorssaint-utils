@@ -32,6 +32,19 @@ enum MenuBarOrganizerRehideMode: String, CaseIterable {
     }
 }
 
+enum MenuBarOrganizerBarStyle: String, CaseIterable, Identifiable {
+    case system
+    case tinted
+    case graphite
+    case vibrant
+
+    var id: String { rawValue }
+
+    static func sanitized(_ raw: String?) -> Self {
+        Self(rawValue: raw ?? "") ?? .system
+    }
+}
+
 enum MenuBarOrganizerPresetSlot: String, CaseIterable, Codable, Identifiable {
     case work
     case home
@@ -132,9 +145,40 @@ struct MenuBarOrganizerWindowRecord {
 
 enum MenuBarOrganizerSupport {
     static let allowedRehideDelays = [3, 5, 10, 15, 30, 60]
+    static let allowedSpacerWidths = [8, 12, 16, 24, 32]
 
     static func sanitizedRehideDelay(_ value: Int) -> Int {
         allowedRehideDelays.min(by: { abs($0 - value) < abs($1 - value) }) ?? 10
+    }
+
+    static func sanitizedSpacerCount(_ value: Int) -> Int {
+        min(max(value, 0), 6)
+    }
+
+    static func sanitizedSpacerWidth(_ value: Int) -> Int {
+        allowedSpacerWidths.min(by: { abs($0 - value) < abs($1 - value) }) ?? 16
+    }
+
+    static func lowBatteryTriggerMatches(percent: Int?,
+                                         isOnBattery: Bool,
+                                         threshold: Int) -> Bool {
+        guard let percent else { return false }
+        return isOnBattery && percent <= min(max(threshold, 1), 100)
+    }
+
+    static func workHoursTriggerMatches(hour: Int,
+                                        weekday: Int,
+                                        startHour: Int,
+                                        endHour: Int,
+                                        weekdaysOnly: Bool) -> Bool {
+        if weekdaysOnly, !(2...6).contains(weekday) { return false }
+        let start = min(max(startHour, 0), 23)
+        let end = min(max(endHour, 0), 23)
+        if start == end { return true }
+        if start < end {
+            return hour >= start && hour < end
+        }
+        return hour >= start || hour < end
     }
 
     static func usesExactPreviews(preferenceEnabled: Bool,

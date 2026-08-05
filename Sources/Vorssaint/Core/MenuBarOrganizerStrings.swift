@@ -48,6 +48,13 @@ struct MenuBarOrganizerStrings {
     let showOnScroll: String
     let smartNotchMode: String
     let smartNotchCaption: String
+    let advancedTriggersCaption: String
+    let triggerPreset: String
+    let triggerLowBattery: String
+    let triggerCharging: String
+    let triggerExternalDisplay: String
+    let triggerWorkHours: String
+    let triggerWorkHoursWeekdays: String
     let presetsTitle: String
     let presetsCaption: String
     let presetWork: String
@@ -73,6 +80,14 @@ struct MenuBarOrganizerStrings {
     let groupStatusItemsCaption: String
     let groupAutoHide: String
     let groupAutoHideCaption: String
+    let spacingTitle: String
+    let spacerCount: String
+    let spacerWidth: String
+    let barStyle: String
+    let barStyleSystem: String
+    let barStyleTinted: String
+    let barStyleGraphite: String
+    let barStyleVibrant: String
     let shortcutsTitle: String
     let toggleHiddenShortcut: String
     let toggleAlwaysShortcut: String
@@ -146,6 +161,13 @@ extension MenuBarOrganizerStrings {
         showOnScroll: "Toggle by scrolling or swiping over the menu bar",
         smartNotchMode: "Make room near the notch automatically",
         smartNotchCaption: "When Automatic is selected, Vorssaint can temporarily tuck lower-priority visible items away before revealing hidden items in the real menu bar.",
+        advancedTriggersCaption: "Apply saved presets automatically when these conditions become true.",
+        triggerPreset: "Preset",
+        triggerLowBattery: "Low battery",
+        triggerCharging: "Charging or on power",
+        triggerExternalDisplay: "External display connected",
+        triggerWorkHours: "Work hours",
+        triggerWorkHoursWeekdays: "Weekdays only",
         presetsTitle: "Presets",
         presetsCaption: "Save and restore complete menu bar layouts for different contexts.",
         presetWork: "Work",
@@ -171,6 +193,14 @@ extension MenuBarOrganizerStrings {
         groupStatusItemsCaption: "Each group with available items gets its own compact icon. Click it to open that group.",
         groupAutoHide: "Move grouped items to Hidden",
         groupAutoHideCaption: "When enabled, visible items added to a group are tucked into Hidden so the group icon becomes their main access point.",
+        spacingTitle: "Spacing and style",
+        spacerCount: "Spacer items",
+        spacerWidth: "Spacer width",
+        barStyle: "Secondary bar style",
+        barStyleSystem: "System",
+        barStyleTinted: "Tinted",
+        barStyleGraphite: "Graphite",
+        barStyleVibrant: "Vibrant",
         shortcutsTitle: "Keyboard shortcuts",
         toggleHiddenShortcut: "Toggle hidden items",
         toggleAlwaysShortcut: "Toggle always-hidden items",
@@ -223,6 +253,13 @@ extension MenuBarOrganizerStrings {
         showOnScroll: "Alternar al desplazar o deslizar sobre la barra",
         smartNotchMode: "Hacer sitio junto al notch automáticamente",
         smartNotchCaption: "Con el modo Automático, Vorssaint puede apartar temporalmente elementos visibles de menor prioridad antes de mostrar los ocultos en la barra real.",
+        advancedTriggersCaption: "Aplica presets guardados automáticamente cuando se cumplan estas condiciones.",
+        triggerPreset: "Preset",
+        triggerLowBattery: "Batería baja",
+        triggerCharging: "Cargando o con corriente",
+        triggerExternalDisplay: "Pantalla externa conectada",
+        triggerWorkHours: "Horario de trabajo",
+        triggerWorkHoursWeekdays: "Sólo laborables",
         presetsTitle: "Presets",
         presetsCaption: "Guarda y restaura disposiciones completas de la barra para distintos contextos.",
         presetWork: "Trabajo",
@@ -248,6 +285,14 @@ extension MenuBarOrganizerStrings {
         groupStatusItemsCaption: "Cada grupo con elementos disponibles tiene su propio icono compacto. Pulsa para abrirlo.",
         groupAutoHide: "Mover elementos agrupados a Oculta",
         groupAutoHideCaption: "Al activarlo, los elementos visibles que añadas a un grupo se apartan a Oculta para que el icono del grupo sea su acceso principal.",
+        spacingTitle: "Espaciado y estilo",
+        spacerCount: "Espaciadores",
+        spacerWidth: "Anchura del espaciador",
+        barStyle: "Estilo de la barra secundaria",
+        barStyleSystem: "Sistema",
+        barStyleTinted: "Tintado",
+        barStyleGraphite: "Grafito",
+        barStyleVibrant: "Vibrante",
         shortcutsTitle: "Atajos de teclado",
         toggleHiddenShortcut: "Alternar elementos ocultos",
         toggleAlwaysShortcut: "Alternar elementos siempre ocultos",

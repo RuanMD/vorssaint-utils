@@ -310,7 +310,7 @@ private struct MenuBarOrganizerSecondaryBarView: View {
             }
             .padding(12)
         }
-        .background(.ultraThinMaterial)
+        .modifier(MenuBarOrganizerBarChrome())
     }
 
     private func groupTitle(_ slot: MenuBarOrganizerGroupSlot) -> String {
@@ -364,7 +364,54 @@ private struct MenuBarOrganizerGroupPanelView: View {
             }
             .padding(12)
         }
-        .background(.ultraThinMaterial)
+        .modifier(MenuBarOrganizerBarChrome())
+    }
+}
+
+private struct MenuBarOrganizerBarChrome: ViewModifier {
+    @AppStorage(DefaultsKey.menuBarOrganizerBarStyle) private var rawStyle =
+        MenuBarOrganizerBarStyle.system.rawValue
+
+    private var style: MenuBarOrganizerBarStyle {
+        MenuBarOrganizerBarStyle.sanitized(rawStyle)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .background(background)
+            .clipShape(RoundedRectangle(cornerRadius: style == .system ? 0 : 16,
+                                        style: .continuous))
+            .overlay {
+                if style != .system {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(.white.opacity(0.16))
+                }
+            }
+            .shadow(color: style == .system ? .clear : .black.opacity(0.18),
+                    radius: 14, x: 0, y: -2)
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        switch style {
+        case .system:
+            Rectangle().fill(.ultraThinMaterial)
+        case .tinted:
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(Color.accentColor.opacity(0.18))
+        case .graphite:
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(Color.black.opacity(0.28))
+        case .vibrant:
+            LinearGradient(colors: [
+                Color.accentColor.opacity(0.34),
+                Color.purple.opacity(0.22),
+                Color.cyan.opacity(0.18),
+            ], startPoint: .leading, endPoint: .trailing)
+            .background(.ultraThinMaterial)
+        }
     }
 }
 

@@ -493,6 +493,21 @@ enum DefaultsKey {
     static let menuBarOrganizerGroups = "menuBarOrganizerGroups" // JSON string: [MenuBarOrganizerGroup]
     static let menuBarOrganizerGroupStatusItems = "menuBarOrganizerGroupStatusItems"
     static let menuBarOrganizerAutoHideGroupedItems = "menuBarOrganizerAutoHideGroupedItems"
+    static let menuBarOrganizerSpacerCount = "menuBarOrganizerSpacerCount"
+    static let menuBarOrganizerSpacerWidth = "menuBarOrganizerSpacerWidth"
+    static let menuBarOrganizerBarStyle = "menuBarOrganizerBarStyle"
+    static let menuBarOrganizerTriggerLowBatteryEnabled = "menuBarOrganizerTriggerLowBatteryEnabled"
+    static let menuBarOrganizerTriggerLowBatteryThreshold = "menuBarOrganizerTriggerLowBatteryThreshold"
+    static let menuBarOrganizerTriggerLowBatteryPreset = "menuBarOrganizerTriggerLowBatteryPreset"
+    static let menuBarOrganizerTriggerChargingEnabled = "menuBarOrganizerTriggerChargingEnabled"
+    static let menuBarOrganizerTriggerChargingPreset = "menuBarOrganizerTriggerChargingPreset"
+    static let menuBarOrganizerTriggerExternalDisplayEnabled = "menuBarOrganizerTriggerExternalDisplayEnabled"
+    static let menuBarOrganizerTriggerExternalDisplayPreset = "menuBarOrganizerTriggerExternalDisplayPreset"
+    static let menuBarOrganizerTriggerWorkHoursEnabled = "menuBarOrganizerTriggerWorkHoursEnabled"
+    static let menuBarOrganizerTriggerWorkHoursPreset = "menuBarOrganizerTriggerWorkHoursPreset"
+    static let menuBarOrganizerTriggerWorkHoursStart = "menuBarOrganizerTriggerWorkHoursStart"
+    static let menuBarOrganizerTriggerWorkHoursEnd = "menuBarOrganizerTriggerWorkHoursEnd"
+    static let menuBarOrganizerTriggerWorkHoursWeekdaysOnly = "menuBarOrganizerTriggerWorkHoursWeekdaysOnly"
     static let menuBarOrganizerToggleShortcutEnabled = "menuBarOrganizerToggleShortcutEnabled"
     static let menuBarOrganizerToggleShortcut = "menuBarOrganizerToggleShortcut"
     static let menuBarOrganizerAlwaysShortcutEnabled = "menuBarOrganizerAlwaysShortcutEnabled"
@@ -795,6 +810,21 @@ enum Defaults {
         DefaultsKey.menuBarOrganizerGroups: "",
         DefaultsKey.menuBarOrganizerGroupStatusItems: true,
         DefaultsKey.menuBarOrganizerAutoHideGroupedItems: false,
+        DefaultsKey.menuBarOrganizerSpacerCount: 0,
+        DefaultsKey.menuBarOrganizerSpacerWidth: 16,
+        DefaultsKey.menuBarOrganizerBarStyle: MenuBarOrganizerBarStyle.system.rawValue,
+        DefaultsKey.menuBarOrganizerTriggerLowBatteryEnabled: false,
+        DefaultsKey.menuBarOrganizerTriggerLowBatteryThreshold: 25,
+        DefaultsKey.menuBarOrganizerTriggerLowBatteryPreset: MenuBarOrganizerPresetSlot.minimal.rawValue,
+        DefaultsKey.menuBarOrganizerTriggerChargingEnabled: false,
+        DefaultsKey.menuBarOrganizerTriggerChargingPreset: MenuBarOrganizerPresetSlot.home.rawValue,
+        DefaultsKey.menuBarOrganizerTriggerExternalDisplayEnabled: false,
+        DefaultsKey.menuBarOrganizerTriggerExternalDisplayPreset: MenuBarOrganizerPresetSlot.work.rawValue,
+        DefaultsKey.menuBarOrganizerTriggerWorkHoursEnabled: false,
+        DefaultsKey.menuBarOrganizerTriggerWorkHoursPreset: MenuBarOrganizerPresetSlot.work.rawValue,
+        DefaultsKey.menuBarOrganizerTriggerWorkHoursStart: 9,
+        DefaultsKey.menuBarOrganizerTriggerWorkHoursEnd: 17,
+        DefaultsKey.menuBarOrganizerTriggerWorkHoursWeekdaysOnly: true,
         DefaultsKey.menuBarOrganizerToggleShortcutEnabled: false,
         DefaultsKey.menuBarOrganizerToggleShortcut: GlobalShortcut.menuBarOrganizerToggleDefault.storageValue,
         DefaultsKey.menuBarOrganizerAlwaysShortcutEnabled: false,

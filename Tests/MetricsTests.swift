@@ -7014,9 +7014,28 @@ struct MetricsTests {
         expect(MenuBarOrganizerRehideMode.sanitized("focusedApp") == .focusedApp
                 && MenuBarOrganizerRehideMode.sanitized(nil) == .afterDelay,
                "rehide storage sanitizes to the default delay")
+        expect(MenuBarOrganizerBarStyle.sanitized("vibrant") == .vibrant
+                && MenuBarOrganizerBarStyle.sanitized("invalid") == .system,
+               "bar style storage sanitizes to the system fallback")
         expect(MenuBarOrganizerSupport.sanitizedRehideDelay(11) == 10
                 && MenuBarOrganizerSupport.sanitizedRehideDelay(58) == 60,
                "rehide delays snap to supported values")
+        expect(MenuBarOrganizerSupport.sanitizedSpacerCount(-1) == 0
+                && MenuBarOrganizerSupport.sanitizedSpacerCount(99) == 6
+                && MenuBarOrganizerSupport.sanitizedSpacerWidth(23) == 24,
+               "spacer preferences stay in the supported menu bar range")
+        expect(MenuBarOrganizerSupport.lowBatteryTriggerMatches(
+                    percent: 20, isOnBattery: true, threshold: 25)
+                && !MenuBarOrganizerSupport.lowBatteryTriggerMatches(
+                    percent: 20, isOnBattery: false, threshold: 25),
+               "low battery triggers only match while running from battery")
+        expect(MenuBarOrganizerSupport.workHoursTriggerMatches(
+                    hour: 10, weekday: 2, startHour: 9, endHour: 17, weekdaysOnly: true)
+                && MenuBarOrganizerSupport.workHoursTriggerMatches(
+                    hour: 23, weekday: 7, startHour: 22, endHour: 6, weekdaysOnly: false)
+                && !MenuBarOrganizerSupport.workHoursTriggerMatches(
+                    hour: 10, weekday: 1, startHour: 9, endHour: 17, weekdaysOnly: true),
+               "work-hour triggers handle weekdays and overnight ranges")
         expect(MenuBarOrganizerSupport.usesExactPreviews(
                     preferenceEnabled: true, screenRecordingGranted: true)
                 && !MenuBarOrganizerSupport.usesExactPreviews(
@@ -7920,8 +7939,20 @@ struct MetricsTests {
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresets] as? String == ""
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerGroups] as? String == ""
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerGroupStatusItems] as? Bool == true
-                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerAutoHideGroupedItems] as? Bool == false,
-               "smart notch mode, presets and groups have portable defaults")
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerAutoHideGroupedItems] as? Bool == false
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerSpacerCount] as? Int == 0
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerSpacerWidth] as? Int == 16
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerBarStyle] as? String
+                    == MenuBarOrganizerBarStyle.system.rawValue,
+               "smart notch mode, presets, groups, spacers and style have portable defaults")
+        expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerTriggerLowBatteryEnabled] as? Bool == false
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerTriggerLowBatteryThreshold] as? Int == 25
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerTriggerLowBatteryPreset] as? String
+                    == MenuBarOrganizerPresetSlot.minimal.rawValue
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerTriggerChargingEnabled] as? Bool == false
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerTriggerExternalDisplayEnabled] as? Bool == false
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerTriggerWorkHoursEnabled] as? Bool == false,
+               "advanced organizer preset triggers are opt-in with safe presets")
         expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerToggleShortcut] as? String
                     == GlobalShortcut.menuBarOrganizerToggleDefault.storageValue
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerAlwaysShortcut] as? String
