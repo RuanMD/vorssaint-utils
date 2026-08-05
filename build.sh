@@ -171,6 +171,7 @@ if (( TEST )); then
         Sources/Vorssaint/UI/Settings/FeatureVisibilitySupport.swift \
         Sources/Vorssaint/App/MenuBarSpacingSupport.swift \
         Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerSupport.swift \
+        Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarGroupStatusItem.swift \
         Sources/Vorssaint/App/StatusItemAnchorSupport.swift \
         Sources/Vorssaint/Services/DockClick/DockClickSupport.swift \
         Sources/Vorssaint/Services/Finder/CutPasteProgressSupport.swift \

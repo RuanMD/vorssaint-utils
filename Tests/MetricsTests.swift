@@ -7918,7 +7918,8 @@ struct MetricsTests {
                "menu bar presentation defaults remain predictable")
         expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerSmartNotchMode] as? Bool == true
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresets] as? String == ""
-                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerGroups] as? String == "",
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerGroups] as? String == ""
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerGroupStatusItems] as? Bool == true,
                "smart notch mode, presets and groups have portable defaults")
         expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerToggleShortcut] as? String
                     == GlobalShortcut.menuBarOrganizerToggleDefault.storageValue

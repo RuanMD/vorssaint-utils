@@ -69,6 +69,8 @@ struct MenuBarOrganizerStrings {
     let groupRemoveFrom: String
     let groupOpen: String
     let groupClear: String
+    let groupStatusItems: String
+    let groupStatusItemsCaption: String
     let shortcutsTitle: String
     let toggleHiddenShortcut: String
     let toggleAlwaysShortcut: String
@@ -163,6 +165,8 @@ extension MenuBarOrganizerStrings {
         groupRemoveFrom: "Remove from group",
         groupOpen: "Open group",
         groupClear: "Clear",
+        groupStatusItems: "Show group icons in the menu bar",
+        groupStatusItemsCaption: "Each group with available items gets its own compact icon. Click it to open that group.",
         shortcutsTitle: "Keyboard shortcuts",
         toggleHiddenShortcut: "Toggle hidden items",
         toggleAlwaysShortcut: "Toggle always-hidden items",
@@ -236,6 +240,8 @@ extension MenuBarOrganizerStrings {
         groupRemoveFrom: "Quitar del grupo",
         groupOpen: "Abrir grupo",
         groupClear: "Borrar",
+        groupStatusItems: "Mostrar iconos de grupo en la barra de menús",
+        groupStatusItemsCaption: "Cada grupo con elementos disponibles tiene su propio icono compacto. Pulsa para abrirlo.",
         shortcutsTitle: "Atajos de teclado",
         toggleHiddenShortcut: "Alternar elementos ocultos",
         toggleAlwaysShortcut: "Alternar elementos siempre ocultos",

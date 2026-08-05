@@ -23,6 +23,7 @@ struct MenuBarOrganizerSettings: View {
     @AppStorage(DefaultsKey.menuBarOrganizerShowOnEmptyClick) private var showOnEmptyClick = false
     @AppStorage(DefaultsKey.menuBarOrganizerShowOnScroll) private var showOnScroll = false
     @AppStorage(DefaultsKey.menuBarOrganizerSmartNotchMode) private var smartNotchMode = true
+    @AppStorage(DefaultsKey.menuBarOrganizerGroupStatusItems) private var groupStatusItems = true
     @AppStorage(DefaultsKey.menuBarOrganizerToggleShortcutEnabled) private var toggleShortcutEnabled = false
     @AppStorage(DefaultsKey.menuBarOrganizerAlwaysShortcutEnabled) private var alwaysShortcutEnabled = false
     @AppStorage(DefaultsKey.menuBarOrganizerSearchShortcutEnabled) private var searchShortcutEnabled = false
@@ -102,6 +103,7 @@ struct MenuBarOrganizerSettings: View {
         .onChange(of: showOnEmptyClick) { _, _ in service.syncWithPreferences() }
         .onChange(of: showOnScroll) { _, _ in service.syncWithPreferences() }
         .onChange(of: smartNotchMode) { _, _ in service.syncWithPreferences() }
+        .onChange(of: groupStatusItems) { _, _ in service.syncWithPreferences() }
         .onChange(of: toggleShortcutEnabled) { _, _ in service.syncWithPreferences() }
         .onChange(of: alwaysShortcutEnabled) { _, _ in service.syncWithPreferences() }
         .onChange(of: searchShortcutEnabled) { _, _ in service.syncWithPreferences() }
@@ -202,6 +204,10 @@ struct MenuBarOrganizerSettings: View {
 
     private var groupsSection: some View {
         Section {
+            Toggle(text.groupStatusItems, isOn: $groupStatusItems)
+            Text(text.groupStatusItemsCaption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Text(text.groupsCaption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
