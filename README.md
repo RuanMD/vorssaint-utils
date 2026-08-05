@@ -74,9 +74,10 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 
 - **Menu bar organizer.** Split status items into visible, hidden and
   always-hidden sections, then reorder them from Settings with drag and
-  drop. Save presets for work, home, presenting or a minimal setup, and
-  collect related items into quick groups with optional menu bar icons and
-  automatic hiding for grouped originals. Add draggable spacer items, style
+  drop. Save fixed presets for work, home, presenting or a minimal setup,
+  add named presets for any other context, and collect related items into
+  fixed or custom quick groups with optional menu bar icons and automatic
+  hiding for grouped originals. Add draggable spacer items, style
   the secondary/group bars, and apply saved presets automatically for low
   battery, power, external displays or work hours. Reveal hidden items in
   the real menu bar or a searchable secondary bar, with keyboard-first

@@ -6,7 +6,7 @@ import SwiftUI
 
 @MainActor
 final class MenuBarOrganizerPanelController {
-    enum Kind: Equatable { case search, secondary, group(MenuBarOrganizerGroupSlot) }
+    enum Kind: Equatable { case search, secondary, group(MenuBarOrganizerGroupReference) }
 
     private let kind: Kind
     private weak var service: MenuBarOrganizerService?
@@ -31,9 +31,9 @@ final class MenuBarOrganizerPanelController {
             content = AnyView(MenuBarOrganizerSecondaryBarView(service: service))
             let itemCount = max(service.items.filter { $0.section != .visible }.count, 1)
             size = CGSize(width: min(max(CGFloat(itemCount) * 54 + 32, 260), 720), height: 92)
-        case .group(let slot):
-            content = AnyView(MenuBarOrganizerGroupPanelView(service: service, slot: slot))
-            let itemCount = max(service.items(inGroup: slot).count, 1)
+        case .group(let reference):
+            content = AnyView(MenuBarOrganizerGroupPanelView(service: service, reference: reference))
+            let itemCount = max(service.items(inGroup: reference).count, 1)
             size = CGSize(width: min(max(CGFloat(itemCount) * 58 + 44, 260), 720), height: 98)
         }
 
@@ -117,19 +117,19 @@ private struct MenuBarOrganizerSearchView: View {
         .map(\.0)
     }
 
-    private var groupMatches: [MenuBarOrganizerGroupSlot] {
+    private var groupMatches: [MenuBarOrganizerGroupReference] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        return MenuBarOrganizerGroupSlot.allCases.compactMap { slot -> (MenuBarOrganizerGroupSlot, Int)? in
-            guard !service.items(inGroup: slot).isEmpty else { return nil }
-            guard !trimmed.isEmpty else { return (slot, 0) }
+        return service.groupReferencesWithItems().compactMap { reference -> (MenuBarOrganizerGroupReference, Int)? in
+            let title = service.title(forGroup: reference)
+            guard !trimmed.isEmpty else { return (reference, 0) }
             guard let score = MenuBarOrganizerSupport.searchScore(
-                displayName: groupTitle(slot),
-                bundleIdentifier: "vorssaint.menu-bar.group.\(slot.rawValue)",
-                ownerName: groupTitle(slot),
+                displayName: title,
+                bundleIdentifier: "vorssaint.menu-bar.group.\(reference.id)",
+                ownerName: title,
                 title: text.groupsTitle,
                 query: trimmed)
             else { return nil }
-            return (slot, score)
+            return (reference, score)
         }
         .sorted { $0.1 < $1.1 }
         .map(\.0)
@@ -154,11 +154,12 @@ private struct MenuBarOrganizerSearchView: View {
                 if !groupMatches.isEmpty {
                     ScrollView(.horizontal) {
                         HStack(spacing: 8) {
-                            ForEach(groupMatches) { slot in
+                            ForEach(groupMatches) { reference in
                                 Button {
-                                    service.showGroup(slot: slot)
+                                    service.showGroup(reference: reference)
                                 } label: {
-                                    Label(groupTitle(slot), systemImage: "folder")
+                                    Label(service.title(forGroup: reference),
+                                          systemImage: service.symbolName(forGroup: reference))
                                 }
                                 .buttonStyle(.bordered)
                                 .help(text.groupOpen)
@@ -238,14 +239,6 @@ private struct MenuBarOrganizerSearchView: View {
         service.activate(itemID: selectedID)
     }
 
-    private func groupTitle(_ slot: MenuBarOrganizerGroupSlot) -> String {
-        switch slot {
-        case .cloud: return text.groupCloud
-        case .audio: return text.groupAudio
-        case .work: return text.groupWork
-        case .custom: return text.groupCustom
-        }
-    }
 }
 
 private struct MenuBarOrganizerSecondaryBarView: View {
@@ -256,9 +249,9 @@ private struct MenuBarOrganizerSecondaryBarView: View {
         FeatureStrings.menuBarOrganizer(l10n.language)
     }
 
-    private var hiddenGroupSlots: [MenuBarOrganizerGroupSlot] {
-        MenuBarOrganizerGroupSlot.allCases.filter { slot in
-            service.items(inGroup: slot).contains { $0.section != .visible }
+    private var hiddenGroupReferences: [MenuBarOrganizerGroupReference] {
+        service.groupReferencesWithItems().filter { reference in
+            service.items(inGroup: reference).contains { $0.section != .visible }
         }
     }
 
@@ -269,14 +262,14 @@ private struct MenuBarOrganizerSecondaryBarView: View {
     var body: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 9) {
-                ForEach(hiddenGroupSlots) { slot in
+                ForEach(hiddenGroupReferences) { reference in
                     Button {
-                        service.showGroup(slot: slot)
+                        service.showGroup(reference: reference)
                     } label: {
                         VStack(spacing: 4) {
-                            Image(systemName: "folder")
+                            Image(systemName: service.symbolName(forGroup: reference))
                                 .font(.system(size: 22))
-                            Text(groupTitle(slot))
+                            Text(service.title(forGroup: reference))
                                 .font(.caption2)
                                 .lineLimit(1)
                                 .frame(maxWidth: 76)
@@ -286,7 +279,7 @@ private struct MenuBarOrganizerSecondaryBarView: View {
                     .buttonStyle(.plain)
                     .help(text.groupOpen)
                 }
-                if !hiddenGroupSlots.isEmpty && !ungroupedHiddenItems.isEmpty {
+                if !hiddenGroupReferences.isEmpty && !ungroupedHiddenItems.isEmpty {
                     Rectangle()
                         .fill(Color.secondary.opacity(0.24))
                         .frame(width: 1, height: 46)
@@ -313,27 +306,19 @@ private struct MenuBarOrganizerSecondaryBarView: View {
         .modifier(MenuBarOrganizerBarChrome())
     }
 
-    private func groupTitle(_ slot: MenuBarOrganizerGroupSlot) -> String {
-        switch slot {
-        case .cloud: return text.groupCloud
-        case .audio: return text.groupAudio
-        case .work: return text.groupWork
-        case .custom: return text.groupCustom
-        }
-    }
 }
 
 private struct MenuBarOrganizerGroupPanelView: View {
     @ObservedObject var service: MenuBarOrganizerService
     @ObservedObject private var l10n = L10n.shared
-    let slot: MenuBarOrganizerGroupSlot
+    let reference: MenuBarOrganizerGroupReference
 
     private var text: MenuBarOrganizerStrings {
         FeatureStrings.menuBarOrganizer(l10n.language)
     }
 
     private var groupItems: [ManagedMenuBarItem] {
-        service.items(inGroup: slot)
+        service.items(inGroup: reference)
     }
 
     var body: some View {

@@ -63,6 +63,32 @@ enum MenuBarOrganizerGroupSlot: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
 }
 
+enum MenuBarOrganizerGroupReference: Hashable, Identifiable {
+    case slot(MenuBarOrganizerGroupSlot)
+    case custom(String)
+
+    var id: String {
+        switch self {
+        case .slot(let slot): return "slot:\(slot.rawValue)"
+        case .custom(let id): return "custom:\(id)"
+        }
+    }
+
+    init?(storageValue: String) {
+        if storageValue.hasPrefix("slot:") {
+            let raw = String(storageValue.dropFirst("slot:".count))
+            guard let slot = MenuBarOrganizerGroupSlot(rawValue: raw) else { return nil }
+            self = .slot(slot)
+        } else if storageValue.hasPrefix("custom:") {
+            let id = String(storageValue.dropFirst("custom:".count))
+            guard !id.isEmpty else { return nil }
+            self = .custom(id)
+        } else {
+            return nil
+        }
+    }
+}
+
 struct MenuBarOrganizerPreset: Codable, Equatable, Identifiable {
     let slot: MenuBarOrganizerPresetSlot
     let savedAt: Date
@@ -81,12 +107,37 @@ struct MenuBarOrganizerPreset: Codable, Equatable, Identifiable {
     }
 }
 
+struct MenuBarOrganizerNamedPreset: Codable, Equatable, Identifiable {
+    let id: String
+    var name: String
+    let savedAt: Date
+    let visible: [MenuBarItemIdentity]
+    let hidden: [MenuBarItemIdentity]
+    let alwaysHidden: [MenuBarItemIdentity]
+
+    func items(in section: MenuBarOrganizerSection) -> [MenuBarItemIdentity] {
+        switch section {
+        case .visible: return visible
+        case .hidden: return hidden
+        case .alwaysHidden: return alwaysHidden
+        }
+    }
+}
+
 struct MenuBarOrganizerGroup: Codable, Equatable, Identifiable {
     let slot: MenuBarOrganizerGroupSlot
     let savedAt: Date
     var items: [MenuBarItemIdentity]
 
     var id: MenuBarOrganizerGroupSlot { slot }
+}
+
+struct MenuBarOrganizerCustomGroup: Codable, Equatable, Identifiable {
+    let id: String
+    var name: String
+    var symbolName: String
+    let savedAt: Date
+    var items: [MenuBarItemIdentity]
 }
 
 struct MenuBarOrganizerCapabilities: Equatable {
@@ -215,6 +266,36 @@ enum MenuBarOrganizerSupport {
         return String(data: data, encoding: .utf8) ?? ""
     }
 
+    static func sanitizedCustomName(_ value: String, fallback: String) -> String {
+        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return clean.isEmpty ? fallback : String(clean.prefix(40))
+    }
+
+    static func namedPreset(name: String,
+                            items: [ManagedMenuBarItem],
+                            now: Date = Date(),
+                            id: String = UUID().uuidString) -> MenuBarOrganizerNamedPreset {
+        MenuBarOrganizerNamedPreset(
+            id: id,
+            name: sanitizedCustomName(name, fallback: "Preset"),
+            savedAt: now,
+            visible: orderedItems(items, in: .visible).map(\.id),
+            hidden: orderedItems(items, in: .hidden).map(\.id),
+            alwaysHidden: orderedItems(items, in: .alwaysHidden).map(\.id))
+    }
+
+    static func decodeNamedPresets(_ raw: String?) -> [MenuBarOrganizerNamedPreset] {
+        guard let raw, let data = raw.data(using: .utf8), !raw.isEmpty,
+              let presets = try? JSONDecoder().decode([MenuBarOrganizerNamedPreset].self, from: data)
+        else { return [] }
+        return presets
+    }
+
+    static func encodeNamedPresets(_ presets: [MenuBarOrganizerNamedPreset]) -> String {
+        guard let data = try? JSONEncoder().encode(presets) else { return "" }
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+
     static func group(slot: MenuBarOrganizerGroupSlot,
                       items: [MenuBarItemIdentity],
                       now: Date = Date()) -> MenuBarOrganizerGroup {
@@ -233,6 +314,38 @@ enum MenuBarOrganizerSupport {
     static func encodeGroups(_ groups: [MenuBarOrganizerGroupSlot: MenuBarOrganizerGroup]) -> String {
         let ordered = MenuBarOrganizerGroupSlot.allCases.compactMap { groups[$0] }
         guard let data = try? JSONEncoder().encode(ordered) else { return "" }
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+
+    static func customGroup(name: String,
+                            symbolName: String = "folder",
+                            items: [MenuBarItemIdentity] = [],
+                            now: Date = Date(),
+                            id: String = UUID().uuidString) -> MenuBarOrganizerCustomGroup {
+        var seen = Set<MenuBarItemIdentity>()
+        let unique = items.filter { seen.insert($0).inserted }
+        return MenuBarOrganizerCustomGroup(
+            id: id,
+            name: sanitizedCustomName(name, fallback: "Group"),
+            symbolName: sanitizedSymbolName(symbolName),
+            savedAt: now,
+            items: unique)
+    }
+
+    static func sanitizedSymbolName(_ value: String) -> String {
+        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return clean.isEmpty ? "folder" : String(clean.prefix(48))
+    }
+
+    static func decodeCustomGroups(_ raw: String?) -> [MenuBarOrganizerCustomGroup] {
+        guard let raw, let data = raw.data(using: .utf8), !raw.isEmpty,
+              let groups = try? JSONDecoder().decode([MenuBarOrganizerCustomGroup].self, from: data)
+        else { return [] }
+        return groups
+    }
+
+    static func encodeCustomGroups(_ groups: [MenuBarOrganizerCustomGroup]) -> String {
+        guard let data = try? JSONEncoder().encode(groups) else { return "" }
         return String(data: data, encoding: .utf8) ?? ""
     }
 

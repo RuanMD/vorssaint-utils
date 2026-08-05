@@ -50,6 +50,9 @@ struct MenuBarOrganizerSettings: View {
     @AppStorage(DefaultsKey.menuBarOrganizerSearchShortcutEnabled) private var searchShortcutEnabled = false
 
     @State private var editingBegun = false
+    @State private var namedPresetName = ""
+    @State private var customGroupName = ""
+    @State private var customGroupSymbol = "folder"
 
     private var text: MenuBarOrganizerStrings {
         FeatureStrings.menuBarOrganizer(l10n.language)
@@ -238,6 +241,32 @@ struct MenuBarOrganizerSettings: View {
                     .disabled(service.presets[slot] == nil)
                 }
             }
+            Divider()
+            Text(text.namedPresetsTitle)
+                .font(.subheadline.weight(.semibold))
+            HStack {
+                TextField(text.namedPresetName, text: $namedPresetName)
+                Button(text.namedPresetSave) {
+                    service.saveNamedPreset(name: namedPresetName)
+                    namedPresetName = ""
+                }
+                .disabled(namedPresetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            ForEach(service.namedPresets) { preset in
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(preset.name)
+                        Text(preset.savedAt, style: .relative)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button(text.presetApply) { service.applyNamedPreset(id: preset.id) }
+                    Button(text.namedPresetDelete, role: .destructive) {
+                        service.deleteNamedPreset(id: preset.id)
+                    }
+                }
+            }
         } header: {
             Text(text.presetsTitle)
         }
@@ -259,6 +288,24 @@ struct MenuBarOrganizerSettings: View {
             ForEach(MenuBarOrganizerGroupSlot.allCases) { slot in
                 groupRow(slot)
             }
+            Divider()
+            Text(text.customGroupsTitle)
+                .font(.subheadline.weight(.semibold))
+            HStack {
+                TextField(text.customGroupName, text: $customGroupName)
+                TextField(text.customGroupSymbol, text: $customGroupSymbol)
+                    .frame(maxWidth: 120)
+                Button(text.customGroupCreate) {
+                    service.createCustomGroup(name: customGroupName,
+                                              symbolName: customGroupSymbol)
+                    customGroupName = ""
+                    customGroupSymbol = "folder"
+                }
+                .disabled(customGroupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            ForEach(service.customGroups) { group in
+                customGroupRow(group)
+            }
         } header: {
             Text(text.groupsTitle)
         }
@@ -275,6 +322,45 @@ struct MenuBarOrganizerSettings: View {
                 Button(text.groupClear, role: .destructive) { service.clearGroup(slot: slot) }
                     .disabled(groupItems.isEmpty)
             }
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    if groupItems.isEmpty {
+                        Text(text.groupEmpty)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .frame(minWidth: 180, minHeight: 34, alignment: .leading)
+                    }
+                    ForEach(groupItems) { item in
+                        MenuBarOrganizerEditorItem(item: item)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    service.removeFromGroup(itemID: item.id)
+                                } label: {
+                                    Label(text.groupRemoveFrom, systemImage: "minus.circle")
+                                }
+                            }
+                    }
+                }
+                .padding(7)
+            }
+            .frame(height: 52)
+            .background(RoundedRectangle(cornerRadius: 8)
+                .fill(Color.secondary.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.secondary.opacity(0.16)))
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func customGroupRow(_ group: MenuBarOrganizerCustomGroup) -> some View {
+        let reference = MenuBarOrganizerGroupReference.custom(group.id)
+        let groupItems = service.items(inGroup: reference)
+        return VStack(alignment: .leading, spacing: 7) {
+            MenuBarOrganizerCustomGroupControls(
+                service: service,
+                group: group,
+                hasItems: !groupItems.isEmpty,
+                text: text)
             ScrollView(.horizontal) {
                 HStack(spacing: 6) {
                     if groupItems.isEmpty {
@@ -493,6 +579,16 @@ struct MenuBarOrganizerSettings: View {
                                             service.addToGroup(itemID: item.id, slot: slot)
                                         }
                                     }
+                                    if !service.customGroups.isEmpty {
+                                        Divider()
+                                        ForEach(service.customGroups) { group in
+                                            Button(group.name) {
+                                                service.addToGroup(
+                                                    itemID: item.id,
+                                                    reference: .custom(group.id))
+                                            }
+                                        }
+                                    }
                                 }
                                 if service.group(for: item.id) != nil {
                                     Button(role: .destructive) {
@@ -542,6 +638,59 @@ struct MenuBarOrganizerSettings: View {
             service.endEditing()
             editingBegun = false
         }
+    }
+}
+
+private struct MenuBarOrganizerCustomGroupControls: View {
+    @ObservedObject var service: MenuBarOrganizerService
+    let group: MenuBarOrganizerCustomGroup
+    let hasItems: Bool
+    let text: MenuBarOrganizerStrings
+    @State private var name: String
+    @State private var symbolName: String
+
+    init(service: MenuBarOrganizerService,
+         group: MenuBarOrganizerCustomGroup,
+         hasItems: Bool,
+         text: MenuBarOrganizerStrings) {
+        self.service = service
+        self.group = group
+        self.hasItems = hasItems
+        self.text = text
+        _name = State(initialValue: group.name)
+        _symbolName = State(initialValue: group.symbolName)
+    }
+
+    private var reference: MenuBarOrganizerGroupReference { .custom(group.id) }
+    private var cleanName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var cleanSymbolName: String { symbolName.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var hasUnsavedChanges: Bool {
+        cleanName != group.name || cleanSymbolName != group.symbolName
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: group.symbolName)
+                .frame(width: 18)
+            TextField(text.customGroupName, text: $name)
+                .frame(minWidth: 120)
+            TextField(text.customGroupSymbol, text: $symbolName)
+                .frame(maxWidth: 120)
+            Button(text.presetSave) {
+                service.updateCustomGroup(id: group.id, name: name, symbolName: symbolName)
+            }
+            .disabled(cleanName.isEmpty || !hasUnsavedChanges)
+            Spacer()
+            Button(text.groupOpen) { service.showGroup(reference: reference) }
+                .disabled(!hasItems)
+            Button(text.groupClear, role: .destructive) { service.clearGroup(reference: reference) }
+                .disabled(!hasItems)
+            Button(text.customGroupDelete, role: .destructive) {
+                service.deleteCustomGroup(id: group.id)
+            }
+        }
+        .onChange(of: group.name) { _, newValue in name = newValue }
+        .onChange(of: group.symbolName) { _, newValue in symbolName = newValue }
     }
 }
 

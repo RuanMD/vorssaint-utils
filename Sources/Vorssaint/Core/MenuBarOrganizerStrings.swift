@@ -57,6 +57,10 @@ struct MenuBarOrganizerStrings {
     let triggerWorkHoursWeekdays: String
     let presetsTitle: String
     let presetsCaption: String
+    let namedPresetsTitle: String
+    let namedPresetName: String
+    let namedPresetSave: String
+    let namedPresetDelete: String
     let presetWork: String
     let presetHome: String
     let presetPresenting: String
@@ -67,6 +71,11 @@ struct MenuBarOrganizerStrings {
     let presetClear: String
     let groupsTitle: String
     let groupsCaption: String
+    let customGroupsTitle: String
+    let customGroupName: String
+    let customGroupSymbol: String
+    let customGroupCreate: String
+    let customGroupDelete: String
     let groupCloud: String
     let groupAudio: String
     let groupWork: String
@@ -170,6 +179,10 @@ extension MenuBarOrganizerStrings {
         triggerWorkHoursWeekdays: "Weekdays only",
         presetsTitle: "Presets",
         presetsCaption: "Save and restore complete menu bar layouts for different contexts.",
+        namedPresetsTitle: "Named presets",
+        namedPresetName: "Preset name",
+        namedPresetSave: "Save named preset",
+        namedPresetDelete: "Delete",
         presetWork: "Work",
         presetHome: "Home",
         presetPresenting: "Presenting",
@@ -180,6 +193,11 @@ extension MenuBarOrganizerStrings {
         presetClear: "Clear",
         groupsTitle: "Groups",
         groupsCaption: "Collect related items so they can be opened together from Search or the secondary bar.",
+        customGroupsTitle: "Custom groups",
+        customGroupName: "Group name",
+        customGroupSymbol: "SF Symbol",
+        customGroupCreate: "Create group",
+        customGroupDelete: "Delete group",
         groupCloud: "Cloud",
         groupAudio: "Audio",
         groupWork: "Work",
@@ -262,6 +280,10 @@ extension MenuBarOrganizerStrings {
         triggerWorkHoursWeekdays: "Sólo laborables",
         presetsTitle: "Presets",
         presetsCaption: "Guarda y restaura disposiciones completas de la barra para distintos contextos.",
+        namedPresetsTitle: "Presets con nombre",
+        namedPresetName: "Nombre del preset",
+        namedPresetSave: "Guardar preset con nombre",
+        namedPresetDelete: "Eliminar",
         presetWork: "Trabajo",
         presetHome: "Casa",
         presetPresenting: "Presentando",
@@ -272,6 +294,11 @@ extension MenuBarOrganizerStrings {
         presetClear: "Borrar",
         groupsTitle: "Grupos",
         groupsCaption: "Agrupa elementos relacionados para abrirlos juntos desde la búsqueda o la barra secundaria.",
+        customGroupsTitle: "Grupos personalizados",
+        customGroupName: "Nombre del grupo",
+        customGroupSymbol: "Símbolo SF",
+        customGroupCreate: "Crear grupo",
+        customGroupDelete: "Eliminar grupo",
         groupCloud: "Cloud",
         groupAudio: "Audio",
         groupWork: "Trabajo",

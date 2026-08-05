@@ -5,7 +5,7 @@ import AppKit
 
 @MainActor
 final class MenuBarGroupStatusItem: NSObject {
-    let slot: MenuBarOrganizerGroupSlot
+    let reference: MenuBarOrganizerGroupReference
     private(set) var statusItem: NSStatusItem
     var onLeftClick: (() -> Void)?
     var onRightClick: (() -> Void)?
@@ -17,13 +17,19 @@ final class MenuBarGroupStatusItem: NSObject {
 
     var frame: CGRect? { statusItem.button?.window?.frame }
 
-    init(slot: MenuBarOrganizerGroupSlot) {
-        self.slot = slot
-        autosaveName = "Vorssaint.MenuBarOrganizer.Group.\(slot.rawValue)"
+    init(reference: MenuBarOrganizerGroupReference) {
+        self.reference = reference
+        autosaveName = "Vorssaint.MenuBarOrganizer.Group."
+            + reference.id.replacingOccurrences(of: ":", with: ".")
         let defaults = UserDefaults.standard
         let positionKey = "NSStatusItem Preferred Position \(autosaveName)"
         if defaults.object(forKey: positionKey) == nil {
-            let index = MenuBarOrganizerGroupSlot.allCases.firstIndex(of: slot) ?? 0
+            let index = switch reference {
+            case .slot(let slot):
+                MenuBarOrganizerGroupSlot.allCases.firstIndex(of: slot) ?? 0
+            case .custom:
+                8
+            }
             let position = 3 + Double(index)
             defaults.set(position, forKey: positionKey)
         }
@@ -42,10 +48,11 @@ final class MenuBarGroupStatusItem: NSObject {
         if let cached { UserDefaults.standard.set(cached, forKey: key) }
     }
 
-    func update(title: String, itemCount: Int, isVisible: Bool) {
+    func update(title: String, symbolName: String, itemCount: Int, isVisible: Bool) {
         statusItem.isVisible = isVisible
         guard let button = statusItem.button else { return }
         button.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: title)
+            ?? NSImage(systemSymbolName: "folder", accessibilityDescription: title)
         button.toolTip = "\(title) (\(itemCount))"
     }
 
@@ -54,15 +61,6 @@ final class MenuBarGroupStatusItem: NSObject {
         let cached = UserDefaults.standard.object(forKey: key)
         statusItem.isVisible = false
         if let cached { UserDefaults.standard.set(cached, forKey: key) }
-    }
-
-    private var symbolName: String {
-        switch slot {
-        case .cloud: return "icloud"
-        case .audio: return "speaker.wave.2"
-        case .work: return "briefcase"
-        case .custom: return "folder"
-        }
     }
 
     private func configureButton() {

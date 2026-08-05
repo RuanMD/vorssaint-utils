@@ -7102,6 +7102,12 @@ struct MetricsTests {
         ])
         expect(MenuBarOrganizerSupport.decodePresets(encodedPresets)[.work]?.visible == [presetIdentity],
                "menu bar presets round-trip through preference storage")
+        let namedPreset = MenuBarOrganizerNamedPreset(
+            id: "daily", name: "Daily", savedAt: Date(timeIntervalSince1970: 3),
+            visible: [presetIdentity], hidden: [], alwaysHidden: [])
+        let encodedNamedPresets = MenuBarOrganizerSupport.encodeNamedPresets([namedPreset])
+        expect(MenuBarOrganizerSupport.decodeNamedPresets(encodedNamedPresets).first?.name == "Daily",
+               "named menu bar presets round-trip through preference storage")
         let encodedGroups = MenuBarOrganizerSupport.encodeGroups([
             .cloud: MenuBarOrganizerSupport.group(slot: .cloud,
                                                  items: [presetIdentity, presetIdentity],
@@ -7109,6 +7115,17 @@ struct MetricsTests {
         ])
         expect(MenuBarOrganizerSupport.decodeGroups(encodedGroups)[.cloud]?.items == [presetIdentity],
                "menu bar groups round-trip through preference storage without duplicate items")
+        let customGroup = MenuBarOrganizerSupport.customGroup(
+            name: "Connections", symbolName: "network",
+            items: [presetIdentity, presetIdentity],
+            now: Date(timeIntervalSince1970: 4),
+            id: "connections")
+        let encodedCustomGroups = MenuBarOrganizerSupport.encodeCustomGroups([customGroup])
+        expect(MenuBarOrganizerSupport.decodeCustomGroups(encodedCustomGroups).first?.items == [presetIdentity]
+                && MenuBarOrganizerGroupReference(storageValue: "custom:connections")?.id
+                    == "custom:connections"
+                && MenuBarOrganizerGroupReference(storageValue: "slot:cloud")?.id == "slot:cloud",
+               "custom menu bar groups round-trip and address fixed or user-defined groups")
         let duplicateMenuRecords = [
             MenuBarOrganizerWindowRecord(windowID: 1, ownerPID: 1, ownerName: "App",
                                          bundleIdentifier: "com.example.app", title: "State",
@@ -7937,7 +7954,9 @@ struct MetricsTests {
                "menu bar presentation defaults remain predictable")
         expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerSmartNotchMode] as? Bool == true
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresets] as? String == ""
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerNamedPresets] as? String == ""
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerGroups] as? String == ""
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerCustomGroups] as? String == ""
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerGroupStatusItems] as? Bool == true
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerAutoHideGroupedItems] as? Bool == false
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerSpacerCount] as? Int == 0

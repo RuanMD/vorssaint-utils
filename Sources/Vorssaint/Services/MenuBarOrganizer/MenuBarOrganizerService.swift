@@ -23,7 +23,9 @@ final class MenuBarOrganizerService: ObservableObject {
     @Published private(set) var canUndo = false
     @Published private(set) var hotkeyRegistrationFailed = false
     @Published private(set) var presets: [MenuBarOrganizerPresetSlot: MenuBarOrganizerPreset] = [:]
+    @Published private(set) var namedPresets: [MenuBarOrganizerNamedPreset] = []
     @Published private(set) var groups: [MenuBarOrganizerGroupSlot: MenuBarOrganizerGroup] = [:]
+    @Published private(set) var customGroups: [MenuBarOrganizerCustomGroup] = []
 
     private let provider = MenuBarWindowProvider()
     private let mover = MenuBarItemMover()
@@ -33,8 +35,8 @@ final class MenuBarOrganizerService: ObservableObject {
     private var alwaysHiddenDivider: MenuBarDividerItem?
     private var searchPanel: MenuBarOrganizerPanelController?
     private var secondaryPanel: MenuBarOrganizerPanelController?
-    private var groupPanels: [MenuBarOrganizerGroupSlot: MenuBarOrganizerPanelController] = [:]
-    private var groupStatusItems: [MenuBarOrganizerGroupSlot: MenuBarGroupStatusItem] = [:]
+    private var groupPanels: [MenuBarOrganizerGroupReference: MenuBarOrganizerPanelController] = [:]
+    private var groupStatusItems: [MenuBarOrganizerGroupReference: MenuBarGroupStatusItem] = [:]
     private var spacerItems: [MenuBarSpacerItem] = []
     private var refreshTimer: Timer?
     private var triggerTimer: Timer?
@@ -208,14 +210,18 @@ final class MenuBarOrganizerService: ObservableObject {
     }
 
     func showGroup(slot: MenuBarOrganizerGroupSlot) {
+        showGroup(reference: .slot(slot))
+    }
+
+    func showGroup(reference: MenuBarOrganizerGroupReference) {
         guard isRunning else { return }
         refresh()
         searchPanel?.close()
         secondaryPanel?.close()
-        if groupPanels[slot] == nil {
-            groupPanels[slot] = MenuBarOrganizerPanelController(kind: .group(slot), service: self)
+        if groupPanels[reference] == nil {
+            groupPanels[reference] = MenuBarOrganizerPanelController(kind: .group(reference), service: self)
         }
-        groupPanels[slot]?.show(anchor: controlItem?.frame)
+        groupPanels[reference]?.show(anchor: controlItem?.frame)
         scheduleRehide()
     }
 
@@ -258,16 +264,55 @@ final class MenuBarOrganizerService: ObservableObject {
         persistPresets()
     }
 
+    func saveNamedPreset(name: String) {
+        refresh()
+        namedPresets.append(MenuBarOrganizerSupport.namedPreset(name: name, items: items))
+        persistNamedPresets()
+    }
+
+    func applyNamedPreset(id: String) {
+        guard let preset = namedPresets.first(where: { $0.id == id }) else { return }
+        Task { await applyNamedPreset(preset) }
+    }
+
+    func deleteNamedPreset(id: String) {
+        namedPresets.removeAll { $0.id == id }
+        persistNamedPresets()
+    }
+
     func addToGroup(itemID: MenuBarItemIdentity, slot: MenuBarOrganizerGroupSlot) {
+        addToGroup(itemID: itemID, reference: .slot(slot))
+    }
+
+    func addToGroup(itemID: MenuBarItemIdentity, reference: MenuBarOrganizerGroupReference) {
         refresh()
         guard items.contains(where: { $0.id == itemID }) else { return }
-        removeFromGroup(itemID: itemID, persists: false)
-        var group = groups[slot] ?? MenuBarOrganizerSupport.group(slot: slot, items: [])
-        if !group.items.contains(itemID) {
-            group.items.append(itemID)
+        if case .custom(let id) = reference,
+           !customGroups.contains(where: { $0.id == id }) {
+            return
         }
-        groups[slot] = MenuBarOrganizerSupport.group(slot: slot, items: group.items)
+        removeFromGroup(itemID: itemID, persists: false)
+        switch reference {
+        case .slot(let slot):
+            var group = groups[slot] ?? MenuBarOrganizerSupport.group(slot: slot, items: [])
+            if !group.items.contains(itemID) {
+                group.items.append(itemID)
+            }
+            groups[slot] = MenuBarOrganizerSupport.group(slot: slot, items: group.items)
+        case .custom(let id):
+            guard let index = customGroups.firstIndex(where: { $0.id == id }) else { return }
+            if !customGroups[index].items.contains(itemID) {
+                customGroups[index].items.append(itemID)
+            }
+            customGroups[index] = MenuBarOrganizerSupport.customGroup(
+                name: customGroups[index].name,
+                symbolName: customGroups[index].symbolName,
+                items: customGroups[index].items,
+                now: customGroups[index].savedAt,
+                id: customGroups[index].id)
+        }
         persistGroups()
+        persistCustomGroups()
         syncGroupStatusItems()
         applyGroupedItemVisibilityPreference()
     }
@@ -277,20 +322,110 @@ final class MenuBarOrganizerService: ObservableObject {
     }
 
     func clearGroup(slot: MenuBarOrganizerGroupSlot) {
-        groups.removeValue(forKey: slot)
-        groupPanels[slot]?.close()
-        groupPanels.removeValue(forKey: slot)
-        persistGroups()
+        clearGroup(reference: .slot(slot))
+    }
+
+    func clearGroup(reference: MenuBarOrganizerGroupReference) {
+        switch reference {
+        case .slot(let slot):
+            groups.removeValue(forKey: slot)
+        case .custom(let id):
+            if let index = customGroups.firstIndex(where: { $0.id == id }) {
+                customGroups[index].items = []
+                persistCustomGroups()
+            }
+        }
+        groupPanels[reference]?.close()
+        groupPanels.removeValue(forKey: reference)
+        if case .slot = reference {
+            persistGroups()
+        }
+        syncGroupStatusItems()
+    }
+
+    func createCustomGroup(name: String, symbolName: String) {
+        customGroups.append(MenuBarOrganizerSupport.customGroup(name: name, symbolName: symbolName))
+        persistCustomGroups()
+    }
+
+    func updateCustomGroup(id: String, name: String, symbolName: String) {
+        guard let index = customGroups.firstIndex(where: { $0.id == id }) else { return }
+        let group = customGroups[index]
+        customGroups[index] = MenuBarOrganizerSupport.customGroup(
+            name: name, symbolName: symbolName, items: group.items,
+            now: group.savedAt, id: group.id)
+        persistCustomGroups()
+        syncGroupStatusItems()
+    }
+
+    func deleteCustomGroup(id: String) {
+        let reference = MenuBarOrganizerGroupReference.custom(id)
+        customGroups.removeAll { $0.id == id }
+        groupPanels[reference]?.close()
+        groupPanels.removeValue(forKey: reference)
+        groupStatusItems[reference]?.removePreservingPosition()
+        groupStatusItems.removeValue(forKey: reference)
+        persistCustomGroups()
         syncGroupStatusItems()
     }
 
     func items(inGroup slot: MenuBarOrganizerGroupSlot) -> [ManagedMenuBarItem] {
-        guard let group = groups[slot] else { return [] }
-        return group.items.compactMap { id in items.first(where: { $0.id == id }) }
+        items(inGroup: .slot(slot))
     }
 
-    func group(for itemID: MenuBarItemIdentity) -> MenuBarOrganizerGroupSlot? {
-        MenuBarOrganizerGroupSlot.allCases.first { groups[$0]?.items.contains(itemID) == true }
+    func items(inGroup reference: MenuBarOrganizerGroupReference) -> [ManagedMenuBarItem] {
+        let ids: [MenuBarItemIdentity]
+        switch reference {
+        case .slot(let slot):
+            ids = groups[slot]?.items ?? []
+        case .custom(let id):
+            ids = customGroups.first(where: { $0.id == id })?.items ?? []
+        }
+        return ids.compactMap { id in items.first(where: { $0.id == id }) }
+    }
+
+    func groupReferencesWithItems() -> [MenuBarOrganizerGroupReference] {
+        let fixed = MenuBarOrganizerGroupSlot.allCases
+            .map(MenuBarOrganizerGroupReference.slot)
+            .filter { !items(inGroup: $0).isEmpty }
+        let custom = customGroups
+            .map { MenuBarOrganizerGroupReference.custom($0.id) }
+            .filter { !items(inGroup: $0).isEmpty }
+        return fixed + custom
+    }
+
+    func title(forGroup reference: MenuBarOrganizerGroupReference) -> String {
+        switch reference {
+        case .slot(let slot): return groupTitle(slot)
+        case .custom(let id):
+            return customGroups.first(where: { $0.id == id })?.name ?? "Group"
+        }
+    }
+
+    func symbolName(forGroup reference: MenuBarOrganizerGroupReference) -> String {
+        switch reference {
+        case .slot(let slot):
+            switch slot {
+            case .cloud: return "icloud"
+            case .audio: return "speaker.wave.2"
+            case .work: return "briefcase"
+            case .custom: return "folder"
+            }
+        case .custom(let id):
+            return customGroups.first(where: { $0.id == id })?.symbolName ?? "folder"
+        }
+    }
+
+    func group(for itemID: MenuBarItemIdentity) -> MenuBarOrganizerGroupReference? {
+        if let slot = MenuBarOrganizerGroupSlot.allCases.first(where: {
+            groups[$0]?.items.contains(itemID) == true
+        }) {
+            return .slot(slot)
+        }
+        if let group = customGroups.first(where: { $0.items.contains(itemID) }) {
+            return .custom(group.id)
+        }
+        return nil
     }
 
     func isGrouped(itemID: MenuBarItemIdentity) -> Bool {
@@ -788,6 +923,8 @@ final class MenuBarOrganizerService: ObservableObject {
     private func loadPresets() {
         presets = MenuBarOrganizerSupport.decodePresets(
             UserDefaults.standard.string(forKey: DefaultsKey.menuBarOrganizerPresets))
+        namedPresets = MenuBarOrganizerSupport.decodeNamedPresets(
+            UserDefaults.standard.string(forKey: DefaultsKey.menuBarOrganizerNamedPresets))
     }
 
     private func persistPresets() {
@@ -795,9 +932,16 @@ final class MenuBarOrganizerService: ObservableObject {
                                   forKey: DefaultsKey.menuBarOrganizerPresets)
     }
 
+    private func persistNamedPresets() {
+        UserDefaults.standard.set(MenuBarOrganizerSupport.encodeNamedPresets(namedPresets),
+                                  forKey: DefaultsKey.menuBarOrganizerNamedPresets)
+    }
+
     private func loadGroups() {
         groups = MenuBarOrganizerSupport.decodeGroups(
             UserDefaults.standard.string(forKey: DefaultsKey.menuBarOrganizerGroups))
+        customGroups = MenuBarOrganizerSupport.decodeCustomGroups(
+            UserDefaults.standard.string(forKey: DefaultsKey.menuBarOrganizerCustomGroups))
     }
 
     private func persistGroups() {
@@ -805,22 +949,32 @@ final class MenuBarOrganizerService: ObservableObject {
                                   forKey: DefaultsKey.menuBarOrganizerGroups)
     }
 
+    private func persistCustomGroups() {
+        UserDefaults.standard.set(MenuBarOrganizerSupport.encodeCustomGroups(customGroups),
+                                  forKey: DefaultsKey.menuBarOrganizerCustomGroups)
+    }
+
     private func syncGroupStatusItems() {
         let enabled = UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerGroupStatusItems)
-        for slot in MenuBarOrganizerGroupSlot.allCases {
-            let groupItems = items(inGroup: slot)
-            guard enabled, !groupItems.isEmpty else {
-                groupStatusItems[slot]?.removePreservingPosition()
-                groupStatusItems.removeValue(forKey: slot)
-                continue
-            }
-            let item = groupStatusItems[slot] ?? MenuBarGroupStatusItem(slot: slot)
-            item.onLeftClick = { [weak self] in self?.showGroup(slot: slot) }
+        let references = enabled ? groupReferencesWithItems() : []
+        let liveReferences = Set(references)
+        for reference in groupStatusItems.keys.filter({ !liveReferences.contains($0) }) {
+            groupStatusItems[reference]?.removePreservingPosition()
+            groupStatusItems.removeValue(forKey: reference)
+        }
+        guard enabled else { return }
+        for reference in references {
+            let groupItems = items(inGroup: reference)
+            let item = groupStatusItems[reference] ?? MenuBarGroupStatusItem(reference: reference)
+            item.onLeftClick = { [weak self] in self?.showGroup(reference: reference) }
             item.onRightClick = { [weak self, weak item] in
-                self?.showGroupContextMenu(slot: slot, relativeTo: item)
+                self?.showGroupContextMenu(reference: reference, relativeTo: item)
             }
-            item.update(title: groupTitle(slot), itemCount: groupItems.count, isVisible: true)
-            groupStatusItems[slot] = item
+            item.update(title: title(forGroup: reference),
+                        symbolName: symbolName(forGroup: reference),
+                        itemCount: groupItems.count,
+                        isVisible: true)
+            groupStatusItems[reference] = item
         }
     }
 
@@ -921,9 +1075,9 @@ final class MenuBarOrganizerService: ObservableObject {
 
     private func hideGroupedVisibleItems(itemIDs: [MenuBarItemIdentity]?) async {
         refresh(captureImages: false)
-        let groupedIDs = Set(itemIDs ?? MenuBarOrganizerGroupSlot.allCases.flatMap {
-            groups[$0]?.items ?? []
-        })
+        let allGroupedIDs = MenuBarOrganizerGroupSlot.allCases.flatMap { groups[$0]?.items ?? [] }
+            + customGroups.flatMap(\.items)
+        let groupedIDs = Set(itemIDs ?? allGroupedIDs)
         let candidates = MenuBarOrganizerSupport.orderedItems(items, in: .visible)
             .filter { groupedIDs.contains($0.id) && $0.isMovable }
         guard !candidates.isEmpty else { return }
@@ -941,6 +1095,7 @@ final class MenuBarOrganizerService: ObservableObject {
 
     private func removeFromGroup(itemID: MenuBarItemIdentity, persists: Bool) {
         var changed = false
+        var customChanged = false
         for slot in MenuBarOrganizerGroupSlot.allCases {
             guard var group = groups[slot] else { continue }
             let originalCount = group.items.count
@@ -949,21 +1104,51 @@ final class MenuBarOrganizerService: ObservableObject {
             changed = true
             if group.items.isEmpty {
                 groups.removeValue(forKey: slot)
-                groupPanels[slot]?.close()
-                groupPanels.removeValue(forKey: slot)
+                let reference = MenuBarOrganizerGroupReference.slot(slot)
+                groupPanels[reference]?.close()
+                groupPanels.removeValue(forKey: reference)
             } else {
                 groups[slot] = MenuBarOrganizerSupport.group(slot: slot, items: group.items)
             }
         }
+        for index in customGroups.indices {
+            let originalCount = customGroups[index].items.count
+            customGroups[index].items.removeAll { $0 == itemID }
+            guard customGroups[index].items.count != originalCount else { continue }
+            changed = true
+            customChanged = true
+            let reference = MenuBarOrganizerGroupReference.custom(customGroups[index].id)
+            if customGroups[index].items.isEmpty {
+                groupPanels[reference]?.close()
+                groupPanels.removeValue(forKey: reference)
+            }
+        }
         if changed, persists {
             persistGroups()
+            if customChanged { persistCustomGroups() }
             syncGroupStatusItems()
         }
     }
 
     private func applyPreset(_ preset: MenuBarOrganizerPreset) async {
+        await applyPresetItems(
+            visible: preset.visible,
+            hidden: preset.hidden,
+            alwaysHidden: preset.alwaysHidden)
+    }
+
+    private func applyNamedPreset(_ preset: MenuBarOrganizerNamedPreset) async {
+        await applyPresetItems(
+            visible: preset.visible,
+            hidden: preset.hidden,
+            alwaysHidden: preset.alwaysHidden)
+    }
+
+    private func applyPresetItems(visible: [MenuBarItemIdentity],
+                                  hidden: [MenuBarItemIdentity],
+                                  alwaysHidden: [MenuBarItemIdentity]) async {
         await restoreNotchBorrowedItems()
-        if !preset.alwaysHidden.isEmpty,
+        if !alwaysHidden.isEmpty,
            !UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled) {
             UserDefaults.standard.set(true, forKey: DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled)
             syncAlwaysHiddenDivider()
@@ -974,7 +1159,13 @@ final class MenuBarOrganizerService: ObservableObject {
         suppressUndo = true
         for section in [MenuBarOrganizerSection.alwaysHidden, .hidden, .visible] {
             var nextID: MenuBarItemIdentity?
-            for id in preset.items(in: section).reversed() {
+            let ids: [MenuBarItemIdentity]
+            switch section {
+            case .visible: ids = visible
+            case .hidden: ids = hidden
+            case .alwaysHidden: ids = alwaysHidden
+            }
+            for id in ids.reversed() {
                 refresh(captureImages: false)
                 guard items.contains(where: { $0.id == id && $0.isMovable }) else { continue }
                 await performMove(itemID: id, before: nextID, to: section)
@@ -1044,15 +1235,15 @@ final class MenuBarOrganizerService: ObservableObject {
         DispatchQueue.main.async { item?.statusItem.menu = nil }
     }
 
-    private func showGroupContextMenu(slot: MenuBarOrganizerGroupSlot,
+    private func showGroupContextMenu(reference: MenuBarOrganizerGroupReference,
                                       relativeTo item: MenuBarGroupStatusItem?) {
         guard let button = item?.statusItem.button else { return }
         let menu = NSMenu()
-        let open = menu.addItem(withTitle: "Open \(groupTitle(slot))",
+        let open = menu.addItem(withTitle: "Open \(title(forGroup: reference))",
                                 action: #selector(contextOpenGroup(_:)),
                                 keyEquivalent: "")
-        open.representedObject = slot.rawValue
-        let groupItems = items(inGroup: slot)
+        open.representedObject = reference.id
+        let groupItems = items(inGroup: reference)
         if !groupItems.isEmpty {
             menu.addItem(.separator())
             for groupItem in groupItems {
@@ -1066,7 +1257,7 @@ final class MenuBarOrganizerService: ObservableObject {
         let clear = menu.addItem(withTitle: "Clear group",
                                  action: #selector(contextClearGroup(_:)),
                                  keyEquivalent: "")
-        clear.representedObject = slot.rawValue
+        clear.representedObject = reference.id
         menu.addItem(withTitle: "Menu Bar Settings…",
                      action: #selector(contextSettings),
                      keyEquivalent: "")
@@ -1092,9 +1283,9 @@ final class MenuBarOrganizerService: ObservableObject {
     @objc private func contextSecondary() { showSecondaryBar() }
     @objc private func contextOpenGroup(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String,
-              let slot = MenuBarOrganizerGroupSlot(rawValue: raw)
+              let reference = MenuBarOrganizerGroupReference(storageValue: raw)
         else { return }
-        showGroup(slot: slot)
+        showGroup(reference: reference)
     }
     @objc private func contextActivateGroupItem(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String,
@@ -1104,9 +1295,9 @@ final class MenuBarOrganizerService: ObservableObject {
     }
     @objc private func contextClearGroup(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String,
-              let slot = MenuBarOrganizerGroupSlot(rawValue: raw)
+              let reference = MenuBarOrganizerGroupReference(storageValue: raw)
         else { return }
-        clearGroup(slot: slot)
+        clearGroup(reference: reference)
     }
     @objc private func contextSettings() {
         SettingsRouter.shared.page = .menuBarOrganizer

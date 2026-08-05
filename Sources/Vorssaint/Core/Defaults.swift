@@ -490,7 +490,9 @@ enum DefaultsKey {
     static let menuBarOrganizerShowOnScroll = "menuBarOrganizerShowOnScroll"
     static let menuBarOrganizerSmartNotchMode = "menuBarOrganizerSmartNotchMode"
     static let menuBarOrganizerPresets = "menuBarOrganizerPresets" // JSON string: [MenuBarOrganizerPreset]
+    static let menuBarOrganizerNamedPresets = "menuBarOrganizerNamedPresets" // JSON string: [MenuBarOrganizerNamedPreset]
     static let menuBarOrganizerGroups = "menuBarOrganizerGroups" // JSON string: [MenuBarOrganizerGroup]
+    static let menuBarOrganizerCustomGroups = "menuBarOrganizerCustomGroups" // JSON string: [MenuBarOrganizerCustomGroup]
     static let menuBarOrganizerGroupStatusItems = "menuBarOrganizerGroupStatusItems"
     static let menuBarOrganizerAutoHideGroupedItems = "menuBarOrganizerAutoHideGroupedItems"
     static let menuBarOrganizerSpacerCount = "menuBarOrganizerSpacerCount"
@@ -807,7 +809,9 @@ enum Defaults {
         DefaultsKey.menuBarOrganizerShowOnScroll: false,
         DefaultsKey.menuBarOrganizerSmartNotchMode: true,
         DefaultsKey.menuBarOrganizerPresets: "",
+        DefaultsKey.menuBarOrganizerNamedPresets: "",
         DefaultsKey.menuBarOrganizerGroups: "",
+        DefaultsKey.menuBarOrganizerCustomGroups: "",
         DefaultsKey.menuBarOrganizerGroupStatusItems: true,
         DefaultsKey.menuBarOrganizerAutoHideGroupedItems: false,
         DefaultsKey.menuBarOrganizerSpacerCount: 0,
