@@ -482,6 +482,8 @@ enum DefaultsKey {
     static let menuBarOrganizerShowOnHover = "menuBarOrganizerShowOnHover"
     static let menuBarOrganizerShowOnEmptyClick = "menuBarOrganizerShowOnEmptyClick"
     static let menuBarOrganizerShowOnScroll = "menuBarOrganizerShowOnScroll"
+    static let menuBarOrganizerSmartNotchMode = "menuBarOrganizerSmartNotchMode"
+    static let menuBarOrganizerPresets = "menuBarOrganizerPresets" // JSON string: [MenuBarOrganizerPreset]
     static let menuBarOrganizerToggleShortcutEnabled = "menuBarOrganizerToggleShortcutEnabled"
     static let menuBarOrganizerToggleShortcut = "menuBarOrganizerToggleShortcut"
     static let menuBarOrganizerAlwaysShortcutEnabled = "menuBarOrganizerAlwaysShortcutEnabled"
@@ -779,6 +781,8 @@ enum Defaults {
         DefaultsKey.menuBarOrganizerShowOnHover: false,
         DefaultsKey.menuBarOrganizerShowOnEmptyClick: false,
         DefaultsKey.menuBarOrganizerShowOnScroll: false,
+        DefaultsKey.menuBarOrganizerSmartNotchMode: true,
+        DefaultsKey.menuBarOrganizerPresets: "",
         DefaultsKey.menuBarOrganizerToggleShortcutEnabled: false,
         DefaultsKey.menuBarOrganizerToggleShortcut: GlobalShortcut.menuBarOrganizerToggleDefault.storageValue,
         DefaultsKey.menuBarOrganizerAlwaysShortcutEnabled: false,

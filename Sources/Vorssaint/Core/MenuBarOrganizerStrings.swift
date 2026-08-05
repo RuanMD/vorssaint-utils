@@ -21,6 +21,11 @@ struct MenuBarOrganizerStrings {
     let undo: String
     let search: String
     let secondaryBar: String
+    let searchPlaceholder: String
+    let searchEmptyTitle: String
+    let searchEmptyCaption: String
+    let searchShow: String
+    let searchOpen: String
     let accessibilityCaption: String
     let screenRecordingCaption: String
     let automaticMoveUnavailable: String
@@ -41,6 +46,18 @@ struct MenuBarOrganizerStrings {
     let showOnHover: String
     let showOnEmptyClick: String
     let showOnScroll: String
+    let smartNotchMode: String
+    let smartNotchCaption: String
+    let presetsTitle: String
+    let presetsCaption: String
+    let presetWork: String
+    let presetHome: String
+    let presetPresenting: String
+    let presetMinimal: String
+    let presetUnsaved: String
+    let presetSave: String
+    let presetApply: String
+    let presetClear: String
     let shortcutsTitle: String
     let toggleHiddenShortcut: String
     let toggleAlwaysShortcut: String
@@ -87,6 +104,11 @@ extension MenuBarOrganizerStrings {
         undo: "Undo last move",
         search: "Search items",
         secondaryBar: "Show secondary bar",
+        searchPlaceholder: "Search menu bar items",
+        searchEmptyTitle: "No menu bar items",
+        searchEmptyCaption: "Try another search.",
+        searchShow: "Show",
+        searchOpen: "Open",
         accessibilityCaption: "Accessibility lets Vorssaint perform the same Command-drag gesture you can do manually.",
         screenRecordingCaption: "Optional. Allows exact previews; names and app icons are used without it.",
         automaticMoveUnavailable: "Automatic arranging is unavailable. Manual Command-drag remains available.",
@@ -107,6 +129,18 @@ extension MenuBarOrganizerStrings {
         showOnHover: "Show when hovering over the menu bar",
         showOnEmptyClick: "Toggle by clicking empty menu bar space",
         showOnScroll: "Toggle by scrolling or swiping over the menu bar",
+        smartNotchMode: "Make room near the notch automatically",
+        smartNotchCaption: "When Automatic is selected, Vorssaint can temporarily tuck lower-priority visible items away before revealing hidden items in the real menu bar.",
+        presetsTitle: "Presets",
+        presetsCaption: "Save and restore complete menu bar layouts for different contexts.",
+        presetWork: "Work",
+        presetHome: "Home",
+        presetPresenting: "Presenting",
+        presetMinimal: "Minimal",
+        presetUnsaved: "Not saved yet",
+        presetSave: "Save",
+        presetApply: "Apply",
+        presetClear: "Clear",
         shortcutsTitle: "Keyboard shortcuts",
         toggleHiddenShortcut: "Toggle hidden items",
         toggleAlwaysShortcut: "Toggle always-hidden items",
@@ -132,6 +166,11 @@ extension MenuBarOrganizerStrings {
         undo: "Deshacer último movimiento",
         search: "Buscar elementos",
         secondaryBar: "Mostrar barra secundaria",
+        searchPlaceholder: "Buscar elementos de la barra",
+        searchEmptyTitle: "No hay elementos",
+        searchEmptyCaption: "Prueba con otra búsqueda.",
+        searchShow: "Mostrar",
+        searchOpen: "Abrir",
         accessibilityCaption: "Accesibilidad permite que Vorssaint realice el mismo gesto Comando-arrastrar que puedes hacer manualmente.",
         screenRecordingCaption: "Opcional. Permite vistas exactas; sin el permiso se usan nombres e iconos de aplicación.",
         automaticMoveUnavailable: "El reordenado automático no está disponible. Puedes seguir usando Comando-arrastrar.",
@@ -152,6 +191,18 @@ extension MenuBarOrganizerStrings {
         showOnHover: "Mostrar al pasar por la barra de menús",
         showOnEmptyClick: "Alternar al pulsar un espacio vacío de la barra",
         showOnScroll: "Alternar al desplazar o deslizar sobre la barra",
+        smartNotchMode: "Hacer sitio junto al notch automáticamente",
+        smartNotchCaption: "Con el modo Automático, Vorssaint puede apartar temporalmente elementos visibles de menor prioridad antes de mostrar los ocultos en la barra real.",
+        presetsTitle: "Presets",
+        presetsCaption: "Guarda y restaura disposiciones completas de la barra para distintos contextos.",
+        presetWork: "Trabajo",
+        presetHome: "Casa",
+        presetPresenting: "Presentando",
+        presetMinimal: "Mínima",
+        presetUnsaved: "Sin guardar",
+        presetSave: "Guardar",
+        presetApply: "Aplicar",
+        presetClear: "Borrar",
         shortcutsTitle: "Atajos de teclado",
         toggleHiddenShortcut: "Alternar elementos ocultos",
         toggleAlwaysShortcut: "Alternar elementos siempre ocultos",

@@ -22,6 +22,7 @@ struct MenuBarOrganizerSettings: View {
     @AppStorage(DefaultsKey.menuBarOrganizerShowOnHover) private var showOnHover = false
     @AppStorage(DefaultsKey.menuBarOrganizerShowOnEmptyClick) private var showOnEmptyClick = false
     @AppStorage(DefaultsKey.menuBarOrganizerShowOnScroll) private var showOnScroll = false
+    @AppStorage(DefaultsKey.menuBarOrganizerSmartNotchMode) private var smartNotchMode = true
     @AppStorage(DefaultsKey.menuBarOrganizerToggleShortcutEnabled) private var toggleShortcutEnabled = false
     @AppStorage(DefaultsKey.menuBarOrganizerAlwaysShortcutEnabled) private var alwaysShortcutEnabled = false
     @AppStorage(DefaultsKey.menuBarOrganizerSearchShortcutEnabled) private var searchShortcutEnabled = false
@@ -61,6 +62,7 @@ struct MenuBarOrganizerSettings: View {
 
                 permissionSection
                 editorSection
+                presetsSection
                 behaviorSections
             }
 
@@ -98,6 +100,7 @@ struct MenuBarOrganizerSettings: View {
         .onChange(of: showOnHover) { _, _ in service.syncWithPreferences() }
         .onChange(of: showOnEmptyClick) { _, _ in service.syncWithPreferences() }
         .onChange(of: showOnScroll) { _, _ in service.syncWithPreferences() }
+        .onChange(of: smartNotchMode) { _, _ in service.syncWithPreferences() }
         .onChange(of: toggleShortcutEnabled) { _, _ in service.syncWithPreferences() }
         .onChange(of: alwaysShortcutEnabled) { _, _ in service.syncWithPreferences() }
         .onChange(of: searchShortcutEnabled) { _, _ in service.syncWithPreferences() }
@@ -162,6 +165,40 @@ struct MenuBarOrganizerSettings: View {
         }
     }
 
+    private var presetsSection: some View {
+        Section {
+            Text(text.presetsCaption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(MenuBarOrganizerPresetSlot.allCases) { slot in
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(presetTitle(slot))
+                        if let preset = service.presets[slot] {
+                            Text(preset.savedAt, style: .relative)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(text.presetUnsaved)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    Spacer()
+                    Button(text.presetSave) { service.savePreset(slot: slot) }
+                    Button(text.presetApply) { service.applyPreset(slot: slot) }
+                        .disabled(service.presets[slot] == nil)
+                    Button(text.presetClear, role: .destructive) {
+                        service.clearPreset(slot: slot)
+                    }
+                    .disabled(service.presets[slot] == nil)
+                }
+            }
+        } header: {
+            Text(text.presetsTitle)
+        }
+    }
+
     @ViewBuilder
     private var behaviorSections: some View {
         Section(text.sectionsTitle) {
@@ -198,6 +235,10 @@ struct MenuBarOrganizerSettings: View {
             Toggle(text.showOnHover, isOn: $showOnHover)
             Toggle(text.showOnEmptyClick, isOn: $showOnEmptyClick)
             Toggle(text.showOnScroll, isOn: $showOnScroll)
+            Toggle(text.smartNotchMode, isOn: $smartNotchMode)
+            Text(text.smartNotchCaption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
 
         Section(text.shortcutsTitle) {
@@ -228,6 +269,15 @@ struct MenuBarOrganizerSettings: View {
                 service.syncWithPreferences()
             }
             .disabled(!enabled.wrappedValue)
+        }
+    }
+
+    private func presetTitle(_ slot: MenuBarOrganizerPresetSlot) -> String {
+        switch slot {
+        case .work: return text.presetWork
+        case .home: return text.presetHome
+        case .presenting: return text.presetPresenting
+        case .minimal: return text.presetMinimal
         }
     }
 

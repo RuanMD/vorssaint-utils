@@ -74,8 +74,11 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 
 - **Menu bar organizer.** Split status items into visible, hidden and
   always-hidden sections, then reorder them from Settings with drag and
-  drop. Reveal them in the real menu bar or a searchable secondary bar,
-  with optional hover, empty-space click, scroll and keyboard triggers.
+  drop. Save presets for work, home, presenting or a minimal setup. Reveal
+  hidden items in the real menu bar or a searchable secondary bar, with
+  keyboard-first search, optional hover, empty-space click, scroll and
+  keyboard triggers, plus an automatic notch mode that temporarily makes
+  room for hidden items when space is tight.
   Accessibility enables automatic Command-drag; Screen Recording is only
   used for exact previews. Inspired by
   [Ice](https://github.com/jordanbaird/Ice) and implemented independently

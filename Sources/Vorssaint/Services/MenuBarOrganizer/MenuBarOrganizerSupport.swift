@@ -32,6 +32,33 @@ enum MenuBarOrganizerRehideMode: String, CaseIterable {
     }
 }
 
+enum MenuBarOrganizerPresetSlot: String, CaseIterable, Codable, Identifiable {
+    case work
+    case home
+    case presenting
+    case minimal
+
+    var id: String { rawValue }
+}
+
+struct MenuBarOrganizerPreset: Codable, Equatable, Identifiable {
+    let slot: MenuBarOrganizerPresetSlot
+    let savedAt: Date
+    let visible: [MenuBarItemIdentity]
+    let hidden: [MenuBarItemIdentity]
+    let alwaysHidden: [MenuBarItemIdentity]
+
+    var id: MenuBarOrganizerPresetSlot { slot }
+
+    func items(in section: MenuBarOrganizerSection) -> [MenuBarItemIdentity] {
+        switch section {
+        case .visible: return visible
+        case .hidden: return hidden
+        case .alwaysHidden: return alwaysHidden
+        }
+    }
+}
+
 struct MenuBarOrganizerCapabilities: Equatable {
     let canEnumerate: Bool
     let canMove: Bool
@@ -101,6 +128,80 @@ enum MenuBarOrganizerSupport {
     static func shouldRegisterAlwaysHiddenShortcut(sectionEnabled: Bool,
                                                    shortcutEnabled: Bool) -> Bool {
         sectionEnabled && shortcutEnabled
+    }
+
+    static func preset(slot: MenuBarOrganizerPresetSlot,
+                       items: [ManagedMenuBarItem],
+                       now: Date = Date()) -> MenuBarOrganizerPreset {
+        MenuBarOrganizerPreset(
+            slot: slot,
+            savedAt: now,
+            visible: orderedItems(items, in: .visible).map(\.id),
+            hidden: orderedItems(items, in: .hidden).map(\.id),
+            alwaysHidden: orderedItems(items, in: .alwaysHidden).map(\.id))
+    }
+
+    static func decodePresets(_ raw: String?) -> [MenuBarOrganizerPresetSlot: MenuBarOrganizerPreset] {
+        guard let raw, let data = raw.data(using: .utf8), !raw.isEmpty,
+              let presets = try? JSONDecoder().decode([MenuBarOrganizerPreset].self, from: data)
+        else { return [:] }
+        return Dictionary(uniqueKeysWithValues: presets.map { ($0.slot, $0) })
+    }
+
+    static func encodePresets(_ presets: [MenuBarOrganizerPresetSlot: MenuBarOrganizerPreset]) -> String {
+        let ordered = MenuBarOrganizerPresetSlot.allCases.compactMap { presets[$0] }
+        guard let data = try? JSONEncoder().encode(ordered) else { return "" }
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+
+    static func visibleItemsToBorrowForNotch(visibleWidths: [CGFloat],
+                                             hiddenWidth: CGFloat,
+                                             availableWidth: CGFloat,
+                                             minimumVisibleItems: Int = 1) -> Int {
+        guard hiddenWidth > availableWidth, visibleWidths.count > minimumVisibleItems else { return 0 }
+        let maxBorrowed = max(0, visibleWidths.count - minimumVisibleItems)
+        var freed: CGFloat = 0
+        var borrowed = 0
+        for width in visibleWidths.prefix(maxBorrowed) {
+            freed += max(width, 0)
+            borrowed += 1
+            if hiddenWidth - freed <= availableWidth { break }
+        }
+        return borrowed
+    }
+
+    static func searchScore(displayName: String,
+                            bundleIdentifier: String,
+                            ownerName: String,
+                            title: String,
+                            query: String) -> Int? {
+        let terms = query.split(whereSeparator: \.isWhitespace)
+            .map { $0.localizedLowercase }
+        guard !terms.isEmpty else { return 0 }
+        let display = displayName.localizedLowercase
+        let owner = ownerName.localizedLowercase
+        let itemTitle = title.localizedLowercase
+        let bundle = bundleIdentifier.localizedLowercase
+        let haystack = [display, owner, itemTitle, bundle].joined(separator: " ")
+        guard terms.allSatisfy({ haystack.contains($0) }) else { return nil }
+
+        var score = 100
+        for term in terms {
+            if display == term {
+                score = min(score, 0)
+            } else if display.hasPrefix(term) {
+                score = min(score, 10)
+            } else if owner.hasPrefix(term) {
+                score = min(score, 20)
+            } else if itemTitle.hasPrefix(term) {
+                score = min(score, 30)
+            } else if display.contains(term) || owner.contains(term) || itemTitle.contains(term) {
+                score = min(score, 50)
+            } else if bundle.contains(term) {
+                score = min(score, 70)
+            }
+        }
+        return score + max(0, display.count - query.count)
     }
 
     static func collapsedLength(screenWidths: [CGFloat]) -> CGFloat {
@@ -178,6 +279,12 @@ enum MenuBarOrganizerSupport {
         case .automatic:
             return hasNotch || hiddenWidth > max(availableWidth, 0)
         }
+    }
+
+    static func shouldUseSmartNotchMode(mode: MenuBarOrganizerPresentationMode,
+                                        enabled: Bool,
+                                        hasNotch: Bool) -> Bool {
+        mode == .automatic && enabled && hasNotch
     }
 
     static func orderedItems(_ items: [ManagedMenuBarItem],

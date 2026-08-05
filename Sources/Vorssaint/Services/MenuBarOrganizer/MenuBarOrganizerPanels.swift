@@ -82,45 +82,120 @@ final class MenuBarOrganizerPanelController {
 
 private struct MenuBarOrganizerSearchView: View {
     @ObservedObject var service: MenuBarOrganizerService
+    @ObservedObject private var l10n = L10n.shared
     @State private var query = ""
+    @State private var selectedID: MenuBarItemIdentity?
+    @FocusState private var searchFocused: Bool
+
+    private var text: MenuBarOrganizerStrings {
+        FeatureStrings.menuBarOrganizer(l10n.language)
+    }
 
     private var matches: [ManagedMenuBarItem] {
-        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
             return service.items
         }
-        return service.items.filter {
-            $0.displayName.localizedCaseInsensitiveContains(query)
-                || $0.bundleIdentifier.localizedCaseInsensitiveContains(query)
+        return service.items.compactMap { item -> (ManagedMenuBarItem, Int)? in
+            guard let score = MenuBarOrganizerSupport.searchScore(
+                displayName: item.displayName,
+                bundleIdentifier: item.bundleIdentifier,
+                ownerName: item.ownerName,
+                title: item.title,
+                query: trimmed)
+            else { return nil }
+            return (item, score)
         }
+        .sorted {
+            if $0.1 != $1.1 { return $0.1 < $1.1 }
+            return $0.0.frame.minX < $1.0.frame.minX
+        }
+        .map(\.0)
     }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search menu bar items", text: $query)
+                TextField(text.searchPlaceholder, text: $query)
                     .textFieldStyle(.plain)
+                    .focused($searchFocused)
+                    .onSubmit { activateSelected() }
             }
             .padding(14)
             Divider()
             if matches.isEmpty {
-                ContentUnavailableView("No menu bar items",
+                ContentUnavailableView(text.searchEmptyTitle,
                                        systemImage: "menubar.rectangle",
-                                       description: Text("Try another search."))
+                                       description: Text(text.searchEmptyCaption))
             } else {
-                List(matches) { item in
-                    Button {
-                        service.activate(itemID: item.id)
-                    } label: {
+                List(selection: $selectedID) {
+                    ForEach(matches) { item in
+                        HStack(spacing: 8) {
                         MenuBarOrganizerItemLabel(item: item, showsSection: true)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedID = item.id
+                                    service.activate(itemID: item.id)
+                                }
+                            Button {
+                                selectedID = item.id
+                                service.reveal(itemID: item.id)
+                            } label: {
+                                Label(text.searchShow, systemImage: "eye")
+                                    .labelStyle(.iconOnly)
+                            }
+                            .buttonStyle(.borderless)
+                            .help(text.searchShow)
+                            Button {
+                                selectedID = item.id
+                                service.activate(itemID: item.id)
+                            } label: {
+                                Label(text.searchOpen, systemImage: "return")
+                                    .labelStyle(.iconOnly)
+                            }
+                            .buttonStyle(.borderless)
+                            .help(text.searchOpen)
+                        }
+                        .tag(item.id)
                     }
-                    .buttonStyle(.plain)
                 }
                 .listStyle(.plain)
             }
         }
         .frame(minWidth: 420, minHeight: 320)
-        .onAppear { service.refresh() }
+        .onAppear {
+            service.refresh()
+            selectFirstMatch()
+            DispatchQueue.main.async { searchFocused = true }
+        }
+        .onChange(of: query) { _, _ in selectFirstMatch() }
+        .onChange(of: service.items.count) { _, _ in selectFirstMatch() }
+        .onMoveCommand { direction in moveSelection(direction) }
+        .onExitCommand { service.closeSearch() }
+    }
+
+    private func selectFirstMatch() {
+        if let selectedID, matches.contains(where: { $0.id == selectedID }) { return }
+        selectedID = matches.first?.id
+    }
+
+    private func moveSelection(_ direction: MoveCommandDirection) {
+        guard !matches.isEmpty else { return }
+        let current = selectedID.flatMap { id in matches.firstIndex(where: { $0.id == id }) }
+        switch direction {
+        case .down:
+            selectedID = matches[min((current ?? -1) + 1, matches.count - 1)].id
+        case .up:
+            selectedID = matches[max((current ?? matches.count) - 1, 0)].id
+        default:
+            break
+        }
+    }
+
+    private func activateSelected() {
+        guard let selectedID else { return }
+        service.activate(itemID: selectedID)
     }
 }
 

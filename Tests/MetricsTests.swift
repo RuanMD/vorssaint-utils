@@ -6879,6 +6879,37 @@ struct MetricsTests {
                 && !MenuBarOrganizerSupport.shouldUseSecondaryBar(
                     mode: .menuBar, hiddenWidth: 900, availableWidth: 100, hasNotch: true),
                "automatic presentation handles overflow and notches while explicit mode wins")
+        expect(MenuBarOrganizerSupport.shouldUseSmartNotchMode(
+                    mode: .automatic, enabled: true, hasNotch: true)
+                && !MenuBarOrganizerSupport.shouldUseSmartNotchMode(
+                    mode: .automatic, enabled: false, hasNotch: true)
+                && !MenuBarOrganizerSupport.shouldUseSmartNotchMode(
+                    mode: .secondaryBar, enabled: true, hasNotch: true),
+               "smart notch mode only takes over automatic notch presentation")
+        expect(MenuBarOrganizerSupport.visibleItemsToBorrowForNotch(
+                    visibleWidths: [80, 60, 40], hiddenWidth: 220, availableWidth: 120) == 2
+                && MenuBarOrganizerSupport.visibleItemsToBorrowForNotch(
+                    visibleWidths: [80], hiddenWidth: 220, availableWidth: 120) == 0,
+               "notch room borrowing keeps at least one visible item in place")
+        expect(MenuBarOrganizerSupport.searchScore(
+                    displayName: "Dropbox Sync", bundleIdentifier: "com.getdropbox.dropbox",
+                    ownerName: "Dropbox", title: "Sync", query: "drop") ?? 999
+                < (MenuBarOrganizerSupport.searchScore(
+                    displayName: "Cloud Drive", bundleIdentifier: "com.getdropbox.dropbox",
+                    ownerName: "Cloud Drive", title: "", query: "drop") ?? 999),
+               "quick search ranks visible names ahead of bundle-only matches")
+        let presetIdentity = MenuBarItemIdentity(bundleIdentifier: "com.example.app",
+                                                 title: "State",
+                                                 occurrence: 0)
+        let encodedPresets = MenuBarOrganizerSupport.encodePresets([
+            .work: MenuBarOrganizerPreset(slot: .work,
+                                          savedAt: Date(timeIntervalSince1970: 1),
+                                          visible: [presetIdentity],
+                                          hidden: [],
+                                          alwaysHidden: []),
+        ])
+        expect(MenuBarOrganizerSupport.decodePresets(encodedPresets)[.work]?.visible == [presetIdentity],
+               "menu bar presets round-trip through preference storage")
         let duplicateMenuRecords = [
             MenuBarOrganizerWindowRecord(windowID: 1, ownerPID: 1, ownerName: "App",
                                          bundleIdentifier: "com.example.app", title: "State",
@@ -7705,6 +7736,9 @@ struct MetricsTests {
                     == MenuBarOrganizerRehideMode.afterDelay.rawValue
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerRehideDelay] as? Int == 10,
                "menu bar presentation defaults remain predictable")
+        expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerSmartNotchMode] as? Bool == true
+                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresets] as? String == "",
+               "smart notch mode and presets have portable defaults")
         expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerToggleShortcut] as? String
                     == GlobalShortcut.menuBarOrganizerToggleDefault.storageValue
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerAlwaysShortcut] as? String

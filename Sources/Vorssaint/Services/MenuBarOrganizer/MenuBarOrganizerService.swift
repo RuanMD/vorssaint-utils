@@ -22,6 +22,7 @@ final class MenuBarOrganizerService: ObservableObject {
     @Published private(set) var operationMessage: String?
     @Published private(set) var canUndo = false
     @Published private(set) var hotkeyRegistrationFailed = false
+    @Published private(set) var presets: [MenuBarOrganizerPresetSlot: MenuBarOrganizerPreset] = [:]
 
     private let provider = MenuBarWindowProvider()
     private let mover = MenuBarItemMover()
@@ -42,6 +43,7 @@ final class MenuBarOrganizerService: ObservableObject {
     private var suppressUndo = false
     private var snapshotTask: Task<Void, Never>?
     private var imageCache: [MenuBarItemIdentity: NSImage] = [:]
+    private var notchBorrowedItems: [UndoRecord] = []
 
     private struct UndoRecord {
         let itemID: MenuBarItemIdentity
@@ -56,6 +58,7 @@ final class MenuBarOrganizerService: ObservableObject {
         let enabled = AppFeature.menuBarOrganizer.isAvailable
             && defaults.bool(forKey: DefaultsKey.menuBarOrganizerEnabled)
         if enabled {
+            loadPresets()
             startIfNeeded()
             syncAlwaysHiddenDivider()
             syncHotkeys()
@@ -97,6 +100,7 @@ final class MenuBarOrganizerService: ObservableObject {
         controlItem = nil
         items = []
         undoRecord = nil
+        notchBorrowedItems = []
         canUndo = false
         isRunning = false
     }
@@ -161,6 +165,10 @@ final class MenuBarOrganizerService: ObservableObject {
         searchPanel?.show()
     }
 
+    func closeSearch() {
+        searchPanel?.close()
+    }
+
     func showSecondaryBar() {
         guard isRunning else { return }
         refresh()
@@ -172,12 +180,7 @@ final class MenuBarOrganizerService: ObservableObject {
     }
 
     func hideAll() {
-        secondaryPanel?.close()
-        hiddenSectionShown = false
-        alwaysHiddenSectionShown = false
-        applyDividerState()
-        cancelRehide()
-        refresh(captureImages: false)
+        Task { await hideAllRestoringBorrowedItems() }
     }
 
     func move(itemID: MenuBarItemIdentity,
@@ -199,6 +202,22 @@ final class MenuBarOrganizerService: ObservableObject {
         }
     }
 
+    func savePreset(slot: MenuBarOrganizerPresetSlot) {
+        refresh()
+        presets[slot] = MenuBarOrganizerSupport.preset(slot: slot, items: items)
+        persistPresets()
+    }
+
+    func applyPreset(slot: MenuBarOrganizerPresetSlot) {
+        guard let preset = presets[slot] else { return }
+        Task { await applyPreset(preset) }
+    }
+
+    func clearPreset(slot: MenuBarOrganizerPresetSlot) {
+        presets.removeValue(forKey: slot)
+        persistPresets()
+    }
+
     func activate(itemID: MenuBarItemIdentity) {
         Task {
             guard let original = items.first(where: { $0.id == itemID }) else { return }
@@ -218,6 +237,17 @@ final class MenuBarOrganizerService: ObservableObject {
                 scheduleRehide()
             } catch {
                 operationMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func reveal(itemID: MenuBarItemIdentity) {
+        Task {
+            guard let item = items.first(where: { $0.id == itemID }) else { return }
+            searchPanel?.close()
+            if item.section != .visible {
+                showInMenuBar(item.section)
+                scheduleRehide()
             }
         }
     }
@@ -436,12 +466,26 @@ final class MenuBarOrganizerService: ObservableObject {
     }
 
     private func show(_ section: MenuBarOrganizerSection) {
-        if editingCount == 0, shouldPresentInSecondaryBar(section: section) {
-            showSecondaryBar()
+        guard editingCount == 0 else {
+            showInMenuBar(section)
+            scheduleRehide()
             return
         }
-        showInMenuBar(section)
-        scheduleRehide()
+        switch presentation(for: section) {
+        case .secondary:
+            showSecondaryBar()
+        case .smartNotch:
+            Task { await showWithSmartNotch(section: section) }
+        case .menuBar:
+            showInMenuBar(section)
+            scheduleRehide()
+        }
+    }
+
+    private enum PresentationDecision {
+        case menuBar
+        case secondary
+        case smartNotch
     }
 
     private func showInMenuBar(_ section: MenuBarOrganizerSection) {
@@ -458,7 +502,7 @@ final class MenuBarOrganizerService: ObservableObject {
         refresh(captureImages: false)
     }
 
-    private func shouldPresentInSecondaryBar(section: MenuBarOrganizerSection) -> Bool {
+    private func presentation(for section: MenuBarOrganizerSection) -> PresentationDecision {
         let mode = MenuBarOrganizerPresentationMode.sanitized(
             UserDefaults.standard.string(forKey: DefaultsKey.menuBarOrganizerPresentationMode))
         let width = items.filter { item in
@@ -469,8 +513,78 @@ final class MenuBarOrganizerService: ObservableObject {
         } ?? NSScreen.main
         let available = (screen?.visibleFrame.width ?? 1_024) * 0.45
         let hasNotch = screen?.auxiliaryTopLeftArea != nil || screen?.auxiliaryTopRightArea != nil
+        if MenuBarOrganizerSupport.shouldUseSmartNotchMode(
+            mode: mode,
+            enabled: UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerSmartNotchMode),
+            hasNotch: hasNotch) {
+            return .smartNotch
+        }
         return MenuBarOrganizerSupport.shouldUseSecondaryBar(
             mode: mode, hiddenWidth: width, availableWidth: available, hasNotch: hasNotch)
+            ? .secondary
+            : .menuBar
+    }
+
+    private func showWithSmartNotch(section: MenuBarOrganizerSection) async {
+        await restoreNotchBorrowedItems()
+        refresh(captureImages: false)
+        let hiddenWidth = items.filter { item in
+            section == .alwaysHidden ? item.section != .visible : item.section == .hidden
+        }.reduce(CGFloat(0)) { $0 + $1.frame.width }
+        let screen = controlItem?.frame.flatMap { frame in
+            NSScreen.screens.first { $0.frame.intersects(frame) }
+        } ?? NSScreen.main
+        let available = (screen?.visibleFrame.width ?? 1_024) * 0.45
+        let visibleItems = MenuBarOrganizerSupport.orderedItems(items, in: .visible)
+            .filter(\.isMovable)
+        let borrowCount = MenuBarOrganizerSupport.visibleItemsToBorrowForNotch(
+            visibleWidths: visibleItems.map(\.frame.width),
+            hiddenWidth: hiddenWidth,
+            availableWidth: available)
+        guard borrowCount < visibleItems.count else {
+            showSecondaryBar()
+            return
+        }
+        if borrowCount > 0 {
+            suppressUndo = true
+            for item in visibleItems.prefix(borrowCount) {
+                refresh(captureImages: false)
+                let orderedBefore = MenuBarOrganizerSupport.orderedItems(items, in: .visible)
+                let rightNeighbor = orderedBefore.drop(while: { $0.id != item.id }).dropFirst().first?.id
+                notchBorrowedItems.append(UndoRecord(itemID: item.id,
+                                                     previousSection: .visible,
+                                                     previousRightNeighbor: rightNeighbor))
+                await performMove(itemID: item.id, before: nil, to: .hidden)
+            }
+            suppressUndo = false
+        }
+        showInMenuBar(section)
+        scheduleRehide()
+    }
+
+    private func hideAllRestoringBorrowedItems() async {
+        secondaryPanel?.close()
+        await restoreNotchBorrowedItems()
+        hiddenSectionShown = false
+        alwaysHiddenSectionShown = false
+        applyDividerState()
+        cancelRehide()
+        refresh(captureImages: false)
+    }
+
+    private func restoreNotchBorrowedItems() async {
+        guard !notchBorrowedItems.isEmpty else { return }
+        let records = notchBorrowedItems.reversed()
+        notchBorrowedItems = []
+        suppressUndo = true
+        for record in records {
+            await performMove(itemID: record.itemID,
+                              before: record.previousRightNeighbor,
+                              to: record.previousSection)
+        }
+        suppressUndo = false
+        undoRecord = nil
+        canUndo = false
     }
 
     private func scheduleRehide() {
@@ -580,6 +694,43 @@ final class MenuBarOrganizerService: ObservableObject {
              { [weak self] in self?.showSearch() }),
         ])
         hotkeyRegistrationFailed = hotkeys.registrationFailed
+    }
+
+    private func loadPresets() {
+        presets = MenuBarOrganizerSupport.decodePresets(
+            UserDefaults.standard.string(forKey: DefaultsKey.menuBarOrganizerPresets))
+    }
+
+    private func persistPresets() {
+        UserDefaults.standard.set(MenuBarOrganizerSupport.encodePresets(presets),
+                                  forKey: DefaultsKey.menuBarOrganizerPresets)
+    }
+
+    private func applyPreset(_ preset: MenuBarOrganizerPreset) async {
+        await restoreNotchBorrowedItems()
+        if !preset.alwaysHidden.isEmpty,
+           !UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled) {
+            UserDefaults.standard.set(true, forKey: DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled)
+            syncAlwaysHiddenDivider()
+        }
+        showInMenuBar(.alwaysHidden)
+        try? await Task.sleep(for: .milliseconds(120))
+        refresh(captureImages: false)
+        suppressUndo = true
+        for section in [MenuBarOrganizerSection.alwaysHidden, .hidden, .visible] {
+            var nextID: MenuBarItemIdentity?
+            for id in preset.items(in: section).reversed() {
+                refresh(captureImages: false)
+                guard items.contains(where: { $0.id == id && $0.isMovable }) else { continue }
+                await performMove(itemID: id, before: nextID, to: section)
+                nextID = id
+            }
+        }
+        suppressUndo = false
+        undoRecord = nil
+        canUndo = false
+        refresh()
+        scheduleRehide()
     }
 
     private func loadSnapshots(records: [MenuBarOrganizerWindowRecord],
