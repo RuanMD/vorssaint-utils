@@ -215,7 +215,7 @@ extension Strings {
         switcherNoOpenWindow: "Açık penceresi yok",
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "Dock'tan pencereleri önizle",
-        dockPreviewEnableCaption: "Pencerelerini önizlemek ve göz atmak için Dock'ta açık bir uygulamanın üzerine gel.",
+        dockPreviewEnableCaption: "Pencerelerini görmek için Dock'taki açık bir uygulamanın üzerine gel, ardından açmak istediğin pencereye tıkla.",
         dockPreviewBackgroundOpacity: "Panel arka planı",
         dockPreviewBackgroundOpacityCaption: "Panelin arkasındakileri daha çok görmek için azalt.",
         dockClickMinimize: "Dock simgesine tıklayınca küçült",
@@ -706,7 +706,6 @@ extension Strings {
         memoryStyleDot: "Nokta",
         memoryStylePercent: "%",
         memoryStyleBoth: "İkisi de",
-
         systemUptime: "Çalışma süresi",
         batteryCharge: "Şarj",
         powerHealth: "Pil sağlığı",
@@ -762,7 +761,7 @@ extension Strings {
         keyDebounceRemoveKey: "Tuşu kaldır",
         cleaningPanelCaption: "Güvenle temizleyebilmen için klavyeyi kilitler.",
         cleaningOverlayTitle: "Klavye temizlik için kilitlendi",
-        cleaningOverlaySubtitle: "Kilidi açmak için aynı tuşa 5 kez bas",
+        cleaningOverlaySubtitle: "Kilidi açmak için Esc tuşuna 5 kez bas",
         cleaningOverlayUnlock: "Kilidi aç",
         cleaningOverlayMouseHint: "Fare ve izleme dörtgeni çalışmaya devam eder",
         cleaningNeedsAxTitle: "Erişilebilirlik gerekli",
@@ -884,6 +883,16 @@ extension Strings {
         previewSizeSmall: "Küçük",
         mixerSoundEffectsOutputTitle: "Sistem sesleri",
         mixerSoundEffectsOutputTooltip: "Uyarıların ve ses efektlerinin çalacağı çıkışı seç",
-        monitorOpenActivityMonitor: "Etkinlik Monitörü'nü aç"
+        monitorOpenActivityMonitor: "Etkinlik Monitörü'nü aç",
+        dockClickHide: "Dock simgesine tıklayınca uygulamayı gizle",
+        dockClickHideCaption: "Etkin uygulamanın Dock simgesine tıklayınca uygulama gizlenir. Geri getirmek için yeniden tıklayın.",
+        monitorMemoryMetricLabel: "Belleği şu şekilde ölç",
+        memoryMetricUsed: "Kullanılan Bellek",
+        memoryMetricApp: "Uygulama Belleği",
+        keepAwakeRightClickToggle: "Uyanık tutmayı açıp kapatmak için menü çubuğu simgesine sağ tıkla",
+        keepAwakeRightClickToggleCaption: "Sağ tık bağlam menüsünün yerini alır.",
+        urlCleanerCustomTitle: "Kaldırılacak diğer adlar",
+        urlCleanerCustomPlaceholder: "ref, kaynak",
+        urlCleanerCustomCaption: "Parametre adlarını virgülle ayırın. Her bağlantıdan kaldırılırlar."
     )
 }

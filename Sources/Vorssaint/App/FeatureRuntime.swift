@@ -152,6 +152,7 @@ final class FeatureRuntime: ObservableObject {
         .finderRename: { FinderRenameService.shared.syncWithPreferences() },
         .shelf: { ShelfService.shared.syncWithPreferences() },
         .urlCleaner: { URLCleanerService.shared.syncWithPreferences() },
+        .diskImageInstaller: { DiskImageInstallerService.shared.syncWithPreferences() },
         .mixer: {
             AppVolumeMixer.shared.syncWithPreferences()
             AudioInputDeviceManager.shared.syncWithPreferences()
@@ -196,6 +197,7 @@ final class FeatureRuntime: ObservableObject {
         .monitorDisk: { FeatureRuntime.syncMonitor() },
         .monitorPower: { FeatureRuntime.syncMonitor() },
         .fanControl: {
+            SystemMonitor.shared.planDidChange()
             let defaults = UserDefaults.standard
             let needsRecovery = defaults.bool(forKey: DefaultsKey.fanControlRecoveryNeeded)
             let hasRegisteredHelper = !(defaults.string(forKey: DefaultsKey.fanControlHelperVersion) ?? "").isEmpty

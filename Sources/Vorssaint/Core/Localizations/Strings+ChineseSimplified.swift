@@ -215,7 +215,7 @@ extension Strings {
         switcherNoOpenWindow: "无打开的窗口",
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "在 Dock 中预览窗口",
-        dockPreviewEnableCaption: "将指针悬停在 Dock 中已打开的 App 上，即可查看并临时显示它的窗口。",
+        dockPreviewEnableCaption: "将指针悬停在 Dock 中已打开的 App 上查看窗口，然后点按要打开的窗口。",
         dockPreviewBackgroundOpacity: "面板背景",
         dockPreviewBackgroundOpacityCaption: "调低后可以看到更多面板后面的内容。",
         dockClickMinimize: "点按 Dock 图标最小化",
@@ -706,7 +706,6 @@ extension Strings {
         memoryStyleDot: "圆点",
         memoryStylePercent: "%",
         memoryStyleBoth: "两者",
-
         systemUptime: "已运行",
         batteryCharge: "电量",
         powerHealth: "电池健康度",
@@ -762,7 +761,7 @@ extension Strings {
         keyDebounceRemoveKey: "移除按键",
         cleaningPanelCaption: "锁定键盘，便于安全清洁。",
         cleaningOverlayTitle: "键盘已锁定以便清洁",
-        cleaningOverlaySubtitle: "连按同一个键 5 次以解锁",
+        cleaningOverlaySubtitle: "按下 Esc 键 5 次以解锁",
         cleaningOverlayUnlock: "解锁",
         cleaningOverlayMouseHint: "你的鼠标和触控板仍可使用",
         cleaningNeedsAxTitle: "需要辅助功能",
@@ -884,6 +883,16 @@ extension Strings {
         previewSizeSmall: "小",
         mixerSoundEffectsOutputTitle: "系统声音",
         mixerSoundEffectsOutputTooltip: "选择提醒和音效的播放设备",
-        monitorOpenActivityMonitor: "打开活动监视器"
+        monitorOpenActivityMonitor: "打开活动监视器",
+        dockClickHide: "点按 Dock 图标隐藏 App",
+        dockClickHideCaption: "点按当前 App 的 Dock 图标可隐藏它。再次点按即可恢复。",
+        monitorMemoryMetricLabel: "内存计量方式",
+        memoryMetricUsed: "已用内存",
+        memoryMetricApp: "App 内存",
+        keepAwakeRightClickToggle: "右键点按菜单栏图标以切换“保持唤醒”",
+        keepAwakeRightClickToggleCaption: "将取代右键点按菜单。",
+        urlCleanerCustomTitle: "添加要移除的名称",
+        urlCleanerCustomPlaceholder: "ref, source",
+        urlCleanerCustomCaption: "请用逗号分隔参数名称。它们会从所有链接中移除。"
     )
 }

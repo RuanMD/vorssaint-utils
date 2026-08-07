@@ -20,6 +20,7 @@ struct MonitorSettings: View {
     @AppStorage(DefaultsKey.menuBarHideIconWithMetrics) private var hideIconWithMetrics = false
     @AppStorage(DefaultsKey.monitorInterval) private var interval = 2
     @AppStorage(DefaultsKey.temperatureUnit) private var temperatureUnit = TemperatureUnit.celsius.rawValue
+    @AppStorage(DefaultsKey.monitorMemoryMetric) private var memoryMetric = "used"
     @AppStorage(DefaultsKey.panelShowFanControl) private var showFanControl = true
 
     @AppStorage(DefaultsKey.monitorGraphCPU) private var graphCPU = true
@@ -86,6 +87,13 @@ struct MonitorSettings: View {
                     Text("°F").tag(TemperatureUnit.fahrenheit.rawValue)
                 }
                 .pickerStyle(.segmented)
+                if AppFeature.monitorMemory.isAvailable {
+                    Picker(l10n.s.monitorMemoryMetricLabel, selection: $memoryMetric) {
+                        Text(l10n.s.memoryMetricUsed).tag("used")
+                        Text(l10n.s.memoryMetricApp).tag("app")
+                    }
+                    .pickerStyle(.segmented)
+                }
             }
             monitorAlertsSection
             Section(l10n.s.monitorPanelSection) {
@@ -134,7 +142,9 @@ struct MonitorSettings: View {
                 }
                 if AppFeature.monitorPower.isAvailable {
                     Toggle(l10n.s.monitorShowPowerLabel, isOn: $graphPower)
-                    Toggle(l10n.s.batteryLabel, isOn: $graphBattery)
+                    if PowerSampler.hasInternalBattery {
+                        Toggle(l10n.s.batteryLabel, isOn: $graphBattery)
+                    }
                 }
                 Text(l10n.s.monitorGraphsCaption)
                     .font(.caption)
@@ -149,6 +159,7 @@ struct MonitorSettings: View {
             if TemperatureUnit(rawValue: temperatureUnit) == nil {
                 temperatureUnit = TemperatureUnit.celsius.rawValue
             }
+            memoryMetric = Defaults.sanitizedMonitorMemoryMetric(memoryMetric)
         }
         .onDisappear {
             SystemMonitor.shared.panelDidDisappear()
@@ -312,7 +323,7 @@ private struct MenuBarMetricOrderEditor: View {
     /// Metrics whose family left the hub keep their saved slot but stay out
     /// of the editor until they return.
     private var visibleOrder: [MenuBarMetric] {
-        order.filter { $0.feature.isAvailable }
+        order.filter { $0.feature.isAvailable && $0.isAvailableOnCurrentHardware }
     }
 }
 

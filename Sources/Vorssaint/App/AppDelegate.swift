@@ -78,7 +78,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             self?.captureStatusClick()
             self?.toggleMainPopover()
         }
-        statusController.onRightClick = { [weak self] in self?.showContextMenu() }
+        statusController.onRightClick = { [weak self] in
+            if AppFeature.keepAwake.isAvailable
+                && UserDefaults.standard.bool(forKey: DefaultsKey.keepAwakeRightClickToggle) {
+                KeepAwakeManager.shared.toggle()
+            } else {
+                self?.showContextMenu()
+            }
+        }
         statusController.onMetricClick = { [weak self] metric, button in
             self?.captureStatusClick()
             self?.showMetricPanel(for: metric, anchoredTo: button)
@@ -103,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // One binding per feature: only available features are touched, so a
         // feature switched off in the hub never even instantiates here.
         FeatureRuntime.shared.syncAtLaunch()
-        if AppFeature.monitorPower.isAvailable {
+        if AppFeature.monitorPower.isAvailable, PowerSampler.hasInternalBattery {
             MaxCapacityProbe.shared.refreshIfStale()
         }
         UpdateService.shared.startAutomaticChecks()

@@ -215,7 +215,7 @@ extension Strings {
         switcherNoOpenWindow: "ウインドウなし",
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "Dock でウインドウをプレビュー",
-        dockPreviewEnableCaption: "Dock の開いているアプリにポインタを重ねると、ウインドウを確認して一時表示できます。",
+        dockPreviewEnableCaption: "Dock の開いているアプリにポインタを重ねてウインドウを確認し、開きたいウインドウをクリックします。",
         dockPreviewBackgroundOpacity: "パネルの背景",
         dockPreviewBackgroundOpacityCaption: "下げると、パネルの後ろにあるものがより見えるようになります。",
         dockClickMinimize: "Dock クリックでしまう",
@@ -706,7 +706,6 @@ extension Strings {
         memoryStyleDot: "ドット",
         memoryStylePercent: "%",
         memoryStyleBoth: "両方",
-
         systemUptime: "稼働時間",
         batteryCharge: "充電量",
         powerHealth: "バッテリーの状態",
@@ -762,7 +761,7 @@ extension Strings {
         keyDebounceRemoveKey: "キーを削除",
         cleaningPanelCaption: "安全に掃除できるようキーボードをロックします。",
         cleaningOverlayTitle: "クリーニングのためキーボードをロック中",
-        cleaningOverlaySubtitle: "同じキーを5回押すとロックを解除します",
+        cleaningOverlaySubtitle: "Escキーを5回押すとロックを解除します",
         cleaningOverlayUnlock: "ロックを解除",
         cleaningOverlayMouseHint: "マウスとトラックパッドはそのまま使えます",
         cleaningNeedsAxTitle: "アクセシビリティが必要です",
@@ -884,6 +883,16 @@ extension Strings {
         previewSizeSmall: "小",
         mixerSoundEffectsOutputTitle: "システムサウンド",
         mixerSoundEffectsOutputTooltip: "通知音とサウンドエフェクトの出力先を選択",
-        monitorOpenActivityMonitor: "アクティビティモニタを開く"
+        monitorOpenActivityMonitor: "アクティビティモニタを開く",
+        dockClickHide: "Dock クリックでアプリを隠す",
+        dockClickHideCaption: "手前のアプリの Dock アイコンをクリックすると、そのアプリを隠します。もう一度クリックすると戻ります。",
+        monitorMemoryMetricLabel: "メモリの測定方法",
+        memoryMetricUsed: "使用中のメモリ",
+        memoryMetricApp: "Appメモリ",
+        keepAwakeRightClickToggle: "メニューバーアイコンの右クリックでスリープ防止を切り替える",
+        keepAwakeRightClickToggleCaption: "右クリックのコンテキストメニューを置き換えます。",
+        urlCleanerCustomTitle: "削除する名前を追加",
+        urlCleanerCustomPlaceholder: "ref, source",
+        urlCleanerCustomCaption: "パラメータ名をカンマで区切って入力します。すべてのリンクから削除されます。"
     )
 }

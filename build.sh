@@ -160,6 +160,8 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Homebrew/HomebrewSupport.swift \
         Sources/Vorssaint/Services/AppUpdates/AppUpdatesSupport.swift \
         Sources/Vorssaint/Core/AppUpdateStrings.swift \
+        Sources/Vorssaint/Core/DiskImageInstallerStrings.swift \
+        Sources/Vorssaint/Services/DiskImageInstaller/DiskImageInstallerSupport.swift \
         Sources/Vorssaint/Services/Clipboard/ClipboardHistorySupport.swift \
         Sources/Vorssaint/Services/AutoQuit/AutoQuitSupport.swift \
         Sources/Vorssaint/Services/Shelf/ShelfSupport.swift \
@@ -185,6 +187,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/MouseExceptionStrings.swift \
         Sources/Vorssaint/Core/ClipboardIgnoredAppsStrings.swift \
         Sources/Vorssaint/Core/WindowPreviewExclusionStrings.swift \
+        Sources/Vorssaint/Core/SwitcherAppRulesStrings.swift \
         Sources/Vorssaint/Services/QuickTools/QuickToolsSupport.swift \
         Sources/Vorssaint/Services/CommandBar/CommandBarSupport.swift \
         Sources/Vorssaint/Services/CommandBar/CommandBarPreferences.swift \
@@ -196,6 +199,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/CommandBar/CommandBarRowShortcuts.swift \
         Sources/Vorssaint/Services/QuickTools/MicMuteSupport.swift \
         Sources/Vorssaint/Services/QuickTools/QuickTogglesSupport.swift \
+        Sources/Vorssaint/Services/QuickTools/ScreenshotCapturePolicy.swift \
         Sources/Vorssaint/Services/QuickTools/ScreenshotSupport.swift \
         Sources/Vorssaint/Services/QuickTools/ScreenshotSharingSupport.swift \
         Sources/Vorssaint/Services/KeyboardDebounce/KeyboardDebounceSupport.swift \
@@ -226,6 +230,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Cleaner/CleanerSupport.swift \
         Sources/Vorssaint/Services/Cleaner/CleanerPolicy.swift \
         Sources/Vorssaint/Services/Cleaner/CleanerSchedule.swift \
+        Sources/Vorssaint/Services/Uninstall/UninstallerSupport.swift \
         Sources/Vorssaint/Services/ManagedDownloads/WhatsAppDownloadSupport.swift \
         Tests/MetricsTests.swift \
         -o build/metrics-tests

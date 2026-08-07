@@ -81,6 +81,26 @@ enum FanControlPolicy {
         value.isFinite && value >= 0 && value <= maximumSaneRPM
     }
 
+    static func telemetryReadings(expectedCount: Int,
+                                  readings: [Double?]) -> [Double]? {
+        guard (1...maximumFanCount).contains(expectedCount),
+              readings.count == expectedCount else { return nil }
+        let values = readings.compactMap { $0 }
+        guard values.count == expectedCount,
+              values.allSatisfy(validReading) else { return nil }
+        return values
+    }
+
+    static func menuBarValue(for speeds: [Double]) -> String? {
+        guard !speeds.isEmpty, speeds.allSatisfy(validReading) else { return nil }
+        return speeds.map { String(Int($0.rounded())) }.joined(separator: "/")
+    }
+
+    static func menuBarWidthUnits(fanCount: Int) -> Int {
+        guard (1...maximumFanCount).contains(fanCount) else { return 0 }
+        return 7 + fanCount * 5 + (fanCount - 1)
+    }
+
     static func restoreReason(now: Date,
                               endsAt: Date,
                               heartbeatAge: TimeInterval,

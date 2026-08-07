@@ -24,6 +24,7 @@ struct FanControlFeatureStrings {
     let safetyCaption: String
     let timeLimitStopped: String
     let safetyStopped: String
+    let menuBarTitle: String
 }
 
 extension FeatureStrings {
@@ -67,7 +68,8 @@ extension FanControlFeatureStrings {
         failed: "The fans stayed automatic because control could not be verified.",
         safetyCaption: "Uses only the maximum reported by this Mac. Control returns to automatic after 15 minutes or if the connection stops.",
         timeLimitStopped: "Returned to automatic after 15 minutes.",
-        safetyStopped: "Returned to automatic because control was interrupted."
+        safetyStopped: "Returned to automatic because control was interrupted.",
+        menuBarTitle: "Fan speed"
     )
 
     static let ptBR = FanControlFeatureStrings(
@@ -90,7 +92,8 @@ extension FanControlFeatureStrings {
         failed: "As ventoinhas continuaram no automático porque não foi possível confirmar o controle.",
         safetyCaption: "Usa somente o máximo informado por este Mac. O controle volta ao automático após 15 minutos ou se a conexão parar.",
         timeLimitStopped: "Voltou ao automático após 15 minutos.",
-        safetyStopped: "Voltou ao automático porque o controle foi interrompido."
+        safetyStopped: "Voltou ao automático porque o controle foi interrompido.",
+        menuBarTitle: "Velocidade das ventoinhas"
     )
 
     static let tr = FanControlFeatureStrings(
@@ -113,7 +116,8 @@ extension FanControlFeatureStrings {
         failed: "Denetim doğrulanamadığı için fanlar otomatikte kaldı.",
         safetyCaption: "Yalnızca bu Mac'in bildirdiği en yüksek hızı kullanır. Denetim 15 dakika sonra veya bağlantı kesilirse otomatiğe döner.",
         timeLimitStopped: "15 dakika sonra otomatiğe döndü.",
-        safetyStopped: "Denetim kesildiği için otomatiğe döndü."
+        safetyStopped: "Denetim kesildiği için otomatiğe döndü.",
+        menuBarTitle: "Fan hızı"
     )
 
     static let ru = FanControlFeatureStrings(
@@ -136,7 +140,8 @@ extension FanControlFeatureStrings {
         failed: "Вентиляторы остались в автоматическом режиме, потому что управление не удалось проверить.",
         safetyCaption: "Используется только максимум, указанный этим Mac. Через 15 минут или при обрыве связи управление вернётся в автоматический режим.",
         timeLimitStopped: "Автоматический режим возвращён через 15 минут.",
-        safetyStopped: "Автоматический режим возвращён из-за прерывания управления."
+        safetyStopped: "Автоматический режим возвращён из-за прерывания управления.",
+        menuBarTitle: "Скорость вентиляторов"
     )
 
     static let es = FanControlFeatureStrings(
@@ -159,7 +164,8 @@ extension FanControlFeatureStrings {
         failed: "Los ventiladores siguieron en modo automático porque no se pudo verificar el control.",
         safetyCaption: "Solo usa el máximo indicado por este Mac. El control vuelve a automático tras 15 minutos o si se corta la conexión.",
         timeLimitStopped: "Volvió a automático después de 15 minutos.",
-        safetyStopped: "Volvió a automático porque se interrumpió el control."
+        safetyStopped: "Volvió a automático porque se interrumpió el control.",
+        menuBarTitle: "Velocidad de ventiladores"
     )
 
     static let de = FanControlFeatureStrings(
@@ -182,7 +188,8 @@ extension FanControlFeatureStrings {
         failed: "Die Lüfter blieben automatisch, weil die Steuerung nicht bestätigt werden konnte.",
         safetyCaption: "Verwendet nur das von diesem Mac gemeldete Maximum. Nach 15 Minuten oder bei unterbrochener Verbindung wird auf Automatisch zurückgestellt.",
         timeLimitStopped: "Nach 15 Minuten auf Automatisch zurückgestellt.",
-        safetyStopped: "Wegen unterbrochener Steuerung auf Automatisch zurückgestellt."
+        safetyStopped: "Wegen unterbrochener Steuerung auf Automatisch zurückgestellt.",
+        menuBarTitle: "Lüfterdrehzahl"
     )
 
     static let fr = FanControlFeatureStrings(
@@ -205,7 +212,8 @@ extension FanControlFeatureStrings {
         failed: "Les ventilateurs sont restés en mode automatique car le contrôle n'a pas pu être vérifié.",
         safetyCaption: "Utilise uniquement le maximum indiqué par ce Mac. Le contrôle redevient automatique après 15 minutes ou si la connexion s'arrête.",
         timeLimitStopped: "Mode automatique rétabli après 15 minutes.",
-        safetyStopped: "Mode automatique rétabli car le contrôle a été interrompu."
+        safetyStopped: "Mode automatique rétabli car le contrôle a été interrompu.",
+        menuBarTitle: "Vitesse des ventilateurs"
     )
 
     static let it = FanControlFeatureStrings(
@@ -228,7 +236,8 @@ extension FanControlFeatureStrings {
         failed: "Le ventole sono rimaste in automatico perché non è stato possibile verificare il controllo.",
         safetyCaption: "Usa solo il massimo indicato da questo Mac. Il controllo torna automatico dopo 15 minuti o se la connessione si interrompe.",
         timeLimitStopped: "Ritorno automatico dopo 15 minuti.",
-        safetyStopped: "Ritorno automatico perché il controllo è stato interrotto."
+        safetyStopped: "Ritorno automatico perché il controllo è stato interrotto.",
+        menuBarTitle: "Velocità ventole"
     )
 
     static let ja = FanControlFeatureStrings(
@@ -251,7 +260,8 @@ extension FanControlFeatureStrings {
         failed: "制御を確認できなかったため、ファンは自動のままです。",
         safetyCaption: "このMacが示す最大値だけを使います。15分後または接続が止まると自動制御に戻ります。",
         timeLimitStopped: "15分後に自動制御へ戻りました。",
-        safetyStopped: "制御が中断されたため自動へ戻りました。"
+        safetyStopped: "制御が中断されたため自動へ戻りました。",
+        menuBarTitle: "ファン速度"
     )
 
     static let ko = FanControlFeatureStrings(
@@ -274,7 +284,8 @@ extension FanControlFeatureStrings {
         failed: "제어를 확인할 수 없어 팬이 자동 상태로 유지되었습니다.",
         safetyCaption: "이 Mac이 보고한 최대값만 사용합니다. 15분이 지나거나 연결이 끊기면 자동 제어로 돌아갑니다.",
         timeLimitStopped: "15분 후 자동 제어로 돌아갔습니다.",
-        safetyStopped: "제어가 중단되어 자동으로 돌아갔습니다."
+        safetyStopped: "제어가 중단되어 자동으로 돌아갔습니다.",
+        menuBarTitle: "팬 속도"
     )
 
     static let zhHans = FanControlFeatureStrings(
@@ -297,7 +308,8 @@ extension FanControlFeatureStrings {
         failed: "无法验证控制，风扇保持自动模式。",
         safetyCaption: "仅使用这台Mac报告的最高转速。15分钟后或连接中断时会恢复自动控制。",
         timeLimitStopped: "15分钟后已恢复自动控制。",
-        safetyStopped: "控制中断，已恢复自动模式。"
+        safetyStopped: "控制中断，已恢复自动模式。",
+        menuBarTitle: "风扇转速"
     )
 
     static let zhTW = FanControlFeatureStrings(
@@ -320,7 +332,8 @@ extension FanControlFeatureStrings {
         failed: "無法驗證控制，風扇維持自動模式。",
         safetyCaption: "只使用這台Mac回報的最高轉速。15分鐘後或連線中斷時會恢復自動控制。",
         timeLimitStopped: "15分鐘後已恢復自動控制。",
-        safetyStopped: "控制中斷，已恢復自動模式。"
+        safetyStopped: "控制中斷，已恢復自動模式。",
+        menuBarTitle: "風扇轉速"
     )
 
     static let zhHK = FanControlFeatureStrings(
@@ -343,6 +356,7 @@ extension FanControlFeatureStrings {
         failed: "無法驗證控制，風扇維持自動模式。",
         safetyCaption: "只使用這部Mac回報的最高轉速。15分鐘後或連線中斷時會恢復自動控制。",
         timeLimitStopped: "15分鐘後已恢復自動控制。",
-        safetyStopped: "控制中斷，已恢復自動模式。"
+        safetyStopped: "控制中斷，已恢復自動模式。",
+        menuBarTitle: "風扇轉速"
     )
 }

@@ -215,7 +215,7 @@ extension Strings {
         switcherNoOpenWindow: "Sans fenêtre ouverte",
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "Prévisualiser les fenêtres dans le Dock",
-        dockPreviewEnableCaption: "Survolez une app ouverte dans le Dock pour voir ses fenêtres et les afficher brièvement.",
+        dockPreviewEnableCaption: "Survolez une app ouverte dans le Dock pour voir ses fenêtres, puis cliquez sur celle à ouvrir.",
         dockPreviewBackgroundOpacity: "Fond du panneau",
         dockPreviewBackgroundOpacityCaption: "Baissez-le pour voir davantage ce qui se trouve derrière le panneau.",
         dockClickMinimize: "Réduire d'un clic sur le Dock",
@@ -706,7 +706,6 @@ extension Strings {
         memoryStyleDot: "Point",
         memoryStylePercent: "%",
         memoryStyleBoth: "Les deux",
-
         systemUptime: "Actif depuis",
         batteryCharge: "Charge",
         powerHealth: "État de la batterie",
@@ -762,7 +761,7 @@ extension Strings {
         keyDebounceRemoveKey: "Supprimer la touche",
         cleaningPanelCaption: "Verrouille le clavier pour nettoyer en sécurité.",
         cleaningOverlayTitle: "Clavier verrouillé pour le nettoyage",
-        cleaningOverlaySubtitle: "Appuyez 5 fois sur la même touche pour déverrouiller",
+        cleaningOverlaySubtitle: "Appuyez 5 fois sur Échap pour déverrouiller",
         cleaningOverlayUnlock: "Déverrouiller",
         cleaningOverlayMouseHint: "Votre souris et votre trackpad fonctionnent toujours",
         cleaningNeedsAxTitle: "Accessibilité requise",
@@ -884,6 +883,16 @@ extension Strings {
         previewSizeSmall: "Petite",
         mixerSoundEffectsOutputTitle: "Sons du système",
         mixerSoundEffectsOutputTooltip: "Choisir où sont diffusés les alertes et effets sonores",
-        monitorOpenActivityMonitor: "Ouvrir le Moniteur d’activité"
+        monitorOpenActivityMonitor: "Ouvrir le Moniteur d’activité",
+        dockClickHide: "Masquer l’app d’un clic sur le Dock",
+        dockClickHideCaption: "L’app active se masque lorsque vous cliquez sur son icône dans le Dock. Cliquez à nouveau pour la faire revenir.",
+        monitorMemoryMetricLabel: "Mesurer la mémoire comme",
+        memoryMetricUsed: "Mémoire utilisée",
+        memoryMetricApp: "Mémoire des apps",
+        keepAwakeRightClickToggle: "Faire un clic droit sur l’icône de la barre des menus pour basculer « Garder éveillé »",
+        keepAwakeRightClickToggleCaption: "Remplace le menu contextuel du clic droit.",
+        urlCleanerCustomTitle: "Autres noms à retirer",
+        urlCleanerCustomPlaceholder: "ref, source",
+        urlCleanerCustomCaption: "Séparez les noms des paramètres par des virgules. Ils seront retirés de chaque lien."
     )
 }

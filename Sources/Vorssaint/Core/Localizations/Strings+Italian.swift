@@ -215,7 +215,7 @@ extension Strings {
         switcherNoOpenWindow: "Senza finestre aperte",
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "Anteprima finestre dal Dock",
-        dockPreviewEnableCaption: "Passa il mouse su un'app aperta nel Dock per vedere e mostrare al volo le sue finestre.",
+        dockPreviewEnableCaption: "Passa il mouse su un'app aperta nel Dock per vedere le sue finestre, poi fai clic su quella da aprire.",
         dockPreviewBackgroundOpacity: "Sfondo del pannello",
         dockPreviewBackgroundOpacityCaption: "Abbassalo per vedere di più di ciò che sta dietro al pannello.",
         dockClickMinimize: "Riduci con un clic sul Dock",
@@ -706,7 +706,6 @@ extension Strings {
         memoryStyleDot: "Punto",
         memoryStylePercent: "%",
         memoryStyleBoth: "Entrambi",
-
         systemUptime: "Attivo da",
         batteryCharge: "Carica",
         powerHealth: "Stato batteria",
@@ -762,7 +761,7 @@ extension Strings {
         keyDebounceRemoveKey: "Rimuovi tasto",
         cleaningPanelCaption: "Blocca la tastiera per pulire in sicurezza.",
         cleaningOverlayTitle: "Tastiera bloccata per la pulizia",
-        cleaningOverlaySubtitle: "Premi 5 volte lo stesso tasto per sbloccare",
+        cleaningOverlaySubtitle: "Premi Esc 5 volte per sbloccare",
         cleaningOverlayUnlock: "Sblocca",
         cleaningOverlayMouseHint: "Mouse e trackpad continuano a funzionare",
         cleaningNeedsAxTitle: "Serve l'Accessibilità",
@@ -884,6 +883,16 @@ extension Strings {
         previewSizeSmall: "Piccola",
         mixerSoundEffectsOutputTitle: "Suoni di sistema",
         mixerSoundEffectsOutputTooltip: "Scegli dove riprodurre avvisi ed effetti sonori",
-        monitorOpenActivityMonitor: "Apri Monitoraggio Attività"
+        monitorOpenActivityMonitor: "Apri Monitoraggio Attività",
+        dockClickHide: "Nascondi l'app con un clic sul Dock",
+        dockClickHideCaption: "L'app attiva viene nascosta quando fai clic sulla sua icona nel Dock. Fai di nuovo clic per riportarla in primo piano.",
+        monitorMemoryMetricLabel: "Misura la memoria come",
+        memoryMetricUsed: "Memoria usata",
+        memoryMetricApp: "Memoria app",
+        keepAwakeRightClickToggle: "Fai clic destro sull'icona della barra dei menu per attivare o disattivare «Mantieni attivo»",
+        keepAwakeRightClickToggleCaption: "Sostituisce il menu contestuale del clic destro.",
+        urlCleanerCustomTitle: "Altri nomi da rimuovere",
+        urlCleanerCustomPlaceholder: "ref, origine",
+        urlCleanerCustomCaption: "Separa i nomi dei parametri con virgole. Verranno rimossi da ogni link."
     )
 }

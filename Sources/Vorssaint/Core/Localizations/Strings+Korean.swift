@@ -216,7 +216,7 @@ extension Strings {
         switcherNoOpenWindow: "열린 윈도우 없음",
         dockPreviewName: "Dock 미리보기",
         dockPreviewEnable: "Dock에서 윈도우 미리보기",
-        dockPreviewEnableCaption: "Dock의 열린 앱 위에 포인터를 올리면 윈도우를 확인하고 잠시 표시할 수 있습니다.",
+        dockPreviewEnableCaption: "Dock의 열린 앱 위에 포인터를 올려 윈도우를 확인한 다음 원하는 윈도우를 클릭하세요.",
         dockPreviewBackgroundOpacity: "패널 배경",
         dockPreviewBackgroundOpacityCaption: "낮추면 패널 뒤에 있는 것이 더 많이 보입니다.",
         dockClickMinimize: "Dock 클릭으로 최소화",
@@ -707,7 +707,6 @@ extension Strings {
         memoryStyleDot: "점",
         memoryStylePercent: "%",
         memoryStyleBoth: "둘 다",
-
         systemUptime: "가동 시간",
         batteryCharge: "충전량",
         powerHealth: "배터리 상태",
@@ -763,7 +762,7 @@ extension Strings {
         keyDebounceRemoveKey: "키 제거",
         cleaningPanelCaption: "안전하게 청소할 수 있도록 키보드를 잠급니다.",
         cleaningOverlayTitle: "청소를 위해 키보드 잠김",
-        cleaningOverlaySubtitle: "같은 키를 5번 누르면 잠금이 해제됩니다",
+        cleaningOverlaySubtitle: "Esc 키를 5번 눌러 잠금을 해제하세요",
         cleaningOverlayUnlock: "잠금 해제",
         cleaningOverlayMouseHint: "마우스와 트랙패드는 계속 사용할 수 있습니다",
         cleaningNeedsAxTitle: "손쉬운 사용 권한이 필요합니다",
@@ -885,6 +884,16 @@ extension Strings {
         previewSizeSmall: "작게",
         mixerSoundEffectsOutputTitle: "시스템 사운드",
         mixerSoundEffectsOutputTooltip: "알림 및 사운드 효과를 재생할 출력 선택",
-        monitorOpenActivityMonitor: "활성 상태 보기 열기"
+        monitorOpenActivityMonitor: "활성 상태 보기 열기",
+        dockClickHide: "Dock 클릭으로 앱 숨기기",
+        dockClickHideCaption: "활성 앱의 Dock 아이콘을 클릭하면 앱이 숨겨집니다. 다시 클릭하면 돌아옵니다.",
+        monitorMemoryMetricLabel: "메모리 측정 방식",
+        memoryMetricUsed: "사용 중인 메모리",
+        memoryMetricApp: "앱 메모리",
+        keepAwakeRightClickToggle: "메뉴 막대 아이콘을 오른쪽 클릭하여 절전 방지 전환",
+        keepAwakeRightClickToggleCaption: "오른쪽 클릭 메뉴를 대체합니다.",
+        urlCleanerCustomTitle: "삭제할 이름 추가",
+        urlCleanerCustomPlaceholder: "ref, source",
+        urlCleanerCustomCaption: "매개변수 이름을 쉼표로 구분하세요. 모든 링크에서 삭제됩니다."
     )
 }

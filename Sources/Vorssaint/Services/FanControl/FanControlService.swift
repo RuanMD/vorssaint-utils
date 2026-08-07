@@ -402,8 +402,20 @@ final class FanControlService: ObservableObject {
             } catch FanControlHardwareError.noFans {
                 result = .failure(.noFans)
             } catch FanControlHardwareError.alreadyControlled {
+                if let snapshot = try? probe.telemetrySnapshot() {
+                    DispatchQueue.main.async {
+                        self.applyProbeSnapshot(snapshot, error: .alreadyControlled)
+                    }
+                    return
+                }
                 result = .failure(.alreadyControlled)
             } catch {
+                if let snapshot = try? probe.telemetrySnapshot() {
+                    DispatchQueue.main.async {
+                        self.applyProbeSnapshot(snapshot, error: .unsupportedHardware)
+                    }
+                    return
+                }
                 result = .failure(.unsupportedHardware)
             }
             DispatchQueue.main.async { self.applyProbe(result) }
@@ -414,13 +426,20 @@ final class FanControlService: ObservableObject {
         guard accessState != .enabled else { return }
         switch result {
         case .success(let snapshot):
-            self.snapshot = snapshot
-            error = snapshot.fans.contains(where: \.isManuallyControlled)
-                ? .alreadyControlled : nil
+            applyProbeSnapshot(snapshot,
+                               error: snapshot.fans.contains(where: \.isManuallyControlled)
+                                   ? .alreadyControlled : nil)
         case .failure(let error):
             snapshot = .empty
             self.error = error
         }
+    }
+
+    private func applyProbeSnapshot(_ snapshot: FanControlSnapshot,
+                                    error: FanControlErrorCode?) {
+        guard accessState != .enabled else { return }
+        self.snapshot = snapshot
+        self.error = error
     }
 
     private func restoreThenUnregister() {

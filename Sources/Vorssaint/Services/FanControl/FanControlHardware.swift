@@ -15,6 +15,11 @@ enum FanControlHardwareError: Error {
 /// either the reported maximum or automatic mode. There is no arbitrary key or
 /// RPM entry point.
 final class FanControlHardware {
+    private struct TelemetryFan {
+        let index: Int
+        let actual: SMCClient.Key
+    }
+
     private struct Fan {
         let index: Int
         let actual: SMCClient.Key
@@ -28,6 +33,7 @@ final class FanControlHardware {
 
     private let client: SMCClient
     private var controlledFans: [Fan]?
+    private var telemetryFans: [TelemetryFan]?
     private var cachedForceTestKey: SMCClient.Key?
     private var didDiscoverForceTestKey = false
 
@@ -44,6 +50,26 @@ final class FanControlHardware {
             throw FanControlHardwareError.alreadyControlled
         }
         return snapshot
+    }
+
+    func telemetrySnapshot() throws -> FanControlSnapshot {
+        let fans = try discoverTelemetryFans()
+        guard let speeds = FanControlPolicy.telemetryReadings(
+            expectedCount: fans.count,
+            readings: fans.map { client.readValue($0.actual) }
+        ) else {
+            throw FanControlHardwareError.operationFailed
+        }
+        let readings = zip(fans, speeds).map { fan, actual in
+            FanControlFanReading(index: fan.index,
+                                    actualRPM: actual,
+                                    minimumRPM: 0,
+                                    maximumRPM: 0,
+                                    targetRPM: 0,
+                                    isManuallyControlled: false)
+        }
+        return FanControlSnapshot(fans: readings, isCooling: false,
+                                  endsAt: nil, stopReason: nil)
     }
 
     func startMaximumCooling() throws -> [FanControlFanReading] {
@@ -170,6 +196,19 @@ final class FanControlHardware {
                             minimumRPM: minimumRPM, maximumRPM: maximumRPM))
         }
         controlledFans = fans
+        return fans
+    }
+
+    private func discoverTelemetryFans() throws -> [TelemetryFan] {
+        if let telemetryFans { return telemetryFans }
+        let count = try fanCount()
+        let fans = try (0..<count).map { index -> TelemetryFan in
+            guard let actual = client.key(named: "F\(index)Ac") else {
+                throw FanControlHardwareError.unsupported
+            }
+            return TelemetryFan(index: index, actual: actual)
+        }
+        telemetryFans = fans
         return fans
     }
 

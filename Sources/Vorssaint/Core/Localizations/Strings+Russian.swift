@@ -216,7 +216,7 @@ extension Strings {
         switcherNoOpenWindow: "Без открытых окон",
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "Показывать окна из Dock",
-        dockPreviewEnableCaption: "Наведите курсор на открытое приложение в Dock, чтобы увидеть превью и заглянуть в его окна.",
+        dockPreviewEnableCaption: "Наведите указатель на открытое приложение в Dock, чтобы увидеть его окна, затем нажмите нужное.",
         dockPreviewBackgroundOpacity: "Фон панели",
         dockPreviewBackgroundOpacityCaption: "Уменьшите, чтобы видеть больше того, что находится за панелью.",
         dockClickMinimize: "Сворачивать кликом по Dock",
@@ -707,7 +707,6 @@ extension Strings {
         memoryStyleDot: "Точка",
         memoryStylePercent: "%",
         memoryStyleBoth: "Оба",
-
         systemUptime: "Время работы",
         batteryCharge: "Заряд",
         powerHealth: "Состояние батареи",
@@ -763,7 +762,7 @@ extension Strings {
         keyDebounceRemoveKey: "Удалить клавишу",
         cleaningPanelCaption: "Блокирует клавиатуру, чтобы можно было безопасно почистить её.",
         cleaningOverlayTitle: "Клавиатура заблокирована для чистки",
-        cleaningOverlaySubtitle: "Нажмите одну и ту же клавишу 5 раз, чтобы разблокировать",
+        cleaningOverlaySubtitle: "Нажмите Esc 5 раз, чтобы разблокировать",
         cleaningOverlayUnlock: "Разблокировать",
         cleaningOverlayMouseHint: "Мышь и трекпад продолжают работать",
         cleaningNeedsAxTitle: "Нужен Универсальный доступ",
@@ -885,6 +884,16 @@ extension Strings {
         previewSizeSmall: "Маленький",
         mixerSoundEffectsOutputTitle: "Системные звуки",
         mixerSoundEffectsOutputTooltip: "Выбрать устройство для оповещений и звуковых эффектов",
-        monitorOpenActivityMonitor: "Открыть Мониторинг системы"
+        monitorOpenActivityMonitor: "Открыть Мониторинг системы",
+        dockClickHide: "Скрывать приложение кликом по Dock",
+        dockClickHideCaption: "Активное приложение скрывается при клике по его значку в Dock. Нажмите ещё раз, чтобы вернуть его.",
+        monitorMemoryMetricLabel: "Как измерять память",
+        memoryMetricUsed: "Занято памяти",
+        memoryMetricApp: "Память приложений",
+        keepAwakeRightClickToggle: "Щёлкните правой кнопкой значок в строке меню, чтобы включить или выключить «Не давать уснуть»",
+        keepAwakeRightClickToggleCaption: "Заменяет контекстное меню правой кнопки мыши.",
+        urlCleanerCustomTitle: "Другие названия для удаления",
+        urlCleanerCustomPlaceholder: "ref, source",
+        urlCleanerCustomCaption: "Разделяйте названия параметров запятыми. Они будут удаляться из всех ссылок."
     )
 }

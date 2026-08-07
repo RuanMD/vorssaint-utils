@@ -216,7 +216,7 @@ extension Strings {
         switcherNoOpenWindow: "沒有開啟視窗",
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "在 Dock 中預覽視窗",
-        dockPreviewEnableCaption: "將指標停留在 Dock 中已開啟的 App 上，即可查看並暫時顯示它的視窗。",
+        dockPreviewEnableCaption: "將指標停在 Dock 中已開啟的 App 上查看視窗，然後點按要開啟的視窗。",
         dockPreviewBackgroundOpacity: "面板背景",
         dockPreviewBackgroundOpacityCaption: "調低後可以看到更多面板後面的內容。",
         dockClickMinimize: "點按 Dock 圖示最小化",
@@ -707,7 +707,6 @@ extension Strings {
         memoryStyleDot: "圓點",
         memoryStylePercent: "%",
         memoryStyleBoth: "兩者",
-
         systemUptime: "已運作",
         batteryCharge: "電量",
         powerHealth: "電池健康度",
@@ -763,7 +762,7 @@ extension Strings {
         keyDebounceRemoveKey: "移除按鍵",
         cleaningPanelCaption: "鎖定鍵盤，方便安全清潔。",
         cleaningOverlayTitle: "鍵盤已鎖定，方便清潔",
-        cleaningOverlaySubtitle: "連按同一個按鍵 5 次即可解鎖",
+        cleaningOverlaySubtitle: "按 Esc 鍵 5 次即可解鎖",
         cleaningOverlayUnlock: "解鎖",
         cleaningOverlayMouseHint: "滑鼠和觸控板仍可使用",
         cleaningNeedsAxTitle: "需要輔助使用",
@@ -885,6 +884,16 @@ extension Strings {
         previewSizeSmall: "小",
         mixerSoundEffectsOutputTitle: "系統聲音",
         mixerSoundEffectsOutputTooltip: "選擇提示音和音效的播放裝置",
-        monitorOpenActivityMonitor: "打開活動監視器"
+        monitorOpenActivityMonitor: "打開活動監視器",
+        dockClickHide: "點按 Dock 圖示隱藏 App",
+        dockClickHideCaption: "點按目前 App 的 Dock 圖示即可隱藏它。再點按一次即可帶回。",
+        monitorMemoryMetricLabel: "記憶體計量方式",
+        memoryMetricUsed: "已用記憶體",
+        memoryMetricApp: "App 記憶體",
+        keepAwakeRightClickToggle: "在選單列圖示按右鍵來切換「保持喚醒」",
+        keepAwakeRightClickToggleCaption: "會取代按右鍵選單。",
+        urlCleanerCustomTitle: "加入要移除的名稱",
+        urlCleanerCustomPlaceholder: "ref, source",
+        urlCleanerCustomCaption: "請用逗號分隔參數名稱。它們會從所有連結中移除。"
     )
 }

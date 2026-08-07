@@ -840,7 +840,6 @@ struct Strings {
     let memoryStyleDot: String
     let memoryStylePercent: String
     let memoryStyleBoth: String
-
     // MARK: System uptime, battery health, speed test
     let systemUptime: String
     let batteryCharge: String
@@ -1029,6 +1028,16 @@ struct Strings {
     let mixerSoundEffectsOutputTitle: String
     let mixerSoundEffectsOutputTooltip: String
     let monitorOpenActivityMonitor: String
+    let dockClickHide: String
+    let dockClickHideCaption: String
+    let monitorMemoryMetricLabel: String
+    let memoryMetricUsed: String
+    let memoryMetricApp: String
+    let keepAwakeRightClickToggle: String
+    let keepAwakeRightClickToggleCaption: String
+    let urlCleanerCustomTitle: String
+    let urlCleanerCustomPlaceholder: String
+    let urlCleanerCustomCaption: String
 }
 
 // MARK: - Português (Brasil)
@@ -1245,7 +1254,7 @@ extension Strings {
         switcherNoOpenWindow: "Sem janela aberta",
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "Pré-visualizar janelas no Dock",
-        dockPreviewEnableCaption: "Passe o mouse em um app aberto no Dock para ver e espiar suas janelas.",
+        dockPreviewEnableCaption: "Passe o mouse em um app aberto no Dock para ver suas janelas e clique na que quiser abrir.",
         dockPreviewBackgroundOpacity: "Fundo do painel",
         dockPreviewBackgroundOpacityCaption: "Diminua para ver mais do que está atrás do painel.",
         dockClickMinimize: "Clicar no Dock minimiza",
@@ -1736,7 +1745,6 @@ extension Strings {
         memoryStyleDot: "Ponto",
         memoryStylePercent: "%",
         memoryStyleBoth: "Ambos",
-
         systemUptime: "Ativo há",
         batteryCharge: "Carga",
         powerHealth: "Saúde da bateria",
@@ -1792,7 +1800,7 @@ extension Strings {
         keyDebounceRemoveKey: "Remover tecla",
         cleaningPanelCaption: "Bloqueia o teclado para limpar com segurança.",
         cleaningOverlayTitle: "Teclado bloqueado para limpeza",
-        cleaningOverlaySubtitle: "Pressione a mesma tecla 5 vezes para desbloquear",
+        cleaningOverlaySubtitle: "Pressione Esc 5 vezes para desbloquear",
         cleaningOverlayUnlock: "Desbloquear",
         cleaningOverlayMouseHint: "O mouse e o trackpad continuam funcionando",
         cleaningNeedsAxTitle: "Precisa de Acessibilidade",
@@ -1914,7 +1922,17 @@ extension Strings {
         previewSizeSmall: "Pequeno",
         mixerSoundEffectsOutputTitle: "Sons do sistema",
         mixerSoundEffectsOutputTooltip: "Escolher onde alertas e efeitos sonoros tocam",
-        monitorOpenActivityMonitor: "Abrir o Monitor de Atividade"
+        monitorOpenActivityMonitor: "Abrir o Monitor de Atividade",
+        dockClickHide: "Clicar no Dock oculta o app",
+        dockClickHideCaption: "O app ativo é ocultado ao clicar no ícone dele no Dock. Clique de novo para trazê-lo de volta.",
+        monitorMemoryMetricLabel: "Medir memória como",
+        memoryMetricUsed: "Memória usada",
+        memoryMetricApp: "Memória de apps",
+        keepAwakeRightClickToggle: "Clique com o botão direito no ícone da barra de menus para alternar “Manter acordado”",
+        keepAwakeRightClickToggleCaption: "Substitui o menu de contexto do clique com o botão direito.",
+        urlCleanerCustomTitle: "Mais nomes para remover",
+        urlCleanerCustomPlaceholder: "ref, origem",
+        urlCleanerCustomCaption: "Separe os nomes dos parâmetros com vírgulas. Eles serão removidos de todos os links."
     )
 }
 
@@ -2132,7 +2150,7 @@ extension Strings {
         switcherNoOpenWindow: "No open window",
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "Preview windows from the Dock",
-        dockPreviewEnableCaption: "Hover over an open app in the Dock to preview and peek at its windows.",
+        dockPreviewEnableCaption: "Hover over an open app in the Dock to see its windows, then click the one you want.",
         dockPreviewBackgroundOpacity: "Panel background",
         dockPreviewBackgroundOpacityCaption: "Turn it down to see more of what sits behind the panel.",
         dockClickMinimize: "Click the Dock icon to minimize",
@@ -2623,7 +2641,6 @@ extension Strings {
         memoryStyleDot: "Dot",
         memoryStylePercent: "%",
         memoryStyleBoth: "Both",
-
         systemUptime: "Up for",
         batteryCharge: "Charge",
         powerHealth: "Battery health",
@@ -2679,7 +2696,7 @@ extension Strings {
         keyDebounceRemoveKey: "Remove key",
         cleaningPanelCaption: "Locks the keyboard so you can clean safely.",
         cleaningOverlayTitle: "Keyboard locked for cleaning",
-        cleaningOverlaySubtitle: "Press the same key 5 times to unlock",
+        cleaningOverlaySubtitle: "Press Escape 5 times to unlock",
         cleaningOverlayUnlock: "Unlock",
         cleaningOverlayMouseHint: "Your mouse and trackpad still work",
         cleaningNeedsAxTitle: "Accessibility needed",
@@ -2801,6 +2818,16 @@ extension Strings {
         previewSizeSmall: "Small",
         mixerSoundEffectsOutputTitle: "System sounds",
         mixerSoundEffectsOutputTooltip: "Choose where alerts and sound effects play",
-        monitorOpenActivityMonitor: "Open Activity Monitor"
+        monitorOpenActivityMonitor: "Open Activity Monitor",
+        dockClickHide: "Click the Dock icon to hide the app",
+        dockClickHideCaption: "The active app hides when you click its Dock icon. Click again to bring it back.",
+        monitorMemoryMetricLabel: "Measure memory as",
+        memoryMetricUsed: "Memory Used",
+        memoryMetricApp: "App Memory",
+        keepAwakeRightClickToggle: "Right-click the menu bar icon to toggle Keep Awake",
+        keepAwakeRightClickToggleCaption: "Replaces the right-click context menu.",
+        urlCleanerCustomTitle: "More names to remove",
+        urlCleanerCustomPlaceholder: "ref, source",
+        urlCleanerCustomCaption: "Separate parameter names with commas. They are removed from every link."
     )
 }
