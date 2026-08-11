@@ -129,6 +129,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/AppAppearance.swift \
         Sources/Vorssaint/Core/AppearanceStrings.swift \
         Sources/Vorssaint/Core/MenuBarOrganizerStrings.swift \
+        Sources/Vorssaint/Core/MenuBarManagerDetection.swift \
         Sources/Vorssaint/Core/BatteryTimeStrings.swift \
         Sources/Vorssaint/Core/KeepAwakeStrings.swift \
         Sources/Vorssaint/Core/PermissionGuideStrings.swift \
@@ -176,8 +177,6 @@ if (( TEST )); then
         Sources/Vorssaint/UI/Settings/FeatureVisibilitySupport.swift \
         Sources/Vorssaint/App/MenuBarSpacingSupport.swift \
         Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerSupport.swift \
-        Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarGroupStatusItem.swift \
-        Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarSpacerItem.swift \
         Sources/Vorssaint/App/StatusItemAnchorSupport.swift \
         Sources/Vorssaint/Services/DockClick/DockClickSupport.swift \
         Sources/Vorssaint/Services/Finder/CutPasteProgressSupport.swift \

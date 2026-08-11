@@ -18,135 +18,13 @@ enum MenuBarOrganizerPresentationMode: String, CaseIterable {
     case secondaryBar
 
     static func sanitized(_ raw: String?) -> Self {
-        Self(rawValue: raw ?? "") ?? .menuBar
+        Self(rawValue: raw ?? "") ?? .automatic
     }
 }
 
-enum MenuBarOrganizerRehideMode: String, CaseIterable {
-    case never
-    case afterDelay
-    case focusedApp
-
-    static func sanitized(_ raw: String?) -> Self {
-        Self(rawValue: raw ?? "") ?? .afterDelay
-    }
-}
-
-enum MenuBarOrganizerBarStyle: String, CaseIterable, Identifiable {
-    case system
-    case tinted
-    case graphite
-    case vibrant
-
-    var id: String { rawValue }
-
-    static func sanitized(_ raw: String?) -> Self {
-        Self(rawValue: raw ?? "") ?? .system
-    }
-}
-
-enum MenuBarOrganizerPresetSlot: String, CaseIterable, Codable, Identifiable {
-    case work
-    case home
-    case presenting
-    case minimal
-
-    var id: String { rawValue }
-}
-
-enum MenuBarOrganizerGroupSlot: String, CaseIterable, Codable, Identifiable {
-    case cloud
-    case audio
-    case work
-    case custom
-
-    var id: String { rawValue }
-}
-
-enum MenuBarOrganizerGroupReference: Hashable, Identifiable {
-    case slot(MenuBarOrganizerGroupSlot)
-    case custom(String)
-
-    var id: String {
-        switch self {
-        case .slot(let slot): return "slot:\(slot.rawValue)"
-        case .custom(let id): return "custom:\(id)"
-        }
-    }
-
-    init?(storageValue: String) {
-        if storageValue.hasPrefix("slot:") {
-            let raw = String(storageValue.dropFirst("slot:".count))
-            guard let slot = MenuBarOrganizerGroupSlot(rawValue: raw) else { return nil }
-            self = .slot(slot)
-        } else if storageValue.hasPrefix("custom:") {
-            let id = String(storageValue.dropFirst("custom:".count))
-            guard !id.isEmpty else { return nil }
-            self = .custom(id)
-        } else {
-            return nil
-        }
-    }
-}
-
-struct MenuBarOrganizerPreset: Codable, Equatable, Identifiable {
-    let slot: MenuBarOrganizerPresetSlot
-    let savedAt: Date
-    let visible: [MenuBarItemIdentity]
-    let hidden: [MenuBarItemIdentity]
-    let alwaysHidden: [MenuBarItemIdentity]
-
-    var id: MenuBarOrganizerPresetSlot { slot }
-
-    func items(in section: MenuBarOrganizerSection) -> [MenuBarItemIdentity] {
-        switch section {
-        case .visible: return visible
-        case .hidden: return hidden
-        case .alwaysHidden: return alwaysHidden
-        }
-    }
-}
-
-struct MenuBarOrganizerNamedPreset: Codable, Equatable, Identifiable {
-    let id: String
-    var name: String
-    let savedAt: Date
-    let visible: [MenuBarItemIdentity]
-    let hidden: [MenuBarItemIdentity]
-    let alwaysHidden: [MenuBarItemIdentity]
-
-    func items(in section: MenuBarOrganizerSection) -> [MenuBarItemIdentity] {
-        switch section {
-        case .visible: return visible
-        case .hidden: return hidden
-        case .alwaysHidden: return alwaysHidden
-        }
-    }
-}
-
-struct MenuBarOrganizerGroup: Codable, Equatable, Identifiable {
-    let slot: MenuBarOrganizerGroupSlot
-    let savedAt: Date
-    var items: [MenuBarItemIdentity]
-
-    var id: MenuBarOrganizerGroupSlot { slot }
-}
-
-struct MenuBarOrganizerCustomGroup: Codable, Equatable, Identifiable {
-    let id: String
-    var name: String
-    var symbolName: String
-    let savedAt: Date
-    var items: [MenuBarItemIdentity]
-}
-
-struct MenuBarOrganizerCapabilities: Equatable {
-    let canEnumerate: Bool
-    let canMove: Bool
-    let canCapture: Bool
-    let hasPrivateFrameAPI: Bool
-
-    var automaticEditorAvailable: Bool { canEnumerate && canMove }
+enum MenuBarItemIdentityState: String, Codable {
+    case stable
+    case provisional
 }
 
 struct MenuBarItemIdentity: Hashable, Codable {
@@ -161,243 +39,85 @@ struct MenuBarItemIdentity: Hashable, Codable {
     }
 }
 
+struct MenuBarItemSourceIdentity: Equatable {
+    let pid: pid_t
+    let bundleIdentifier: String
+    let name: String
+    let axIdentifier: String?
+    let axTitle: String?
+
+    var stableTitle: String? {
+        let identifier = axIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !identifier.isEmpty { return identifier }
+        let title = axTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return title.isEmpty ? nil : title
+    }
+}
+
+struct ResolvedMenuBarItemIdentity {
+    let id: MenuBarItemIdentity
+    let state: MenuBarItemIdentityState
+    let source: MenuBarItemSourceIdentity?
+}
+
 struct ManagedMenuBarItem: Identifiable {
     let id: MenuBarItemIdentity
     let windowID: CGWindowID
     let ownerPID: pid_t
+    let sourcePID: pid_t?
     let ownerName: String
+    let sourceName: String
     let bundleIdentifier: String
     let title: String
     let frame: CGRect
     let section: MenuBarOrganizerSection
+    let identityState: MenuBarItemIdentityState
     let isMovable: Bool
     let isProtected: Bool
     let image: NSImage?
 
     var displayName: String {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !cleanTitle.isEmpty, cleanTitle.caseInsensitiveCompare(ownerName) != .orderedSame {
-            return "\(ownerName) — \(cleanTitle)"
+        let appName = sourceName.isEmpty ? ownerName : sourceName
+        if !cleanTitle.isEmpty, cleanTitle.caseInsensitiveCompare(appName) != .orderedSame {
+            return appName.isEmpty ? cleanTitle : "\(appName) - \(cleanTitle)"
         }
-        return ownerName.isEmpty ? (cleanTitle.isEmpty ? "Menu bar item" : cleanTitle) : ownerName
+        return appName.isEmpty ? (cleanTitle.isEmpty ? "Menu bar item" : cleanTitle) : appName
     }
 }
 
-struct MenuBarOrganizerWindowRecord {
+struct MenuBarOrganizerWindowRecord: Equatable {
     let windowID: CGWindowID
     let ownerPID: pid_t
     let ownerName: String
-    let bundleIdentifier: String
+    let ownerBundleIdentifier: String
     let title: String
     let frame: CGRect
     let layer: Int
     let alpha: Double
+    let isOnScreen: Bool
+}
+
+struct MenuBarOrganizerCapabilities: Equatable {
+    let canEnumerate: Bool
+    let canMove: Bool
+    let hasPrivateWindowList: Bool
+    let unresolvedItemCount: Int
+
+    var automaticEditorAvailable: Bool {
+        canEnumerate && canMove
+    }
+}
+
+struct MenuBarItemSnapshot {
+    let items: [ManagedMenuBarItem]
+    let capabilities: MenuBarOrganizerCapabilities
+    let enumerationSucceeded: Bool
 }
 
 enum MenuBarOrganizerSupport {
-    static let allowedRehideDelays = [3, 5, 10, 15, 30, 60]
-    static let allowedSpacerWidths = [8, 12, 16, 24, 32]
-
-    static func sanitizedRehideDelay(_ value: Int) -> Int {
-        allowedRehideDelays.min(by: { abs($0 - value) < abs($1 - value) }) ?? 10
-    }
-
-    static func sanitizedSpacerCount(_ value: Int) -> Int {
-        min(max(value, 0), 6)
-    }
-
-    static func sanitizedSpacerWidth(_ value: Int) -> Int {
-        allowedSpacerWidths.min(by: { abs($0 - value) < abs($1 - value) }) ?? 16
-    }
-
-    static func lowBatteryTriggerMatches(percent: Int?,
-                                         isOnBattery: Bool,
-                                         threshold: Int) -> Bool {
-        guard let percent else { return false }
-        return isOnBattery && percent <= min(max(threshold, 1), 100)
-    }
-
-    static func workHoursTriggerMatches(hour: Int,
-                                        weekday: Int,
-                                        startHour: Int,
-                                        endHour: Int,
-                                        weekdaysOnly: Bool) -> Bool {
-        if weekdaysOnly, !(2...6).contains(weekday) { return false }
-        let start = min(max(startHour, 0), 23)
-        let end = min(max(endHour, 0), 23)
-        if start == end { return true }
-        if start < end {
-            return hour >= start && hour < end
-        }
-        return hour >= start || hour < end
-    }
-
-    static func usesExactPreviews(preferenceEnabled: Bool,
-                                  screenRecordingGranted: Bool) -> Bool {
-        preferenceEnabled && screenRecordingGranted
-    }
-
-    static func shouldRegisterAlwaysHiddenShortcut(sectionEnabled: Bool,
-                                                   shortcutEnabled: Bool) -> Bool {
-        sectionEnabled && shortcutEnabled
-    }
-
-    static func preset(slot: MenuBarOrganizerPresetSlot,
-                       items: [ManagedMenuBarItem],
-                       now: Date = Date()) -> MenuBarOrganizerPreset {
-        MenuBarOrganizerPreset(
-            slot: slot,
-            savedAt: now,
-            visible: orderedItems(items, in: .visible).map(\.id),
-            hidden: orderedItems(items, in: .hidden).map(\.id),
-            alwaysHidden: orderedItems(items, in: .alwaysHidden).map(\.id))
-    }
-
-    static func decodePresets(_ raw: String?) -> [MenuBarOrganizerPresetSlot: MenuBarOrganizerPreset] {
-        guard let raw, let data = raw.data(using: .utf8), !raw.isEmpty,
-              let presets = try? JSONDecoder().decode([MenuBarOrganizerPreset].self, from: data)
-        else { return [:] }
-        return Dictionary(uniqueKeysWithValues: presets.map { ($0.slot, $0) })
-    }
-
-    static func encodePresets(_ presets: [MenuBarOrganizerPresetSlot: MenuBarOrganizerPreset]) -> String {
-        let ordered = MenuBarOrganizerPresetSlot.allCases.compactMap { presets[$0] }
-        guard let data = try? JSONEncoder().encode(ordered) else { return "" }
-        return String(data: data, encoding: .utf8) ?? ""
-    }
-
-    static func sanitizedCustomName(_ value: String, fallback: String) -> String {
-        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return clean.isEmpty ? fallback : String(clean.prefix(40))
-    }
-
-    static func namedPreset(name: String,
-                            items: [ManagedMenuBarItem],
-                            now: Date = Date(),
-                            id: String = UUID().uuidString) -> MenuBarOrganizerNamedPreset {
-        MenuBarOrganizerNamedPreset(
-            id: id,
-            name: sanitizedCustomName(name, fallback: "Preset"),
-            savedAt: now,
-            visible: orderedItems(items, in: .visible).map(\.id),
-            hidden: orderedItems(items, in: .hidden).map(\.id),
-            alwaysHidden: orderedItems(items, in: .alwaysHidden).map(\.id))
-    }
-
-    static func decodeNamedPresets(_ raw: String?) -> [MenuBarOrganizerNamedPreset] {
-        guard let raw, let data = raw.data(using: .utf8), !raw.isEmpty,
-              let presets = try? JSONDecoder().decode([MenuBarOrganizerNamedPreset].self, from: data)
-        else { return [] }
-        return presets
-    }
-
-    static func encodeNamedPresets(_ presets: [MenuBarOrganizerNamedPreset]) -> String {
-        guard let data = try? JSONEncoder().encode(presets) else { return "" }
-        return String(data: data, encoding: .utf8) ?? ""
-    }
-
-    static func group(slot: MenuBarOrganizerGroupSlot,
-                      items: [MenuBarItemIdentity],
-                      now: Date = Date()) -> MenuBarOrganizerGroup {
-        var seen = Set<MenuBarItemIdentity>()
-        let unique = items.filter { seen.insert($0).inserted }
-        return MenuBarOrganizerGroup(slot: slot, savedAt: now, items: unique)
-    }
-
-    static func decodeGroups(_ raw: String?) -> [MenuBarOrganizerGroupSlot: MenuBarOrganizerGroup] {
-        guard let raw, let data = raw.data(using: .utf8), !raw.isEmpty,
-              let groups = try? JSONDecoder().decode([MenuBarOrganizerGroup].self, from: data)
-        else { return [:] }
-        return Dictionary(uniqueKeysWithValues: groups.map { ($0.slot, $0) })
-    }
-
-    static func encodeGroups(_ groups: [MenuBarOrganizerGroupSlot: MenuBarOrganizerGroup]) -> String {
-        let ordered = MenuBarOrganizerGroupSlot.allCases.compactMap { groups[$0] }
-        guard let data = try? JSONEncoder().encode(ordered) else { return "" }
-        return String(data: data, encoding: .utf8) ?? ""
-    }
-
-    static func customGroup(name: String,
-                            symbolName: String = "folder",
-                            items: [MenuBarItemIdentity] = [],
-                            now: Date = Date(),
-                            id: String = UUID().uuidString) -> MenuBarOrganizerCustomGroup {
-        var seen = Set<MenuBarItemIdentity>()
-        let unique = items.filter { seen.insert($0).inserted }
-        return MenuBarOrganizerCustomGroup(
-            id: id,
-            name: sanitizedCustomName(name, fallback: "Group"),
-            symbolName: sanitizedSymbolName(symbolName),
-            savedAt: now,
-            items: unique)
-    }
-
-    static func sanitizedSymbolName(_ value: String) -> String {
-        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return clean.isEmpty ? "folder" : String(clean.prefix(48))
-    }
-
-    static func decodeCustomGroups(_ raw: String?) -> [MenuBarOrganizerCustomGroup] {
-        guard let raw, let data = raw.data(using: .utf8), !raw.isEmpty,
-              let groups = try? JSONDecoder().decode([MenuBarOrganizerCustomGroup].self, from: data)
-        else { return [] }
-        return groups
-    }
-
-    static func encodeCustomGroups(_ groups: [MenuBarOrganizerCustomGroup]) -> String {
-        guard let data = try? JSONEncoder().encode(groups) else { return "" }
-        return String(data: data, encoding: .utf8) ?? ""
-    }
-
-    static func visibleItemsToBorrowForNotch(visibleWidths: [CGFloat],
-                                             hiddenWidth: CGFloat,
-                                             availableWidth: CGFloat,
-                                             minimumVisibleItems: Int = 1) -> Int {
-        guard hiddenWidth > availableWidth, visibleWidths.count > minimumVisibleItems else { return 0 }
-        let maxBorrowed = max(0, visibleWidths.count - minimumVisibleItems)
-        var freed: CGFloat = 0
-        var borrowed = 0
-        for width in visibleWidths.prefix(maxBorrowed) {
-            freed += max(width, 0)
-            borrowed += 1
-            if hiddenWidth - freed <= availableWidth { break }
-        }
-        return borrowed
-    }
-
-    static func searchScore(displayName: String,
-                            bundleIdentifier: String,
-                            ownerName: String,
-                            title: String,
-                            query: String) -> Int? {
-        let terms = query.split(whereSeparator: \.isWhitespace)
-            .map { $0.localizedLowercase }
-        guard !terms.isEmpty else { return 0 }
-        let display = displayName.localizedLowercase
-        let owner = ownerName.localizedLowercase
-        let itemTitle = title.localizedLowercase
-        let bundle = bundleIdentifier.localizedLowercase
-        let haystack = [display, owner, itemTitle, bundle].joined(separator: " ")
-        guard terms.allSatisfy({ haystack.contains($0) }) else { return nil }
-
-        var score = 100
-        for term in terms {
-            if display == term {
-                score = min(score, 0)
-            } else if display.hasPrefix(term) {
-                score = min(score, 10)
-            } else if owner.hasPrefix(term) {
-                score = min(score, 20)
-            } else if itemTitle.hasPrefix(term) {
-                score = min(score, 30)
-            } else if display.contains(term) || owner.contains(term) || itemTitle.contains(term) {
-                score = min(score, 50)
-            } else if bundle.contains(term) {
-                score = min(score, 70)
-            }
-        }
-        return score + max(0, display.count - query.count)
-    }
+    static let controlCenterBundleIdentifier = "com.apple.controlcenter"
+    static let systemUIServerBundleIdentifier = "com.apple.systemuiserver"
 
     static func collapsedLength(screenWidths: [CGFloat]) -> CGFloat {
         let widest = screenWidths.max() ?? 2_048
@@ -417,25 +137,55 @@ enum MenuBarOrganizerSupport {
         return .visible
     }
 
-    static func identities(for records: [MenuBarOrganizerWindowRecord]) -> [CGWindowID: MenuBarItemIdentity] {
+    static func identities(
+        for records: [MenuBarOrganizerWindowRecord],
+        sources: [CGWindowID: MenuBarItemSourceIdentity]
+    ) -> [CGWindowID: ResolvedMenuBarItemIdentity] {
+        struct Seed {
+            let record: MenuBarOrganizerWindowRecord
+            let source: MenuBarItemSourceIdentity?
+            let namespace: String
+            let title: String
+            let state: MenuBarItemIdentityState
+        }
+
+        let seeds = records.map { record -> Seed in
+            let source = sources[record.windowID]
+            let isHosted = record.ownerBundleIdentifier == controlCenterBundleIdentifier
+            let state: MenuBarItemIdentityState = isHosted
+                && (source == nil || source?.stableTitle == nil)
+                ? .provisional
+                : .stable
+            let namespace = source?.bundleIdentifier.nonEmpty
+                ?? record.ownerBundleIdentifier.nonEmpty
+                ?? "pid:\(record.ownerPID)"
+            let title = source?.stableTitle?.nonEmpty
+                ?? record.title.nonEmpty
+                ?? record.ownerName.nonEmpty
+                ?? "window:\(record.windowID)"
+            return Seed(record: record,
+                        source: source,
+                        namespace: namespace,
+                        title: title,
+                        state: state)
+        }
+
         var occurrences: [String: Int] = [:]
-        var result: [CGWindowID: MenuBarItemIdentity] = [:]
-        for record in records.sorted(by: {
-            if $0.bundleIdentifier != $1.bundleIdentifier {
-                return $0.bundleIdentifier < $1.bundleIdentifier
-            }
+        var result: [CGWindowID: ResolvedMenuBarItemIdentity] = [:]
+        for seed in seeds.sorted(by: {
+            if $0.namespace != $1.namespace { return $0.namespace < $1.namespace }
             if $0.title != $1.title { return $0.title < $1.title }
-            // Window ids stay stable while an item is reordered. Using x here
-            // would swap duplicate identities during the very move being
-            // verified.
-            return $0.windowID < $1.windowID
+            return $0.record.windowID < $1.record.windowID
         }) {
-            let key = "\(record.bundleIdentifier)\u{0}\(record.title)"
+            let key = "\(seed.namespace)\u{0}\(seed.title)"
             let occurrence = occurrences[key, default: 0]
             occurrences[key] = occurrence + 1
-            result[record.windowID] = MenuBarItemIdentity(bundleIdentifier: record.bundleIdentifier,
-                                                          title: record.title,
-                                                          occurrence: occurrence)
+            result[seed.record.windowID] = ResolvedMenuBarItemIdentity(
+                id: MenuBarItemIdentity(bundleIdentifier: seed.namespace,
+                                        title: seed.title,
+                                        occurrence: occurrence),
+                state: seed.state,
+                source: seed.source)
         }
         return result
     }
@@ -449,17 +199,45 @@ enum MenuBarOrganizerSupport {
               record.frame.height > 0,
               record.frame.height <= 64
         else { return false }
-        return screenTopEdges.contains { abs(record.frame.maxY - $0) <= 8 || abs(record.frame.minY - $0) <= 8 }
-            || record.frame.minY <= 8
+        return screenTopEdges.contains {
+            abs(record.frame.maxY - $0) <= 8 || abs(record.frame.minY - $0) <= 8
+        } || record.frame.minY <= 8
+    }
+
+    static func isMenuBarItemCandidate(_ record: MenuBarOrganizerWindowRecord,
+                                       mainMenuLevel: Int) -> Bool {
+        record.layer != mainMenuLevel
+            && !(record.ownerName == "Window Server"
+                && record.title.caseInsensitiveCompare("Menubar") == .orderedSame)
+    }
+
+    static func frameMatchScore(_ lhs: CGRect, _ rhs: CGRect) -> CGFloat? {
+        guard lhs.width > 0, lhs.height > 0, rhs.width > 0, rhs.height > 0 else { return nil }
+        let centerDistance = hypot(lhs.midX - rhs.midX, lhs.midY - rhs.midY)
+        let sizeDistance = abs(lhs.width - rhs.width) + abs(lhs.height - rhs.height)
+        let intersection = lhs.intersection(rhs)
+        let overlap = intersection.isNull
+            ? 0
+            : (intersection.width * intersection.height) / max(lhs.width * lhs.height, 1)
+        guard centerDistance <= 5 || overlap >= 0.72 else { return nil }
+        return centerDistance + sizeDistance * 0.25 - overlap
     }
 
     static func isSystemImmovable(bundleIdentifier: String, title: String) -> Bool {
         let normalized = title.lowercased()
-        if bundleIdentifier == "com.apple.controlcenter" {
-            return normalized.contains("clock") || normalized.contains("siri")
+        if bundleIdentifier == controlCenterBundleIdentifier {
+            return normalized.contains("clock")
+                || normalized.contains("siri")
+                || normalized.range(of: #"^item-\d+$"#, options: .regularExpression) != nil
         }
-        return bundleIdentifier == "com.apple.systemuiserver"
+        return bundleIdentifier == systemUIServerBundleIdentifier
             && (normalized.contains("clock") || normalized.contains("notification"))
+    }
+
+    static func shouldKeepPreviousSnapshot(previousCount: Int,
+                                           newCount: Int,
+                                           enumerationSucceeded: Bool) -> Bool {
+        previousCount > 0 && (!enumerationSucceeded || newCount == 0)
     }
 
     static func shouldUseSecondaryBar(mode: MenuBarOrganizerPresentationMode,
@@ -476,14 +254,17 @@ enum MenuBarOrganizerSupport {
         }
     }
 
-    static func shouldUseSmartNotchMode(mode: MenuBarOrganizerPresentationMode,
-                                        enabled: Bool,
-                                        hasNotch: Bool) -> Bool {
-        mode == .automatic && enabled && hasNotch
-    }
-
     static func orderedItems(_ items: [ManagedMenuBarItem],
                              in section: MenuBarOrganizerSection) -> [ManagedMenuBarItem] {
-        items.filter { $0.section == section }.sorted { $0.frame.minX < $1.frame.minX }
+        items.filter { $0.section == section }.sorted {
+            if $0.frame.minX == $1.frame.minX {
+                return $0.id.storageValue < $1.id.storageValue
+            }
+            return $0.frame.minX < $1.frame.minX
+        }
     }
+}
+
+private extension String {
+    var nonEmpty: String? { isEmpty ? nil : self }
 }

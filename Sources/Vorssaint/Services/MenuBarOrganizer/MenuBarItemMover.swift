@@ -5,24 +5,15 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-enum MenuBarItemMoveError: LocalizedError {
+enum MenuBarItemMoveError: Error {
     case permissionMissing
     case itemUnavailable
     case itemNotMovable
+    case provisionalIdentity
+    case menuOpen
     case eventCreationFailed
     case verificationFailed
     case busy
-
-    var errorDescription: String? {
-        switch self {
-        case .permissionMissing: return "Accessibility permission is required to move menu bar items."
-        case .itemUnavailable: return "The menu bar item is no longer available."
-        case .itemNotMovable: return "macOS does not allow this menu bar item to be moved."
-        case .eventCreationFailed: return "Vorssaint could not create the drag operation."
-        case .verificationFailed: return "The item did not reach the requested position."
-        case .busy: return "Another menu bar operation is still running."
-        }
-    }
 }
 
 @MainActor
@@ -31,21 +22,23 @@ final class MenuBarItemMover {
 
     func move(item: ManagedMenuBarItem,
               destinationFrame: CGRect,
-              placeAfter: Bool,
-              verify: @escaping () -> Bool) async throws {
+              placeAfter: Bool) async throws {
         guard AXIsProcessTrusted() else { throw MenuBarItemMoveError.permissionMissing }
-        guard item.isMovable, !item.isProtected else { throw MenuBarItemMoveError.itemNotMovable }
+        guard item.identityState == .stable else {
+            throw MenuBarItemMoveError.provisionalIdentity
+        }
+        guard item.isMovable, !item.isProtected, let sourcePID = item.sourcePID else {
+            throw MenuBarItemMoveError.itemNotMovable
+        }
         guard !isMoving else { throw MenuBarItemMoveError.busy }
+        guard !Self.hasOpenMenu(for: sourcePID) else { throw MenuBarItemMoveError.menuOpen }
         isMoving = true
         defer { isMoving = false }
 
         try await waitForIdleInput()
-        // CGEvents and CGWindow bounds share Quartz's global coordinate space.
-        // NSEvent.mouseLocation uses AppKit coordinates and would restore the
-        // cursor to the vertically mirrored point on the primary display.
         let originalPointer = CGEvent(source: nil)?.location
             ?? CGPoint(x: item.frame.midX, y: item.frame.midY)
-        let displays = CGGetActiveDisplayList(maxDisplays: 16)
+        let displays = Self.activeDisplays()
         for display in displays { CGDisplayHideCursor(display) }
         CGAssociateMouseAndMouseCursorPosition(boolean_t(0))
         defer {
@@ -54,36 +47,31 @@ final class MenuBarItemMover {
             for display in displays { CGDisplayShowCursor(display) }
         }
 
-        var lastError: Error = MenuBarItemMoveError.verificationFailed
-        for attempt in 0..<5 {
-            do {
-                try postCommandDrag(from: CGPoint(x: item.frame.midX, y: item.frame.midY),
-                                    to: CGPoint(x: placeAfter ? destinationFrame.maxX + 2 : destinationFrame.minX - 2,
-                                                y: destinationFrame.midY))
-                try await Task.sleep(for: .milliseconds(80 + attempt * 45))
-                if verify() { return }
-                lastError = MenuBarItemMoveError.verificationFailed
-            } catch {
-                lastError = error
-            }
-        }
-        throw lastError
+        let targetX = placeAfter ? destinationFrame.maxX + 2 : destinationFrame.minX - 2
+        let end = CGPoint(x: targetX, y: destinationFrame.midY)
+        try await postCommandDrag(
+            from: CGPoint(x: item.frame.midX, y: item.frame.midY),
+            to: end,
+            targetPID: sourcePID)
     }
 
-    func click(item: ManagedMenuBarItem, button: CGMouseButton = .left) async throws {
+    func click(item: ManagedMenuBarItem) async throws {
         guard AXIsProcessTrusted() else { throw MenuBarItemMoveError.permissionMissing }
+        guard !isMoving else { throw MenuBarItemMoveError.busy }
         let point = CGPoint(x: item.frame.midX, y: item.frame.midY)
-        let downType: CGEventType = button == .right ? .rightMouseDown : .leftMouseDown
-        let upType: CGEventType = button == .right ? .rightMouseUp : .leftMouseUp
         guard let source = CGEventSource(stateID: .hidSystemState),
-              let down = CGEvent(mouseEventSource: source, mouseType: downType,
-                                 mouseCursorPosition: point, mouseButton: button),
-              let up = CGEvent(mouseEventSource: source, mouseType: upType,
-                               mouseCursorPosition: point, mouseButton: button)
+              let down = CGEvent(mouseEventSource: source,
+                                 mouseType: .leftMouseDown,
+                                 mouseCursorPosition: point,
+                                 mouseButton: .left),
+              let up = CGEvent(mouseEventSource: source,
+                               mouseType: .leftMouseUp,
+                               mouseCursorPosition: point,
+                               mouseButton: .left)
         else { throw MenuBarItemMoveError.eventCreationFailed }
-        down.post(tap: .cghidEventTap)
+        post(down, targetPID: item.sourcePID)
         try await Task.sleep(for: .milliseconds(35))
-        up.post(tap: .cghidEventTap)
+        post(up, targetPID: item.sourcePID)
     }
 
     private func waitForIdleInput() async throws {
@@ -100,50 +88,76 @@ final class MenuBarItemMover {
         throw MenuBarItemMoveError.busy
     }
 
-    private func postCommandDrag(from start: CGPoint, to end: CGPoint) throws {
+    private func postCommandDrag(from start: CGPoint,
+                                 to end: CGPoint,
+                                 targetPID: pid_t) async throws {
         guard let source = CGEventSource(stateID: .hidSystemState),
-              let down = CGEvent(mouseEventSource: source, mouseType: .leftMouseDown,
-                                 mouseCursorPosition: start, mouseButton: .left),
-              let drag = CGEvent(mouseEventSource: source, mouseType: .leftMouseDragged,
-                                 mouseCursorPosition: end, mouseButton: .left),
-              let up = CGEvent(mouseEventSource: source, mouseType: .leftMouseUp,
-                               mouseCursorPosition: end, mouseButton: .left)
+              let down = CGEvent(mouseEventSource: source,
+                                 mouseType: .leftMouseDown,
+                                 mouseCursorPosition: start,
+                                 mouseButton: .left),
+              let up = CGEvent(mouseEventSource: source,
+                               mouseType: .leftMouseUp,
+                               mouseCursorPosition: end,
+                               mouseButton: .left)
         else { throw MenuBarItemMoveError.eventCreationFailed }
-        down.flags = .maskCommand
-        drag.flags = .maskCommand
-        up.flags = .maskCommand
+
         source.localEventsSuppressionInterval = 0
-        let allLocalEvents: CGEventFilterMask = [
-            .permitLocalMouseEvents,
-            .permitLocalKeyboardEvents,
-            .permitSystemDefinedEvents,
-        ]
-        source.setLocalEventsFilterDuringSuppressionState(allLocalEvents,
-                                                           state: .eventSuppressionStateSuppressionInterval)
+        source.setLocalEventsFilterDuringSuppressionState(
+            [.permitLocalMouseEvents, .permitLocalKeyboardEvents, .permitSystemDefinedEvents],
+            state: .eventSuppressionStateSuppressionInterval)
+        down.flags = .maskCommand
+        up.flags = .maskCommand
+
         CGWarpMouseCursorPosition(start)
-        down.post(tap: .cghidEventTap)
-        let steps = 8
-        for step in 1...steps {
-            let fraction = CGFloat(step) / CGFloat(steps)
+        post(down, targetPID: targetPID)
+        try await Task.sleep(for: .milliseconds(18))
+        for step in 1...10 {
+            let fraction = CGFloat(step) / 10
             let point = CGPoint(x: start.x + (end.x - start.x) * fraction,
                                 y: start.y + (end.y - start.y) * fraction)
-            guard let intermediate = CGEvent(mouseEventSource: source,
-                                             mouseType: .leftMouseDragged,
-                                             mouseCursorPosition: point,
-                                             mouseButton: .left)
-            else { continue }
-            intermediate.flags = .maskCommand
-            intermediate.post(tap: .cghidEventTap)
+            guard let drag = CGEvent(mouseEventSource: source,
+                                     mouseType: .leftMouseDragged,
+                                     mouseCursorPosition: point,
+                                     mouseButton: .left)
+            else { throw MenuBarItemMoveError.eventCreationFailed }
+            drag.flags = .maskCommand
+            post(drag, targetPID: targetPID)
+            try await Task.sleep(for: .milliseconds(8))
         }
-        drag.post(tap: .cghidEventTap)
-        up.post(tap: .cghidEventTap)
+        post(up, targetPID: targetPID)
     }
 
-    private func CGGetActiveDisplayList(maxDisplays: UInt32) -> [CGDirectDisplayID] {
+    private func post(_ event: CGEvent, targetPID: pid_t?) {
+        if let targetPID {
+            event.postToPid(targetPID)
+        } else {
+            event.post(tap: .cghidEventTap)
+        }
+    }
+
+    private static func hasOpenMenu(for pid: pid_t) -> Bool {
+        guard let windows = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID) as? [[String: Any]]
+        else { return false }
+        let menuLevels = Set([
+            Int(CGWindowLevelForKey(.popUpMenuWindow)),
+            Int(CGWindowLevelForKey(.mainMenuWindow)),
+        ])
+        return windows.contains { dictionary in
+            guard (dictionary[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid,
+                  let level = (dictionary[kCGWindowLayer as String] as? NSNumber)?.intValue
+            else { return false }
+            return menuLevels.contains(level)
+        }
+    }
+
+    private static func activeDisplays() -> [CGDirectDisplayID] {
         var count: UInt32 = 0
-        var displays = [CGDirectDisplayID](repeating: 0, count: Int(maxDisplays))
-        guard CoreGraphics.CGGetActiveDisplayList(maxDisplays, &displays, &count) == .success
-        else { return [] }
+        guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0 else { return [] }
+        var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetActiveDisplayList(count, &displays, &count) == .success else { return [] }
         return Array(displays.prefix(Int(count)))
     }
 }

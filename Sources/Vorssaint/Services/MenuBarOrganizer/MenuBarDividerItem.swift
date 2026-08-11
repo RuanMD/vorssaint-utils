@@ -63,6 +63,13 @@ final class MenuBarDividerItem: NSObject {
         button.toolTip = kind == .hidden ? "Hidden menu bar section" : "Always-hidden menu bar section"
     }
 
+    func expandForRemoval() {
+        statusItem.isVisible = true
+        guard kind != .control else { return }
+        statusItem.length = 1
+        statusItem.button?.image = nil
+    }
+
     func removePreservingPosition() {
         let key = "NSStatusItem Preferred Position \(kind.autosaveName)"
         let cached = UserDefaults.standard.object(forKey: key)
@@ -79,6 +86,8 @@ final class MenuBarDividerItem: NSObject {
         button.target = self
         button.action = #selector(clicked)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        button.identifier = NSUserInterfaceItemIdentifier(kind.autosaveName)
+        button.setAccessibilityIdentifier(kind.autosaveName)
         if kind == .control {
             // The managed items sit to this control's left, so the icon also
             // communicates the direction in which a click reveals them.

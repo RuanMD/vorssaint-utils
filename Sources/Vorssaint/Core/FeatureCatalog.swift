@@ -133,7 +133,7 @@ extension AppFeature {
 
     var availabilityKey: String { DefaultsKey.featureAvailable(rawValue) }
 
-    var isBeta: Bool { self == .fanControl }
+    var isBeta: Bool { self == .fanControl || self == .menuBarOrganizer }
 
     /// Availability read straight from defaults. Existing features stay
     /// available on update; explicit beta opt-ins may start unavailable.
@@ -206,7 +206,7 @@ extension AppFeature {
         case .quickToggles: return [.automationFinder]
         case .switcher: return [.accessibility, .screenRecording]
         case .dockPreview: return [.accessibility, .screenRecording]
-        case .menuBarOrganizer: return [.accessibility, .screenRecording]
+        case .menuBarOrganizer: return [.accessibility]
         case .screenOCR: return [.screenRecording]
         case .screenshot: return [.screenRecording]
         // The sound of the Mac rides the same grant the pixels do. Microphone
@@ -237,7 +237,7 @@ extension AppFeature {
         switch self {
         case .keepAwake, .brightness, .radialMenu, .quickToggles, .cleaner,
              .uninstaller, .homebrew, .appUpdates, .mixer, .cameraPreview,
-             .micMute:
+             .micMute, .menuBarOrganizer:
             return []
         default:
             return permissions.filter { $0 == .accessibility || $0 == .screenRecording }
@@ -252,7 +252,8 @@ extension AppFeature {
     /// features and explicit betas ship uninstalled.
     static var availabilityDefaults: [String: Any] {
         Dictionary(uniqueKeysWithValues: allCases.map {
-            ($0.availabilityKey, $0 != .fanControl && $0 != .diskImageInstaller)
+            ($0.availabilityKey,
+             $0 != .fanControl && $0 != .diskImageInstaller && $0 != .menuBarOrganizer)
         })
     }
 
@@ -271,8 +272,6 @@ extension AppFeature {
             switch (feature, permission) {
             case (.switcher, .screenRecording):
                 return !boolFor(DefaultsKey.switcherSimpleMode)
-            case (.menuBarOrganizer, .screenRecording):
-                return boolFor(DefaultsKey.menuBarOrganizerCapturePreviews)
             case (.radialMenu, .accessibility):
                 return RadialMenuSupport.needsAccessibility(
                     RadialMenuSupport.decode(dataFor(DefaultsKey.radialMenuItems)))
