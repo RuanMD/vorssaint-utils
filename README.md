@@ -72,22 +72,13 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 
 ### Menu bar
 
-- **Menu bar organizer.** Split status items into visible, hidden and
-  always-hidden sections, then reorder them from Settings with drag and
-  drop. Save fixed presets for work, home, presenting or a minimal setup,
-  add named presets for any other context, and collect related items into
-  fixed or custom quick groups with optional menu bar icons and automatic
-  hiding for grouped originals. Add draggable spacer items, style
-  the secondary/group bars, and apply saved presets automatically for low
-  battery, power, external displays or work hours. Reveal hidden items in
-  the real menu bar or a searchable secondary bar, with keyboard-first
-  search, optional hover, empty-space click, scroll and keyboard triggers,
-  plus an automatic notch mode that temporarily makes room for hidden items
-  when space is tight.
-  Accessibility enables automatic Command-drag; Screen Recording is only
-  used for exact previews. Inspired by
-  [Ice](https://github.com/jordanbaird/Ice) and implemented independently
-  for Vorssaint.
+- **Menu bar organizer, beta.** Split status items into visible, hidden and
+  always-hidden sections, then reorder them from Settings with drag and drop.
+  Reveal items in the real menu bar or in a secondary bar that avoids the
+  MacBook notch. Accessibility enables the same Command-drag gesture used for
+  manual arrangement; Screen Recording is not required. The design is informed
+  by [Ice](https://github.com/jordanbaird/Ice) and
+  [Thaw](https://github.com/thaw-app/Thaw).
 
 ### Windows and the Dock
 
@@ -190,7 +181,7 @@ Permissions get the same treatment. Every one is optional, the app explains each
 | Permission | Used by | Without it |
 |---|---|---|
 | Accessibility | Switcher, Dock features, menu bar organizer, window controls, mouse and keyboard features, snippets, cut and paste | Automatic movement and the other affected features stay off |
-| Screen Recording | Window previews, optional menu bar item previews, screenshots, copy text and screen recordings | Those captures fall back or stay unavailable |
+| Screen Recording | Window previews, screenshots, copy text and screen recordings | Those captures stay unavailable |
 | System Audio Recording | Per app volume and output routing | Apps stay on normal system audio |
 | Microphone | Optional voice track in screen recordings | Recordings continue without your voice |
 | Notifications | Keep awake, battery, monitor and update alerts | The app stays silent |
