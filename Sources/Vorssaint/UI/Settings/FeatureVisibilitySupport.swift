@@ -198,6 +198,7 @@ extension AppFeature {
         case .scratchpad:
             return FeatureSettingsDestination(.quickTools, sectionAnchor: .scratchpad)
         case .commandBar: return FeatureSettingsDestination(.commandBar)
+        case .menuBarOrganizer: return FeatureSettingsDestination(.menuBarOrganizer)
         case .screenRecorder: return FeatureSettingsDestination(.screenRecorder)
 
         case .monitorCPU, .monitorGPU, .monitorMemory, .monitorNetwork, .monitorDisk, .monitorPower:
