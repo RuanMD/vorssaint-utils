@@ -4,19 +4,6 @@
 import AppKit
 import SwiftUI
 
-/// One entry in the Settings sidebar. New features add a case here and a row in
-/// the Features section, so every feature gets its own page.
-/// Selects the visible Settings page; the menu bar uses it to open Settings
-/// directly on a specific page.
-final class SettingsRouter: ObservableObject {
-    static let shared = SettingsRouter()
-    @Published var page: SettingsPage = .general
-    /// One-shot hint for the Cleaner page's tool switcher, so a panel surface
-    /// can land directly on a specific tool. Consumed and cleared on arrival.
-    @Published var cleanerTool: String?
-    private init() {}
-}
-
 /// System-Settings-style window: a sidebar of pages on the left, the selected
 /// page on the right. Scales cleanly as features are added, and gives each
 /// feature a page of its own with room for examples and advanced options.
@@ -37,6 +24,7 @@ struct SettingsView: View {
                 .navigationSplitViewColumnWidth(min: 198, ideal: 210, max: 240)
         } detail: {
             detail
+                .settingsSectionFocus(for: router.page)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .navigationSplitViewStyle(.balanced)
@@ -204,6 +192,7 @@ struct GeneralSettings: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .settingsSectionAnchor(.panelConfiguration)
             if AppFeature.keepAwake.isAvailable {
                 Section(l10n.s.globalHotkeySection) {
                     Toggle(l10n.s.hotkeyToggle, isOn: $hotkeyEnabled)
@@ -249,6 +238,7 @@ struct GeneralSettings: View {
                     }
                     SettingsCaptionText(l10n.s.musicBlockCaption)
                 }
+                .settingsSectionAnchor(.musicBlocking)
             }
             Section(feedbackStrings.sectionTitle) {
                 Button {
@@ -422,6 +412,7 @@ struct EnergySettings: View {
                                               caption: displaySleepStrings.allowDisplaySleepCaption,
                                               isOn: $keepAwakeAllowDisplaySleep)
                 }
+                .settingsSectionAnchor(.keepAwake)
                 Section(automationStrings.automationSection) {
                     SettingsCaptionText(automationStrings.automationCaption)
                     KeepAwakeAutomationEditor()
@@ -514,6 +505,7 @@ struct EnergySettings: View {
                         SettingsCaptionText(strings.externalCaption)
                     }
                 }
+                .settingsSectionAnchor(.brightness)
             }
             if AppFeature.extraBrightness.isAvailable {
                 Section(l10n.s.extraBrightnessName) {
@@ -537,6 +529,7 @@ struct EnergySettings: View {
                         SettingsCaptionText(l10n.s.extraBrightnessUnsupported)
                     }
                 }
+                .settingsSectionAnchor(.extraBrightness)
             }
         }
         .formStyle(.grouped)
@@ -650,6 +643,7 @@ struct MouseSettings: View {
                         MouseExceptionsList(scope: .scrollDirection)
                     }
                 }
+                .settingsSectionAnchor(.scrollDirection)
             }
             if AppFeature.smoothScroll.isAvailable {
                 Section(l10n.s.smoothScrollName) {
@@ -675,6 +669,7 @@ struct MouseSettings: View {
                         MouseExceptionsList(scope: .smoothScroll)
                     }
                 }
+                .settingsSectionAnchor(.smoothScroll)
             }
             if AppFeature.mouseNavigation.isAvailable {
                 Section(l10n.s.mouseNavigationSection) {
@@ -694,6 +689,7 @@ struct MouseSettings: View {
                         MouseExceptionsList(scope: .navigation)
                     }
                 }
+                .settingsSectionAnchor(.mouseNavigation)
             }
             if AppFeature.mouseButtonShortcuts.isAvailable {
                 MouseButtonShortcutsSection()
@@ -729,6 +725,7 @@ struct MouseSettings: View {
                         MouseExceptionsList(scope: .middleClick)
                     }
                 }
+                .settingsSectionAnchor(.middleClick)
             }
             if accessibilityNoteVisible {
                 Section(l10n.s.permissionRequired) {
@@ -773,6 +770,7 @@ struct SwitcherSettings: View {
     @ObservedObject private var permissions = Permissions.shared
     @ObservedObject private var dockPreview = DockPreviewService.shared
     @AppStorage(DefaultsKey.switcherEnabled) private var switcherEnabled = true
+    @AppStorage(DefaultsKey.switcherShortcut) private var switcherShortcutStorage = GlobalShortcut.switcherDefault.storageValue
     @AppStorage(DefaultsKey.switcherIconRowMode) private var switcherIconRowMode = false
     @AppStorage(DefaultsKey.switcherSimpleMode) private var switcherSimpleMode = false
     @AppStorage(DefaultsKey.switcherMergeTabs) private var switcherMergeTabs = false
@@ -789,6 +787,9 @@ struct SwitcherSettings: View {
 
     private var switcherEngaged: Bool { switcherEnabled && AppFeature.switcher.isAvailable }
     private var dockPreviewEngaged: Bool { dockPreviewEnabled && AppFeature.dockPreview.isAvailable }
+    private var switcherShortcutDisplayString: String {
+        (GlobalShortcut(storageValue: switcherShortcutStorage) ?? .switcherDefault).displayString
+    }
 
     var body: some View {
         Form {
@@ -834,7 +835,8 @@ struct SwitcherSettings: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Toggle(l10n.s.switcherIconRowMode, isOn: $switcherIconRowMode)
+                    Toggle(String(format: l10n.s.switcherIconRowMode, switcherShortcutDisplayString),
+                           isOn: $switcherIconRowMode)
                         .disabled(!switcherEnabled || switcherSimpleMode)
                         .onChange(of: switcherIconRowMode) { _, _ in
                             AppSwitcher.shared.syncWithPreferences()
@@ -875,6 +877,7 @@ struct SwitcherSettings: View {
                         .foregroundStyle(.secondary)
                     SwitcherAppRulesList()
                 }
+                .settingsSectionAnchor(.switcher)
             }
             if AppFeature.dockPreview.isAvailable || AppFeature.dockClick.isAvailable {
                 Section {
@@ -928,6 +931,7 @@ struct SwitcherSettings: View {
                 } header: {
                     Text(l10n.s.dockPreviewName)
                 }
+                .settingsSectionAnchor(.dock)
             }
             if AppFeature.switcher.isAvailable || AppFeature.dockPreview.isAvailable {
                 Section {
