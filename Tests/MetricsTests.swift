@@ -5345,6 +5345,97 @@ struct MetricsTests {
             hasDroppableContent: { fatalError("droppable check must stay lazy") }),
                "an unchanged pasteboard outside the Dock skips the content inspection")
 
+        // MARK: Shelf reveal
+
+        let revealChildA = UUID()
+        let revealChildB = UUID()
+        let revealNested = UUID()
+        let revealPile = UUID()
+        let revealDeepPile = UUID()
+        let revealLoose = UUID()
+        let revealTree = [
+            ShelfRevealNode(id: revealLoose),
+            ShelfRevealNode(id: revealPile, children: [
+                ShelfRevealNode(id: revealChildA),
+                ShelfRevealNode(id: revealDeepPile, children: [
+                    ShelfRevealNode(id: revealNested),
+                ]),
+            ]),
+            ShelfRevealNode(id: revealChildB),
+        ]
+
+        expect(ShelfRevealSupport.visibleAncestorID(of: revealLoose,
+                                                    in: revealTree,
+                                                    expanded: []) == revealLoose,
+               "a top level item reveals itself")
+        expect(ShelfRevealSupport.visibleAncestorID(of: revealChildA,
+                                                    in: revealTree,
+                                                    expanded: []) == revealPile,
+               "a child of a collapsed pile reveals the pile, since the child has no tile")
+        expect(ShelfRevealSupport.visibleAncestorID(of: revealChildA,
+                                                    in: revealTree,
+                                                    expanded: [revealPile]) == revealChildA,
+               "a child of an expanded pile reveals the child itself")
+        expect(ShelfRevealSupport.visibleAncestorID(of: revealNested,
+                                                    in: revealTree,
+                                                    expanded: []) == revealPile,
+               "an item two levels down reveals the outermost collapsed ancestor")
+        expect(ShelfRevealSupport.visibleAncestorID(of: revealNested,
+                                                    in: revealTree,
+                                                    expanded: [revealPile]) == revealDeepPile,
+               "expanding only the outer pile reveals the inner pile, not the item inside it")
+        expect(ShelfRevealSupport.visibleAncestorID(of: revealNested,
+                                                    in: revealTree,
+                                                    expanded: [revealPile, revealDeepPile]) == revealNested,
+               "expanding every ancestor reveals the item itself")
+        expect(ShelfRevealSupport.visibleAncestorID(of: UUID(),
+                                                    in: revealTree,
+                                                    expanded: []) == nil,
+               "an id that is not on the shelf reveals nothing")
+
+        expect(ShelfRevealSupport.columnCount(contentWidth: 276,
+                                              tileWidth: 78,
+                                              spacing: 10,
+                                              inset: 4) == 3,
+               "the shelf's own width fits three tile columns")
+        expect(ShelfRevealSupport.columnCount(contentWidth: 40,
+                                              tileWidth: 78,
+                                              spacing: 10,
+                                              inset: 4) == 1,
+               "a width too small for one tile still reports a single column")
+
+        let revealTile = CGSize(width: 78, height: 88)
+        expect(ShelfRevealSupport.tileFrame(index: 0,
+                                            columns: 3,
+                                            tileSize: revealTile,
+                                            spacing: 10,
+                                            inset: 4) == CGRect(x: 4, y: 4, width: 78, height: 88),
+               "the first tile sits at the inset")
+        expect(ShelfRevealSupport.tileFrame(index: 2,
+                                            columns: 3,
+                                            tileSize: revealTile,
+                                            spacing: 10,
+                                            inset: 4) == CGRect(x: 180, y: 4, width: 78, height: 88),
+               "the last tile of the first row advances by the column stride")
+        expect(ShelfRevealSupport.tileFrame(index: 3,
+                                            columns: 3,
+                                            tileSize: revealTile,
+                                            spacing: 10,
+                                            inset: 4) == CGRect(x: 4, y: 102, width: 78, height: 88),
+               "the fourth tile wraps to the second row")
+        expect(ShelfRevealSupport.tileFrame(index: 6,
+                                            columns: 3,
+                                            tileSize: revealTile,
+                                            spacing: 10,
+                                            inset: 4) == CGRect(x: 4, y: 200, width: 78, height: 88),
+               "the seventh tile lands on the third row, the case this change exists for")
+        expect(ShelfRevealSupport.tileFrame(index: 2,
+                                            columns: 1,
+                                            tileSize: revealTile,
+                                            spacing: 10,
+                                            inset: 4) == CGRect(x: 4, y: 200, width: 78, height: 88),
+               "a single column puts every tile in its own row")
+
         let singleScreen = [ShelfEdgeScreen(frame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
                                             visibleFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080))]
         expect(ShelfEdgeDragSupport.match(at: CGPoint(x: 10, y: 500), screens: singleScreen,

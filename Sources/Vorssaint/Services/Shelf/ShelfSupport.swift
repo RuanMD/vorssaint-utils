@@ -23,6 +23,65 @@ enum ShelfSelectionSupport {
     }
 }
 
+/// A Shelf item reduced to what revealing needs: identity and nesting. A pure
+/// stand-in for the service's item tree, like ShelfEdgeScreen is for NSScreen,
+/// so the rules below stay in the unit harness.
+struct ShelfRevealNode: Equatable {
+    let id: UUID
+    let children: [ShelfRevealNode]
+
+    init(id: UUID, children: [ShelfRevealNode] = []) {
+        self.id = id
+        self.children = children
+    }
+}
+
+enum ShelfRevealSupport {
+    /// The item the Shelf should scroll to when `target` is added. A merged
+    /// file becomes a child of a pile, and a collapsed pile draws no tile for
+    /// its children, so the answer is the deepest ancestor that is drawn:
+    /// the item itself when every ancestor is expanded, the outermost
+    /// collapsed pile otherwise, and nothing when the id is not on the shelf.
+    static func visibleAncestorID(of target: UUID,
+                                  in nodes: [ShelfRevealNode],
+                                  expanded: Set<UUID>) -> UUID? {
+        for node in nodes {
+            if node.id == target { return node.id }
+            guard !node.children.isEmpty else { continue }
+            guard let deeper = visibleAncestorID(of: target,
+                                                 in: node.children,
+                                                 expanded: expanded) else { continue }
+            return expanded.contains(node.id) ? deeper : node.id
+        }
+        return nil
+    }
+
+    /// How many tile columns fit a given width, never fewer than one so a
+    /// narrow panel still lays out.
+    static func columnCount(contentWidth: CGFloat,
+                            tileWidth: CGFloat,
+                            spacing: CGFloat,
+                            inset: CGFloat) -> Int {
+        let usable = contentWidth - inset * 2 + spacing
+        return max(1, Int(usable / (tileWidth + spacing)))
+    }
+
+    /// Where the tile at `index` sits in the flipped document view.
+    static func tileFrame(index: Int,
+                          columns: Int,
+                          tileSize: CGSize,
+                          spacing: CGFloat,
+                          inset: CGFloat) -> CGRect {
+        let safeColumns = max(1, columns)
+        let column = index % safeColumns
+        let row = index / safeColumns
+        return CGRect(x: inset + CGFloat(column) * (tileSize.width + spacing),
+                      y: inset + CGFloat(row) * (tileSize.height + spacing),
+                      width: tileSize.width,
+                      height: tileSize.height)
+    }
+}
+
 enum ShelfInteractionSupport {
     /// App exclusions only suppress automatic Shelf appearances. A deliberate
     /// shortcut or "Open now" action remains an escape hatch everywhere.
