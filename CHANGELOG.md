@@ -76,6 +76,8 @@ typing and compatibility with older development tools.
   keeping small measurements precise. Thanks to @tenbux.
 
 ### Fixed
+- Extra brightness now stays steady while switching desktops or viewing all
+  windows. Thanks to @stevenyang406.
 - Three-finger light taps no longer trigger a middle click while you are typing.
 - Window tools no longer quit Vorssaint at launch when the running app list
   contains the same process twice.
