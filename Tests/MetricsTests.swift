@@ -5604,6 +5604,65 @@ struct MetricsTests {
                    && ClipboardHistoryBatch.listOwnsSelectAllShortcut(batchCount: 1, queryIsEmpty: false),
                "the list claims command-A over a selection or an empty search field")
 
+        // MARK: Shelf tile tooltip
+
+        let tooltipStrings = ShelfTooltipStrings(itemsFormat: "%d items",
+                                                 imageSingular: "%d image", imagePlural: "%d images",
+                                                 fileSingular: "%d file", filePlural: "%d files",
+                                                 noteSingular: "%d note", notePlural: "%d notes",
+                                                 linkSingular: "%d link", linkPlural: "%d links")
+
+        expectEqual(ShelfTooltipSupport.text(forFile: "risaPOGCHAMP.gif", resolvedKind: "GIF Image"),
+                    "risaPOGCHAMP.gif\nGIF Image",
+                    "file tooltip shows the name and the resolved kind on separate lines")
+        expectEqual(ShelfTooltipSupport.text(forFile: "mystery.xyz", resolvedKind: nil),
+                    "mystery.xyz",
+                    "file tooltip falls back to the name alone when the kind lookup failed")
+        expectEqual(ShelfTooltipSupport.text(forFile: "mystery.xyz", resolvedKind: ""),
+                    "mystery.xyz",
+                    "an empty resolved kind is treated the same as no kind at all")
+
+        expectEqual(ShelfTooltipSupport.text(forText: "hello world"),
+                    "hello world",
+                    "text under the cap is shown unchanged")
+        expectEqual(ShelfTooltipSupport.text(forText: "  padded on both sides  "),
+                    "padded on both sides",
+                    "text tooltip trims the surrounding whitespace the stored payload keeps verbatim")
+        let longText = String(repeating: "a", count: 600)
+        expectEqual(ShelfTooltipSupport.text(forText: longText),
+                    String(repeating: "a", count: ShelfTooltipSupport.textCap) + "…",
+                    "text over the cap is truncated to exactly the cap length with a trailing ellipsis")
+
+        expectEqual(ShelfTooltipSupport.text(forLink: URL(string: "https://example.com/a/b?q=1")!),
+                    "https://example.com/a/b?q=1",
+                    "link tooltip shows the full URL, not just the host the tile's own title shows")
+
+        let emptyBreakdown = ShelfTooltipSupport.breakdown(of: [])
+        expect(emptyBreakdown.total == 0,
+               "an empty leaf list breaks down to all zero counts")
+        expectEqual(ShelfTooltipSupport.text(forPile: emptyBreakdown, strings: tooltipStrings),
+                    "0 items",
+                    "an empty pile's tooltip does not crash and carries no trailing colon with nothing after it")
+
+        let oneOfEachBreakdown = ShelfTooltipSupport.breakdown(of: [.image, .file, .note, .link])
+        expect(oneOfEachBreakdown.images == 1 && oneOfEachBreakdown.files == 1
+                   && oneOfEachBreakdown.notes == 1 && oneOfEachBreakdown.links == 1
+                   && oneOfEachBreakdown.total == 4,
+               "one leaf of each kind counts one of each and totals four")
+        expectEqual(ShelfTooltipSupport.text(forPile: oneOfEachBreakdown, strings: tooltipStrings),
+                    "4 items: 1 image, 1 file, 1 note, 1 link",
+                    "a pile with one of each kind lists all four in a fixed order, each in its singular form")
+
+        let sameKindBreakdown = ShelfTooltipSupport.breakdown(of: [.image, .image, .image])
+        expectEqual(ShelfTooltipSupport.text(forPile: sameKindBreakdown, strings: tooltipStrings),
+                    "3 items: 3 images",
+                    "a pile of only one kind omits the other three from the breakdown entirely")
+
+        let singularPluralBoundary = ShelfTooltipSupport.breakdown(of: [.image, .file, .file, .file])
+        expectEqual(ShelfTooltipSupport.text(forPile: singularPluralBoundary, strings: tooltipStrings),
+                    "4 items: 1 image, 3 files",
+                    "singular and plural forms are chosen per kind, not for the pile as a whole")
+
         // MARK: Middle click tap (issue #161)
 
         expect(Defaults.sanitizedMiddleClickTapFingers(3) == 3

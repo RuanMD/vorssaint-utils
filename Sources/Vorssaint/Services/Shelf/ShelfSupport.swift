@@ -137,6 +137,113 @@ enum ShelfInteractionSupport {
     }
 }
 
+/// A leaf item's kind, reduced to what the pile-breakdown tooltip needs. A
+/// pure stand-in for ShelfService.Item's payload, like ShelfEdgeScreen is
+/// for NSScreen, so this stays testable without depending on Item.
+enum ShelfTooltipLeafKind {
+    case image, file, note, link
+}
+
+/// How many leaves of each kind a pile holds, for its tooltip breakdown.
+struct ShelfTooltipPileBreakdown: Equatable {
+    var images = 0
+    var files = 0
+    var notes = 0
+    var links = 0
+
+    var total: Int { images + files + notes + links }
+}
+
+/// The localized words the pile breakdown needs, one singular and one
+/// plural per kind (this app has no CLDR-style pluralization, so each
+/// form is its own string) plus the always-plural items count, since a
+/// pile always holds two or more leaves.
+struct ShelfTooltipStrings {
+    let itemsFormat: String
+    let imageSingular: String
+    let imagePlural: String
+    let fileSingular: String
+    let filePlural: String
+    let noteSingular: String
+    let notePlural: String
+    let linkSingular: String
+    let linkPlural: String
+}
+
+enum ShelfTooltipSupport {
+    /// Long enough to show a real paragraph, short enough that a huge paste
+    /// doesn't produce an unusably huge tooltip.
+    static let textCap = 500
+
+    /// A file tile's tooltip: its name, and the system's own Kind string on
+    /// a second line when one was found. A blank or missing kind (the file
+    /// went away, or the lookup failed for any reason) is not worth
+    /// surfacing as an error to someone just hovering, so it falls back to
+    /// the name alone rather than showing a blank second line.
+    static func text(forFile title: String, resolvedKind: String?) -> String {
+        guard let resolvedKind, !resolvedKind.isEmpty else { return title }
+        return "\(title)\n\(resolvedKind)"
+    }
+
+    /// A text tile's tooltip: the full content, not the truncated preview
+    /// the tile's own title already shows. Trimmed the same way the title
+    /// preview is, since the stored payload keeps the original whitespace
+    /// verbatim but that whitespace carries no identifying information.
+    static func text(forText string: String, cap: Int = textCap) -> String {
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > cap else { return trimmed }
+        return String(trimmed.prefix(cap)) + "…"
+    }
+
+    /// A link tile's tooltip: the full URL. The tile's own title is only
+    /// the host, so this is where the rest of it becomes visible.
+    static func text(forLink url: URL) -> String {
+        url.absoluteString
+    }
+
+    /// Counts a pile's flattened leaves by kind.
+    static func breakdown(of kinds: [ShelfTooltipLeafKind]) -> ShelfTooltipPileBreakdown {
+        var result = ShelfTooltipPileBreakdown()
+        for kind in kinds {
+            switch kind {
+            case .image: result.images += 1
+            case .file: result.files += 1
+            case .note: result.notes += 1
+            case .link: result.links += 1
+            }
+        }
+        return result
+    }
+
+    /// A pile's tooltip: the total, then a breakdown of only the kinds it
+    /// actually has, each in the grammatically correct singular or plural
+    /// form for its own count. A pile with nothing in it (should not occur
+    /// in practice) still returns a plain string rather than crashing or
+    /// leaving a dangling colon with nothing after it.
+    static func text(forPile breakdown: ShelfTooltipPileBreakdown, strings: ShelfTooltipStrings) -> String {
+        var parts: [String] = []
+        if breakdown.images > 0 {
+            parts.append(String(format: breakdown.images == 1 ? strings.imageSingular : strings.imagePlural,
+                                breakdown.images))
+        }
+        if breakdown.files > 0 {
+            parts.append(String(format: breakdown.files == 1 ? strings.fileSingular : strings.filePlural,
+                                breakdown.files))
+        }
+        if breakdown.notes > 0 {
+            parts.append(String(format: breakdown.notes == 1 ? strings.noteSingular : strings.notePlural,
+                                breakdown.notes))
+        }
+        if breakdown.links > 0 {
+            parts.append(String(format: breakdown.links == 1 ? strings.linkSingular : strings.linkPlural,
+                                breakdown.links))
+        }
+        let itemsText = String(format: strings.itemsFormat, breakdown.total)
+        guard !parts.isEmpty else { return itemsText }
+        return "\(itemsText): \(parts.joined(separator: ", "))"
+    }
+}
+
 /// Which side of the screen a drag is being aimed at, for the "open near a
 /// screen edge" trigger. Only left and right: top and bottom already belong
 /// to the menu bar and the Dock, wherever it sits.
