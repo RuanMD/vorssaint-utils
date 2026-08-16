@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The format follows
 Vorssaint 3.3.2 adds batch image conversion, imported-video editing, local Command Bar scripts, recent captures,
 desktop window controls, edge-activated Shelf access and faster access to recording and
 maintenance tools. It also improves capture, app discovery, conversions, volume, Switcher behavior,
-menu bar sizing and compatibility with older development tools.
+menu bar sizing, accidental middle clicks while typing and compatibility with older development tools.
 
 ### Added
 - Media now converts images in batches with resizing, watermarks, renaming and
@@ -70,6 +70,7 @@ menu bar sizing and compatibility with older development tools.
   keeping small measurements precise. Thanks to @tenbux.
 
 ### Fixed
+- Three-finger light taps no longer trigger a middle click while you are typing.
 - Window tools no longer quit Vorssaint at launch when the running app list
   contains the same process twice.
 - The screenshot editor now lets you draw a new crop directly over the image.

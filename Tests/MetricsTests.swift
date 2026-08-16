@@ -5430,6 +5430,16 @@ struct MetricsTests {
                                                 positionUnavailable: false, systemDragGestureEnabled: false,
                                                 tapFingers: 3),
                "a quick still three-finger tap fires")
+        expect(!MiddleClickSupport.tapShouldFire(duration: 0.15, maxMovement: 0.01, maxSpreadChange: 0.01,
+                                                 exceededFingerCount: false, buttonPressedDuring: false,
+                                                 positionUnavailable: false, systemDragGestureEnabled: false,
+                                                 tapFingers: 3, secondsSinceLastKeyDown: 0.1),
+               "stray trackpad contact while typing never fires a middle click")
+        expect(MiddleClickSupport.tapShouldFire(duration: 0.15, maxMovement: 0.01, maxSpreadChange: 0.01,
+                                                exceededFingerCount: false, buttonPressedDuring: false,
+                                                positionUnavailable: false, systemDragGestureEnabled: false,
+                                                tapFingers: 3, secondsSinceLastKeyDown: 1.0),
+               "tap to middle click resumes after keyboard activity settles")
         expect(!MiddleClickSupport.tapShouldFire(duration: 0.15, maxMovement: 0.2, maxSpreadChange: 0.01,
                                                  exceededFingerCount: false, buttonPressedDuring: false,
                                                  positionUnavailable: false, systemDragGestureEnabled: false,
