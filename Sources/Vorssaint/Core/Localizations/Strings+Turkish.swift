@@ -408,7 +408,7 @@ extension Strings {
         homebrewOperationProgressUnknown: "Homebrew henüz yüzde bildirmedi.",
 
         mediaName: "Medya",
-        mediaEnableCaption: "Videoları ve görselleri sıkıştır, GIF oluştur ve metni yerel olarak çıkar.",
+        mediaEnableCaption: "Videoları sıkıştır, görselleri dönüştür ve işle, GIF oluştur ve metni yerel olarak çıkar.",
         mediaLocalNote: "Yerel. Ağ yok.",
         mediaToolVideo: "Video",
         mediaToolGIF: "GIF",
@@ -421,7 +421,7 @@ extension Strings {
         mediaChooseOutput: "Hedef",
         mediaStartVideo: "Videoyu sıkıştır",
         mediaStartGIF: "GIF oluştur",
-        mediaStartImage: "Görseli sıkıştır",
+        mediaStartImage: "Görseli işle",
         mediaStartConvertPDF: "PDF'ye dönüştür",
         mediaStartText: "Metni çıkar",
         mediaCancel: "İptal",
@@ -900,6 +900,8 @@ extension Strings {
         invertHorizontalScroll: "Yatay kaydırmayı ters çevir",
         switcherShowShortcutHints: "Kısayol ipuçlarını göster",
         switcherShowShortcutHintsCaption: "Simge sırasının altında uygulama ve pencere kısayollarını gösterir.",
-        uninstallerHomebrewPackageFormat: "%@, Homebrew'den de kaldırılacak."
+        uninstallerHomebrewPackageFormat: "%@, Homebrew'den de kaldırılacak.",
+        shelfEdgeToggle: "Ekran kenarına yaklaşınca aç",
+        shelfEdgeCaption: "Bir dosyayı ekran kenarına doğru sürüklediğinde raf belirmeye başlar. Bıraktığın yerde kalır, ya da geri çekersen raf da geri çekilir."
     )
 }

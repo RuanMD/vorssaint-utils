@@ -97,7 +97,8 @@ final class RecorderEditorModel: ObservableObject, BackdropEditing {
                 gifSize: RecorderSupport.sanitizedGIFSize(
                     defaults.string(forKey: DefaultsKey.recorderGIFSize)).rawValue,
                 gifFrameRate: RecorderSupport.sanitizedGIFFrameRate(
-                    defaults.integer(forKey: DefaultsKey.recorderGIFFrameRate)))
+                    defaults.integer(forKey: DefaultsKey.recorderGIFFrameRate)),
+                zoomEnabled: defaults.bool(forKey: DefaultsKey.recorderAutomaticZoom))
         }
         player.isMuted = false
         pointerTrack = RecorderPointerTrack.decoded(try? Data(contentsOf: take.pointerURL))
@@ -615,12 +616,9 @@ final class RecorderEditorModel: ObservableObject, BackdropEditing {
     /// including the edit of having deleted them all.
     private func generateZoomsIfNeeded() {
         guard !document.zoomsGenerated, duration > 0 else { return }
-        var next = document
-        next.zoomSegments = RecorderTimeline.generatedSegments(
-            clicks: pointerTrack.clicks,
-            typingTimes: typingTimes,
-            duration: duration,
-            amount: RecorderSupport.sanitizedZoomAmount(document.zoomAmount))
+        var next = document.restoringAutomaticZooms(clicks: pointerTrack.clicks,
+                                                    typingTimes: typingTimes,
+                                                    duration: duration)
         next.zoomsGenerated = true
         suppressUndo = true
         document = next
@@ -1299,6 +1297,7 @@ final class RecorderEditorController: NSObject, NSWindowDelegate {
                 // The window stays: exports are slow and plural, and a person
                 // who just made a video often wants the GIF of it too.
                 self.exported = true
+                RecentCaptureService.shared.recordRecording(at: destination)
                 if let onSuccess {
                     onSuccess(destination)
                 } else {

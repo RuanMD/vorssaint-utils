@@ -408,7 +408,7 @@ extension Strings {
         homebrewOperationProgressUnknown: "Homebrew non ha ancora indicato una percentuale.",
 
         mediaName: "Media",
-        mediaEnableCaption: "Comprimi video e immagini, crea GIF ed estrai testo localmente.",
+        mediaEnableCaption: "Comprimi video, converti ed elabora immagini, crea GIF ed estrai testo localmente.",
         mediaLocalNote: "Locale. Nessuna rete.",
         mediaToolVideo: "Video",
         mediaToolGIF: "GIF",
@@ -421,7 +421,7 @@ extension Strings {
         mediaChooseOutput: "Destinazione",
         mediaStartVideo: "Comprimi video",
         mediaStartGIF: "Crea GIF",
-        mediaStartImage: "Comprimi immagine",
+        mediaStartImage: "Elabora immagine",
         mediaStartConvertPDF: "Converti in PDF",
         mediaStartText: "Estrai testo",
         mediaCancel: "Annulla",
@@ -900,6 +900,8 @@ extension Strings {
         invertHorizontalScroll: "Inverti lo scorrimento orizzontale",
         switcherShowShortcutHints: "Mostra suggerimenti scorciatoie",
         switcherShowShortcutHintsCaption: "Mostra le scorciatoie per app e finestre sotto le icone.",
-        uninstallerHomebrewPackageFormat: "%@ verrà rimosso anche da Homebrew."
+        uninstallerHomebrewPackageFormat: "%@ verrà rimosso anche da Homebrew.",
+        shelfEdgeToggle: "Apri vicino a un bordo dello schermo",
+        shelfEdgeCaption: "Trascina un file verso il bordo dello schermo per far intravedere il ripiano. Rilascialo lì, oppure torna indietro e si ritira."
     )
 }
