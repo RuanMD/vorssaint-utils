@@ -90,6 +90,7 @@ struct ShelfTilesView: NSViewRepresentable {
     var items: [ShelfService.Item]
     var selection: Set<UUID>
     var expandedBatches: Set<UUID>
+    var revealID: UUID?
 
     static let tileSize = NSSize(width: 78, height: 88)
     static let spacing: CGFloat = 10
@@ -117,21 +118,21 @@ struct ShelfTilesView: NSViewRepresentable {
         let tile = Self.tileSize
         let inset = Self.inset
         let contentWidth = max(scroll.contentSize.width, 276)
-        let columnStride = tile.width + Self.spacing
-        let rowStride = tile.height + Self.spacing
-        let columns = max(1, Int((contentWidth - inset * 2 + Self.spacing) / columnStride))
+        let columns = ShelfRevealSupport.columnCount(contentWidth: contentWidth,
+                                                     tileWidth: tile.width,
+                                                     spacing: Self.spacing,
+                                                     inset: inset)
         let rows = max(1, Int(ceil(Double(items.count) / Double(columns))))
 
         for (index, item) in items.enumerated() {
-            let column = index % columns
-            let row = index / columns
             let view = ShelfTileView(item: item,
                                      isSelected: selection.contains(item.id),
                                      isExpanded: expandedBatches.contains(item.id))
-            view.frame = NSRect(x: inset + CGFloat(column) * columnStride,
-                                y: inset + CGFloat(row) * rowStride,
-                                width: tile.width,
-                                height: tile.height)
+            view.frame = ShelfRevealSupport.tileFrame(index: index,
+                                                      columns: columns,
+                                                      tileSize: tile,
+                                                      spacing: Self.spacing,
+                                                      inset: inset)
             document.addSubview(view)
         }
         let contentHeight = inset * 2 + CGFloat(rows) * tile.height + CGFloat(max(0, rows - 1)) * Self.spacing
@@ -140,6 +141,36 @@ struct ShelfTilesView: NSViewRepresentable {
                                 y: 0,
                                 width: contentWidth,
                                 height: max(contentHeight, scroll.contentSize.height))
+        revealIfNeeded(in: document, columns: columns, coordinator: context.coordinator)
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    /// Remembers which reveal has been honoured, so the shelf scrolls once
+    /// when an item arrives and stays put for every other redraw.
+    final class Coordinator {
+        var revealedID: UUID?
+    }
+
+    /// Brings a newly added tile into view. scrollToVisible already does
+    /// nothing when the rect is on screen, so a shelf with room to spare
+    /// never moves.
+    private func revealIfNeeded(in document: NSView,
+                                columns: Int,
+                                coordinator: Coordinator) {
+        guard let revealID, revealID != coordinator.revealedID else { return }
+        coordinator.revealedID = revealID
+        guard let index = items.firstIndex(where: { $0.id == revealID }) else { return }
+        let frame = ShelfRevealSupport.tileFrame(index: index,
+                                                 columns: columns,
+                                                 tileSize: Self.tileSize,
+                                                 spacing: Self.spacing,
+                                                 inset: Self.inset)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            context.allowsImplicitAnimation = true
+            document.scrollToVisible(frame)
+        }
     }
 
     private final class FlippedView: ShelfPanelMoveView {
