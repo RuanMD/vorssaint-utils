@@ -7,12 +7,18 @@ All notable changes to this project are documented here. The format follows
 ## [3.3.2]
 
 ### Summary
-Vorssaint 3.3.2 adds batch image conversion, imported-video editing, local Command Bar scripts, recent captures,
-desktop window controls, edge-activated Shelf access and faster access to recording and
-maintenance tools. It also improves capture, app discovery, conversions, volume, Switcher behavior,
-menu bar sizing, accidental middle clicks while typing and compatibility with older development tools.
+Vorssaint 3.3.2 adds unified screen capture, batch image conversion,
+imported-video editing, local Command Bar scripts, recent captures, desktop
+window controls, edge-activated Shelf access and faster access to recording
+and maintenance tools. It also improves capture, app discovery, conversions,
+volume, Switcher behavior, menu bar sizing, accidental middle clicks while
+typing and compatibility with older development tools.
 
 ### Added
+- One screen-capture shortcut now opens a shared selector for screenshots,
+  recordings, screen text and colors. It only shows installed tools and keeps
+  recording sound and microphone choices beside the mode selector. Their
+  settings now live on one page with native controls for each installed mode.
 - Media now converts images in batches with resizing, watermarks, renaming and
   reusable profiles. Thanks to @ruvelro.
 - Saved Command Bar shortcuts can now run local scripts and show their results as

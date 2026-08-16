@@ -430,6 +430,7 @@ enum DefaultsKey {
     // Screenshot capture and editor.
     static let screenshotShortcutEnabled = "screenshotShortcutEnabled"
     static let screenshotShortcut = "screenshotShortcut"
+    static let unifiedScreenCaptureShortcutMigrated = "unifiedScreenCaptureShortcutMigrated"
     static let screenshotFullScreenShortcutEnabled = "screenshotFullScreenShortcutEnabled"
     static let screenshotFullScreenShortcut = "screenshotFullScreenShortcut"
     static let screenshotLastCaptureShortcutEnabled = "screenshotLastCaptureShortcutEnabled"
@@ -1076,6 +1077,7 @@ enum Defaults {
         DefaultsKey.panelUtilityScreenRecorder: true,
         DefaultsKey.screenshotShortcutEnabled: false,
         DefaultsKey.screenshotShortcut: GlobalShortcut.screenshotDefault.storageValue,
+        DefaultsKey.unifiedScreenCaptureShortcutMigrated: false,
         DefaultsKey.screenshotFullScreenShortcutEnabled: false,
         DefaultsKey.screenshotFullScreenShortcut: GlobalShortcut.screenshotFullScreenDefault.storageValue,
         DefaultsKey.screenshotLastCaptureShortcutEnabled: false,
@@ -1155,6 +1157,7 @@ enum Defaults {
         migrateUtilityOrderForScreenshot(in: defaults)
         migrateUtilityOrderForAppUpdates(in: defaults)
         migrateScreenshotOpenEditorDirectly(in: defaults)
+        migrateUnifiedScreenCaptureShortcut(in: defaults)
         migrateSilentHeadphonesDisconnectVolume(in: defaults)
         migrateSwitcherWindowlessFinder(in: defaults)
     }
@@ -1207,6 +1210,37 @@ enum Defaults {
         guard action.isEmpty else { return }
         defaults.set(ScreenshotDefaultAction.edit.rawValue,
                      forKey: DefaultsKey.screenshotDefaultAction)
+    }
+
+    /// The four screen tools now share the screenshot shortcut. Preserve the
+    /// first dedicated shortcut an existing setup had enabled, while fresh
+    /// installs keep the combined shortcut off by default.
+    static func migrateUnifiedScreenCaptureShortcut(in defaults: UserDefaults) {
+        guard !defaults.bool(forKey: DefaultsKey.unifiedScreenCaptureShortcutMigrated) else {
+            return
+        }
+        defer {
+            defaults.set(true, forKey: DefaultsKey.unifiedScreenCaptureShortcutMigrated)
+        }
+        guard !defaults.bool(forKey: DefaultsKey.screenshotShortcutEnabled) else { return }
+
+        let legacyChoices: [(enabled: String, shortcut: String, fallback: GlobalShortcut)] = [
+            (DefaultsKey.recorderShortcutEnabled,
+             DefaultsKey.recorderShortcut,
+             .screenRecorderDefault),
+            (DefaultsKey.screenOCRShortcutEnabled,
+             DefaultsKey.screenOCRShortcut,
+             .screenOCRDefault),
+            (DefaultsKey.colorPickerShortcutEnabled,
+             DefaultsKey.colorPickerShortcut,
+             .colorPickerDefault),
+        ]
+        guard let choice = legacyChoices.first(where: {
+            defaults.bool(forKey: $0.enabled)
+        }) else { return }
+        let shortcut = defaults.string(forKey: choice.shortcut) ?? choice.fallback.storageValue
+        defaults.set(true, forKey: DefaultsKey.screenshotShortcutEnabled)
+        defaults.set(shortcut, forKey: DefaultsKey.screenshotShortcut)
     }
 
     static func migrateLegacySwitcherWindowShortcut(in defaults: UserDefaults) {

@@ -776,7 +776,7 @@ struct UtilitiesSection: View {
                                 needsAttention: !permissions.screenRecording,
                                 permissionButtonTitle: l10n.s.permissionRequest,
                                 permissionAction: permissions.screenRecording ? nil : grantScreenRecordingPermission,
-                                shortcutHint: shortcutHint(.screenOCR),
+                                shortcutHint: shortcutHint(.screenshot),
                                 action: {
                                     appDelegate()?.closePopover()
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -813,7 +813,7 @@ struct UtilitiesSection: View {
                                 needsAttention: !permissions.screenRecording,
                                 permissionButtonTitle: l10n.s.permissionRequest,
                                 permissionAction: permissions.screenRecording ? nil : grantScreenRecordingPermission,
-                                shortcutHint: shortcutHint(.screenRecorder),
+                                shortcutHint: shortcutHint(.screenshot),
                                 accessoryTitle: recorder.isRecording
                                     ? nil
                                     : FeatureStrings.recentCaptures(l10n.language).title,
@@ -832,7 +832,7 @@ struct UtilitiesSection: View {
                                 isEditing: editing,
                                 showsDragHandle: true,
                                 visibility: $showColorPicker,
-                                shortcutHint: shortcutHint(.colorPicker),
+                                shortcutHint: shortcutHint(.screenshot),
                                 action: {
                                     appDelegate()?.closePopover()
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
@@ -908,7 +908,8 @@ struct UtilitiesSection: View {
     /// feature and its shortcut toggle), so the badge never advertises a
     /// combo that does nothing.
     private func shortcutHint(_ role: GlobalShortcutRole) -> String? {
-        guard role.requiredEnableKeys.allSatisfy({ UserDefaults.standard.bool(forKey: $0) })
+        guard role.isAvailable(using: { $0.isAvailable }),
+              role.requiredEnableKeys.allSatisfy({ UserDefaults.standard.bool(forKey: $0) })
         else { return nil }
         return role.savedShortcut.displayString
     }

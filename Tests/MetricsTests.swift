@@ -1526,6 +1526,24 @@ struct MetricsTests {
             Defaults.migrateSwitcherWindowlessFinder(in: migrationDefaults)
             expect(migrationDefaults.object(forKey: DefaultsKey.switcherWindowlessApps) == nil,
                    "a setup that kept the windowless desktop app is left exactly as it was")
+
+            migrationDefaults.removeObject(
+                forKey: DefaultsKey.unifiedScreenCaptureShortcutMigrated)
+            migrationDefaults.set(false, forKey: DefaultsKey.screenshotShortcutEnabled)
+            migrationDefaults.set(true, forKey: DefaultsKey.recorderShortcutEnabled)
+            migrationDefaults.set("control+option:42", forKey: DefaultsKey.recorderShortcut)
+            Defaults.migrateUnifiedScreenCaptureShortcut(in: migrationDefaults)
+            expect(migrationDefaults.bool(forKey: DefaultsKey.screenshotShortcutEnabled)
+                   && migrationDefaults.string(forKey: DefaultsKey.screenshotShortcut)
+                        == "control+option:42"
+                   && migrationDefaults.bool(
+                        forKey: DefaultsKey.unifiedScreenCaptureShortcutMigrated),
+                   "the combined capture shortcut preserves an enabled recording shortcut")
+            migrationDefaults.set("command:12", forKey: DefaultsKey.recorderShortcut)
+            Defaults.migrateUnifiedScreenCaptureShortcut(in: migrationDefaults)
+            expect(migrationDefaults.string(forKey: DefaultsKey.screenshotShortcut)
+                   == "control+option:42",
+                   "the capture shortcut migration runs once and preserves later choices")
             migrationDefaults.removePersistentDomain(forName: shortcutSuite)
         } else {
             expect(false, "test suite defaults are available")
@@ -5673,6 +5691,17 @@ struct MetricsTests {
                                              title: Strings.enUS.tabSwitcher,
                                              keywords: [Strings.enUS.dockClickHide]),
                "Dock hiding is findable through a localized Settings keyword")
+        let captureSearchKeywords = SettingsSearchSupport.screenCaptureKeywords(
+            Strings.enUS, language: .enUS)
+        expect(SettingsSearchSupport.matches(
+                    query: "screenshot",
+                    title: FeatureStrings.screenshot(.enUS).screenCaptureTitle,
+                    keywords: captureSearchKeywords)
+                && SettingsSearchSupport.matches(
+                    query: "screen recording",
+                    title: FeatureStrings.screenshot(.enUS).screenCaptureTitle,
+                    keywords: captureSearchKeywords),
+               "Screenshot and Screen recording find the one Screen capture page")
 
         let freshSize = SettingsWindowSupport.initialContentSize(savedWidth: 0, savedHeight: 0,
                                                                  availableHeight: 1200)
@@ -8606,8 +8635,9 @@ struct MetricsTests {
                                                   boolFor: { $0 == DefaultsKey.monitorAlertDisk }),
                "an alert with its metric off in the hub stays disarmed")
 
-        expect(GlobalShortcutRole.activeRoles(isOn: { _ in true }).count == GlobalShortcutRole.allCases.count,
-               "the availability-free overload keeps every enabled role")
+        expect(GlobalShortcutRole.activeRoles(isOn: { _ in true }).count
+                == GlobalShortcutRole.allCases.count - 3,
+               "the availability-free overload keeps every enabled current role")
         expect(!GlobalShortcutRole.activeRoles(isOn: { _ in true },
                                                isAvailable: { $0 != .shelf }).contains(.shelf),
                "a role leaves the shortcuts page when its feature is off in the hub")
@@ -10087,6 +10117,14 @@ struct MetricsTests {
         expect(!ScreenshotSupport.selectionAcceptsPointerInput(sessionIsOver: true,
                                                                capturePending: true),
                "both at once still ignores the pointer")
+        let recordingOnly: Set<AppFeature> = [.screenRecorder]
+        expect(ScreenCaptureTool.available(isAvailable: recordingOnly.contains) == [.recording],
+               "the capture chooser hides every uninstalled mode")
+        let captureFeatures: Set<AppFeature> = [.screenshot, .screenRecorder,
+                                                .screenOCR, .colorPicker]
+        expect(ScreenCaptureTool.available(isAvailable: captureFeatures.contains)
+                == [.screenshot, .recording, .text, .color],
+               "the capture chooser keeps a stable order for every installed mode")
 
         let cocoa = ScreenshotSupport.cocoaRect(fromWindowServer: CGRect(x: 10, y: 30, width: 200, height: 100),
                                                 mainScreenHeight: 900)
@@ -10600,8 +10638,14 @@ struct MetricsTests {
             ]) == [oversizedCaptureIDs[0], oversizedCaptureIDs[2]],
                "recent captures keeps the latest screenshot and respects its disk budget")
         expect(GlobalShortcutRole.screenshot.requiredEnableKeys == [DefaultsKey.screenshotShortcutEnabled]
-                && GlobalShortcutRole.screenshot.feature == .screenshot,
-               "the screenshot shortcut role gates on its toggle and feature")
+                && Set(GlobalShortcutRole.screenshot.availabilityFeatures)
+                    == Set([.screenshot, .screenRecorder, .screenOCR, .colorPicker]),
+               "one capture shortcut follows every mode in the combined chooser")
+        expect(GlobalShortcutRole.availableRoles(isAvailable: recordingOnly.contains)
+                .contains(.screenshot)
+                && !GlobalShortcutRole.availableRoles(isAvailable: recordingOnly.contains)
+                    .contains(.screenRecorder),
+               "a recording-only install shows the combined shortcut without the retired one")
         expect(GlobalShortcutRole.screenshotFullScreen.requiredEnableKeys
                 == [DefaultsKey.screenshotFullScreenShortcutEnabled]
                 && GlobalShortcutRole.screenshotFullScreen.feature == .screenshot,
@@ -12265,10 +12309,10 @@ struct MetricsTests {
         expect(ScreenshotSupport.countdownRingProgress(elapsed: -1) == 1
                 && ScreenshotSupport.countdownRingProgress(elapsed: 2) == 0,
                "the countdown ring clamps delayed and early frames")
-        expect(GlobalShortcutRole.screenRecorder.requiredEnableKeys
-                == [DefaultsKey.recorderShortcutEnabled]
-                && GlobalShortcutRole.screenRecorder.feature == .screenRecorder,
-               "the recording shortcut role gates on its toggle and feature")
+        expect(GlobalShortcutRole.screenRecorder.isLegacyUnifiedCaptureShortcut
+                && !GlobalShortcutRole.availableRoles(isAvailable: { _ in true })
+                    .contains(.screenRecorder),
+               "the former recording shortcut remains readable only for migration")
         expect(AppFeature.screenRecorder.group == .tools
                 && AppFeature.screenRecorder.enabledKeys.isEmpty
                 && AppFeature.screenRecorder.permissions
@@ -12276,17 +12320,25 @@ struct MetricsTests {
                "the recorder keeps its optional capture permissions contextual")
         expect(AppFeature.screenRecorder.energyProfile == .idle,
                "the recorder costs nothing between recordings")
-        expect(pageVisible(.screenRecorder, available: [.screenRecorder])
-                && !pageVisible(.screenRecorder, available: []),
-               "the screen recorder page follows its hub switch")
-        expect(SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderShortcutEnabled)
+        expect(FeatureVisibilitySupport.features(for: .screenshot)
+                == [.screenshot, .screenRecorder, .screenOCR, .colorPicker]
+                && pageVisible(.screenshot, available: [.screenRecorder])
+                && pageVisible(.screenshot, available: [.screenOCR])
+                && pageVisible(.screenshot, available: [.colorPicker])
+                && !pageVisible(.screenshot, available: []),
+               "every installed screen tool keeps the one Screen capture page")
+        expect([AppFeature.screenshot, .screenRecorder, .screenOCR, .colorPicker]
+                .allSatisfy { $0.settingsDestination.page == .screenshot },
+               "every screen tool opens its mode inside the centralized Settings page")
+        expect(!SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderShortcutEnabled)
+                && SettingsBackupSupport.exportKeys().contains(DefaultsKey.screenshotShortcutEnabled)
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderQuality)
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderGIFSize)
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderMicrophone)
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderAutomaticZoom)
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderSharingEnabled)
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.recorderSaveFolder),
-               "the screen recorder settings travel in backups")
+               "the recorder settings travel with the one combined capture shortcut")
         expect(RecorderSupport.exceptedOwnWindowIDs(
             ownWindowIDs: [1, 2, 3], protectedWindowIDs: [2, 4]) == [1, 3],
                "recording keeps existing ordinary app windows but never its protected chrome")

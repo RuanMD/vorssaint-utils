@@ -262,7 +262,7 @@ enum CommandBarCatalog {
         /// A shortcut is only shown while it actually fires (its enables on),
         /// so the bar never teaches a dead combination.
         func roleShortcut(_ role: GlobalShortcutRole) -> GlobalShortcut? {
-            guard role.feature.isAvailable,
+            guard role.isAvailable(using: { $0.isAvailable }),
                   role.requiredEnableKeys.allSatisfy({ UserDefaults.standard.bool(forKey: $0) })
             else { return nil }
             return role.savedShortcut
@@ -299,7 +299,7 @@ enum CommandBarCatalog {
                 title: running ? recorder.stopButton : recorder.pageTitle,
                 subtitle: area(.screenRecorder, under: recorder.pageTitle),
                 icon: .symbol(running ? "stop.circle" : "record.circle"),
-                shortcut: roleShortcut(.screenRecorder),
+                shortcut: roleShortcut(.screenshot),
                 trouble: Permissions.shared.screenRecording ? nil : .needsPermission,
                 run: { _ in afterBeat { ScreenRecorderService.shared.toggle() } }))
         }
@@ -322,7 +322,7 @@ enum CommandBarCatalog {
                 title: s.ocrName,
                 subtitle: area(.screenOCR, under: s.ocrName),
                 icon: .symbol("text.viewfinder"),
-                shortcut: roleShortcut(.screenOCR),
+                shortcut: roleShortcut(.screenshot),
                 trouble: Permissions.shared.screenRecording ? nil : .needsPermission,
                 run: { _ in afterBeat { ScreenTextService.shared.capture() } }))
         }
@@ -332,7 +332,7 @@ enum CommandBarCatalog {
                 title: s.colorPickerName,
                 subtitle: area(.colorPicker, under: s.colorPickerName),
                 icon: .symbol("eyedropper"),
-                shortcut: roleShortcut(.colorPicker),
+                shortcut: roleShortcut(.screenshot),
                 run: { _ in afterBeat { ColorSamplerService.shared.pick() } }))
         }
         if AppFeature.clipboardHistory.isAvailable {

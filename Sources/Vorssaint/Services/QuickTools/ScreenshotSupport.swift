@@ -4,6 +4,48 @@
 import CoreGraphics
 import Foundation
 
+/// The actions that share the screen-selection surface. Availability is read
+/// when the chooser opens, so an uninstalled feature never leaves a dead mode
+/// behind.
+enum ScreenCaptureTool: String, CaseIterable {
+    case screenshot
+    case recording
+    case text
+    case color
+
+    var feature: AppFeature {
+        switch self {
+        case .screenshot: return .screenshot
+        case .recording: return .screenRecorder
+        case .text: return .screenOCR
+        case .color: return .colorPicker
+        }
+    }
+
+    var systemImageName: String {
+        switch self {
+        case .screenshot: return "camera.viewfinder"
+        case .recording: return "record.circle"
+        case .text: return "text.viewfinder"
+        case .color: return "eyedropper"
+        }
+    }
+
+    func settingsTitle(_ strings: Strings, language: AppLanguage) -> String {
+        switch self {
+        case .screenshot: return FeatureStrings.screenshot(language).pageTitle
+        case .recording: return FeatureStrings.recorder(language).pageTitle
+        case .text: return strings.ocrName
+        case .color: return strings.colorPickerName
+        }
+    }
+
+    static func available(isAvailable: (AppFeature) -> Bool = { $0.isAvailable })
+        -> [ScreenCaptureTool] {
+        allCases.filter { isAvailable($0.feature) }
+    }
+}
+
 /// Pure logic for the screenshot tool: capture routing, selection geometry,
 /// coordinate conversions between the window server, screens and image
 /// pixels, the annotation model and file naming. No AppKit so the unit test

@@ -52,7 +52,7 @@ struct ShortcutsSettings: View {
 
     private func featuresWithShortcuts(in group: FeatureGroup) -> [AppFeature] {
         AppFeature.features(in: group).filter { feature in
-            feature.isAvailable
+            (feature.isAvailable || availableRoles.contains { $0.feature == feature })
                 && (feature == .windowLayout || availableRoles.contains { $0.feature == feature })
         }
     }
@@ -105,7 +105,9 @@ struct ShortcutsSettings: View {
     private func roleRow(_ role: GlobalShortcutRole,
                          showsFeatureContext: Bool = true) -> some View {
         let title = role.title(l10n.s)
-        let featureTitle = role.feature.hubTitle(l10n.s, hub: hub)
+        let featureTitle = role == .screenshot
+            ? title
+            : role.feature.hubTitle(l10n.s, hub: hub)
         let active = role.requiredEnableKeys.allSatisfy {
             UserDefaults.standard.bool(forKey: $0)
         }
@@ -123,7 +125,11 @@ struct ShortcutsSettings: View {
                 return WindowLayoutService.shared.shortcutConflictTitle(shortcut, excluding: nil)
             },
             onChange: {
-                FeatureRuntime.shared.sync([role.feature])
+                if role == .screenshot {
+                    ScreenCaptureService.shared.syncWithPreferences()
+                } else {
+                    FeatureRuntime.shared.sync([role.feature])
+                }
             }
         )
     }

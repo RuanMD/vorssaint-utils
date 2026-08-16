@@ -173,10 +173,21 @@ final class FeatureRuntime: ObservableObject {
         .brightness: { BrightnessService.shared.syncWithPreferences() },
         .extraBrightness: { ExtraBrightnessService.shared.syncWithPreferences() },
         .quickLauncher: { QuickLauncherService.shared.syncWithPreferences() },
-        .colorPicker: { ColorSamplerService.shared.syncWithPreferences() },
-        .screenOCR: { ScreenTextService.shared.syncWithPreferences() },
-        .screenshot: { ScreenshotService.shared.syncWithPreferences() },
-        .screenRecorder: { ScreenRecorderService.shared.syncWithPreferences() },
+        .colorPicker: {
+            ScreenCaptureService.shared.syncWithPreferences()
+        },
+        .screenOCR: {
+            ScreenCaptureService.shared.syncWithPreferences()
+            ScreenTextService.shared.syncWithPreferences()
+        },
+        .screenshot: {
+            ScreenCaptureService.shared.syncWithPreferences()
+            ScreenshotService.shared.syncWithPreferences()
+        },
+        .screenRecorder: {
+            ScreenCaptureService.shared.syncWithPreferences()
+            ScreenRecorderService.shared.syncWithPreferences()
+        },
         .cameraPreview: { CameraPreviewService.shared.syncWithPreferences() },
         .radialMenu: { RadialMenuService.shared.syncWithPreferences() },
         .scratchpad: { ScratchpadService.shared.syncWithPreferences() },
