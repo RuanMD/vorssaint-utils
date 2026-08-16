@@ -86,6 +86,10 @@ final class ShelfService: ObservableObject {
     /// into view. Not persisted: it means "just now", and a relaunch has no
     /// just now.
     @Published private(set) var lastAddedID: UUID?
+    /// Counts adds so the tiles can tell a genuine arrival from a redraw.
+    /// The resolved reveal target is not enough on its own: it changes when a
+    /// pile is expanded, and it repeats when two files land in the same pile.
+    @Published private(set) var addSerial = 0
     /// Pinning is intentionally session-only: it means "keep this open while
     /// I work", not "reopen a floating panel on every launch".
     @Published private(set) var isPinned = false
@@ -1289,6 +1293,7 @@ final class ShelfService: ObservableObject {
         items.append(contentsOf: additions)
         // The last one is furthest down, so revealing it brings its siblings.
         lastAddedID = additions.last?.id
+        addSerial &+= 1
         noteInteraction()
         return true
     }
@@ -1401,6 +1406,7 @@ final class ShelfService: ObservableObject {
     private func append(_ item: Item) {
         items.append(item)
         lastAddedID = item.id
+        addSerial &+= 1
         noteInteraction()
     }
 
@@ -1534,6 +1540,7 @@ final class ShelfService: ObservableObject {
               merge(leaves, into: targetID, in: &items)
         else { return false }
         lastAddedID = leaves.last?.id
+        addSerial &+= 1
         cleanSelectionState()
         noteInteraction()
         return true

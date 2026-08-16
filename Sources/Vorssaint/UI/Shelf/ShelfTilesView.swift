@@ -91,6 +91,7 @@ struct ShelfTilesView: NSViewRepresentable {
     var selection: Set<UUID>
     var expandedBatches: Set<UUID>
     var revealID: UUID?
+    var revealSerial: Int
 
     static let tileSize = NSSize(width: 78, height: 88)
     static let spacing: CGFloat = 10
@@ -146,10 +147,13 @@ struct ShelfTilesView: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    /// Remembers which reveal has been honoured, so the shelf scrolls once
-    /// when an item arrives and stays put for every other redraw.
+    /// Remembers which add has been honoured, so the shelf scrolls once per
+    /// arrival and stays put for every other redraw. Keyed on the add serial
+    /// rather than the resolved target: the target alone changes when a pile
+    /// is expanded or collapsed with nothing added, and repeats when two
+    /// files land in the same collapsed pile back to back.
     final class Coordinator {
-        var revealedID: UUID?
+        var revealedSerial: Int?
     }
 
     /// Brings a newly added tile into view. scrollToVisible already does
@@ -158,9 +162,12 @@ struct ShelfTilesView: NSViewRepresentable {
     private func revealIfNeeded(in document: NSView,
                                 columns: Int,
                                 coordinator: Coordinator) {
-        guard let revealID, revealID != coordinator.revealedID else { return }
-        coordinator.revealedID = revealID
+        guard let revealID, revealSerial != coordinator.revealedSerial else { return }
         guard let index = items.firstIndex(where: { $0.id == revealID }) else { return }
+        // Recorded only once the tile is actually found, so a miss (the
+        // target isn't in this render's items) leaves the reveal pending
+        // instead of being silently swallowed.
+        coordinator.revealedSerial = revealSerial
         let frame = ShelfRevealSupport.tileFrame(index: index,
                                                  columns: columns,
                                                  tileSize: Self.tileSize,
