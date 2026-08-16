@@ -9648,12 +9648,20 @@ struct MetricsTests {
                "unknown quick-toggle slices cannot leave a dead action on the wheel")
         expect(RadialMenuTool.allCases.allSatisfy { !$0.symbolName.isEmpty }
                 && RadialMenuTool.screenshot.feature == .screenshot
+                && RadialMenuTool.screenRecorder.feature == .screenRecorder
                 && RadialMenuTool.clipboardHistory.feature == .clipboardHistory
                 && RadialMenuTool.scratchpad.feature == .scratchpad
                 && RadialMenuTool.shelf.feature == .shelf
+                && RadialMenuTool.cleaner.feature == .cleaner
+                && RadialMenuTool.uninstaller.feature == .uninstaller
+                && RadialMenuTool.appUpdates.feature == .appUpdates
                 && RadialMenuTool.cleaningMode.feature == .cleaningMode
                 && RadialMenuTool.keepAwake.feature == .keepAwake,
                "every wheel tool maps to a real feature and symbol")
+        let addedWheelTools: [RadialMenuTool] = [.screenRecorder, .cleaner, .uninstaller, .appUpdates]
+        expect(addedWheelTools.allSatisfy {
+            $0.isRunnable(isFeatureAvailable: { _ in true }, boolFor: { _ in false })
+        }, "recording and maintenance tools are selectable when their hub features are available")
         expect(!RadialMenuTool.shelf.isRunnable(isFeatureAvailable: { _ in true },
                                                 boolFor: { _ in false })
                 && RadialMenuTool.shelf.isRunnable(isFeatureAvailable: { _ in true },
