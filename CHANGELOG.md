@@ -181,7 +181,7 @@ compatibility with older development tools.
 - Fan Control can now request its required approval instead of appearing
   unavailable before its first setup.
 - The Shelf now scrolls a newly added item into view, so dropping onto a full
-  Shelf no longer looks like the drop was refused.
+  Shelf no longer looks like the drop was refused. Thanks to @tenbux.
 
 ## [3.3.1] - 2026-08-09
 

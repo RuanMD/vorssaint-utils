@@ -85,7 +85,7 @@ final class ShelfService: ObservableObject {
     /// The item most recently put on the shelf, so the tiles can scroll it
     /// into view. Not persisted: it means "just now", and a relaunch has no
     /// just now.
-    @Published private(set) var lastAddedID: UUID?
+    @Published private var lastAddedID: UUID?
     /// Counts adds so the tiles can tell a genuine arrival from a redraw.
     /// The resolved reveal target is not enough on its own: it changes when a
     /// pile is expanded, and it repeats when two files land in the same pile.
@@ -1275,7 +1275,13 @@ final class ShelfService: ObservableObject {
         }
         let additions = items(from: pasteboard)
         guard !additions.isEmpty else { return false }
-        return merge(additions, into: targetID)
+        guard merge(additions, into: targetID) else { return false }
+        // Only a genuinely external drop counts as an add: mergeInternalDrag
+        // reaches the shared merge below too, but that path is a removal
+        // plus a reparent of an existing tile, not new content arriving.
+        lastAddedID = dragItems(for: additions).last?.id
+        addSerial &+= 1
+        return true
     }
 
     func canAcceptPasteboard(_ pasteboard: NSPasteboard) -> Bool {
@@ -1539,8 +1545,6 @@ final class ShelfService: ObservableObject {
               leaves.allSatisfy({ $0.id != targetID }),
               merge(leaves, into: targetID, in: &items)
         else { return false }
-        lastAddedID = leaves.last?.id
-        addSerial &+= 1
         cleanSelectionState()
         noteInteraction()
         return true

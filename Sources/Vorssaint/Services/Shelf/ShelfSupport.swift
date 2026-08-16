@@ -55,7 +55,9 @@ enum ShelfRevealSupport {
         }
         return nil
     }
+}
 
+enum ShelfTileLayout {
     /// How many tile columns fit a given width, never fewer than one so a
     /// narrow panel still lays out.
     static func columnCount(contentWidth: CGFloat,

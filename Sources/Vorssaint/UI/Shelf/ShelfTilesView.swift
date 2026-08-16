@@ -98,6 +98,9 @@ struct ShelfTilesView: NSViewRepresentable {
     static let inset: CGFloat = 4
 
     func makeNSView(context: Context) -> NSScrollView {
+        // A view built now has nothing to reveal: the docked shelf rebuilds
+        // one whenever a drag comes near, and it must open where it left off.
+        context.coordinator.revealedSerial = revealSerial
         let scroll = NSScrollView()
         scroll.drawsBackground = false
         scroll.hasHorizontalScroller = false
@@ -119,21 +122,21 @@ struct ShelfTilesView: NSViewRepresentable {
         let tile = Self.tileSize
         let inset = Self.inset
         let contentWidth = max(scroll.contentSize.width, 276)
-        let columns = ShelfRevealSupport.columnCount(contentWidth: contentWidth,
-                                                     tileWidth: tile.width,
-                                                     spacing: Self.spacing,
-                                                     inset: inset)
+        let columns = ShelfTileLayout.columnCount(contentWidth: contentWidth,
+                                                   tileWidth: tile.width,
+                                                   spacing: Self.spacing,
+                                                   inset: inset)
         let rows = max(1, Int(ceil(Double(items.count) / Double(columns))))
 
         for (index, item) in items.enumerated() {
             let view = ShelfTileView(item: item,
                                      isSelected: selection.contains(item.id),
                                      isExpanded: expandedBatches.contains(item.id))
-            view.frame = ShelfRevealSupport.tileFrame(index: index,
-                                                      columns: columns,
-                                                      tileSize: tile,
-                                                      spacing: Self.spacing,
-                                                      inset: inset)
+            view.frame = ShelfTileLayout.tileFrame(index: index,
+                                                    columns: columns,
+                                                    tileSize: tile,
+                                                    spacing: Self.spacing,
+                                                    inset: inset)
             document.addSubview(view)
         }
         let contentHeight = inset * 2 + CGFloat(rows) * tile.height + CGFloat(max(0, rows - 1)) * Self.spacing
@@ -164,19 +167,24 @@ struct ShelfTilesView: NSViewRepresentable {
                                 coordinator: Coordinator) {
         guard let revealID, revealSerial != coordinator.revealedSerial else { return }
         guard let index = items.firstIndex(where: { $0.id == revealID }) else { return }
-        // Recorded only once the tile is actually found, so a miss (the
-        // target isn't in this render's items) leaves the reveal pending
-        // instead of being silently swallowed.
+        // Ordered after the index lookup so each guard reads as its own
+        // precondition, rather than recording the serial ahead of a check
+        // that still has to pass.
         coordinator.revealedSerial = revealSerial
-        let frame = ShelfRevealSupport.tileFrame(index: index,
-                                                 columns: columns,
-                                                 tileSize: Self.tileSize,
-                                                 spacing: Self.spacing,
-                                                 inset: Self.inset)
+        let frame = ShelfTileLayout.tileFrame(index: index,
+                                               columns: columns,
+                                               tileSize: Self.tileSize,
+                                               spacing: Self.spacing,
+                                               inset: Self.inset)
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.2
             context.allowsImplicitAnimation = true
             document.scrollToVisible(frame)
+        }
+        // The animated bounds change above doesn't post the notification the
+        // scroller listens for, so nudge it directly or its knob lags behind.
+        if let scrollView = document.enclosingScrollView {
+            scrollView.reflectScrolledClipView(scrollView.contentView)
         }
     }
 
