@@ -82,6 +82,10 @@ final class ShelfService: ObservableObject {
     /// Last tile explicitly touched, used as the start of a Shift-click range.
     private var selectionAnchor: UUID?
     @Published private(set) var expandedBatches: Set<UUID> = []
+    /// The item most recently put on the shelf, so the tiles can scroll it
+    /// into view. Not persisted: it means "just now", and a relaunch has no
+    /// just now.
+    @Published private(set) var lastAddedID: UUID?
     /// Pinning is intentionally session-only: it means "keep this open while
     /// I work", not "reopen a floating panel on every launch".
     @Published private(set) var isPinned = false
@@ -206,6 +210,25 @@ final class ShelfService: ObservableObject {
     var isVisible: Bool { panel?.isVisible == true }
     var itemCount: Int { items.reduce(0) { $0 + $1.leafCount } }
     var visibleItems: [Item] { visibleItems(in: items) }
+
+    /// The tile the view should scroll into view, or nil when there is
+    /// nothing to reveal. Resolved here because only the service knows the
+    /// item tree and which piles are expanded.
+    var revealTargetID: UUID? {
+        guard let lastAddedID else { return nil }
+        return ShelfRevealSupport.visibleAncestorID(of: lastAddedID,
+                                                    in: revealNodes(for: items),
+                                                    expanded: expandedBatches)
+    }
+
+    private func revealNodes(for items: [Item]) -> [ShelfRevealNode] {
+        items.map { item in
+            guard case let .batch(children) = item.payload else {
+                return ShelfRevealNode(id: item.id)
+            }
+            return ShelfRevealNode(id: item.id, children: revealNodes(for: children))
+        }
+    }
 
     static let tileDropTypes: [NSPasteboard.PasteboardType] = [
         .fileURL,
@@ -1264,6 +1287,8 @@ final class ShelfService: ObservableObject {
         let additions = items(from: pasteboard)
         guard !additions.isEmpty else { return false }
         items.append(contentsOf: additions)
+        // The last one is furthest down, so revealing it brings its siblings.
+        lastAddedID = additions.last?.id
         noteInteraction()
         return true
     }
@@ -1375,6 +1400,7 @@ final class ShelfService: ObservableObject {
 
     private func append(_ item: Item) {
         items.append(item)
+        lastAddedID = item.id
         noteInteraction()
     }
 
@@ -1507,6 +1533,7 @@ final class ShelfService: ObservableObject {
               leaves.allSatisfy({ $0.id != targetID }),
               merge(leaves, into: targetID, in: &items)
         else { return false }
+        lastAddedID = leaves.last?.id
         cleanSelectionState()
         noteInteraction()
         return true
