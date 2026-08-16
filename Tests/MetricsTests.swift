@@ -12476,6 +12476,26 @@ struct MetricsTests {
         expect(FileManager.default.fileExists(atPath: recoverableTake.videoURL.path),
                "a failed direct save keeps the take available for recovery")
 
+        let importSource = directSaveRoot.appendingPathComponent("source.mp4")
+        try? masterBytes.write(to: importSource)
+        let importedID = UUID()
+        let importedFolder = directSaveRoot.appendingPathComponent(
+            RecorderSupport.takeFolderName(id: importedID), isDirectory: true)
+        try? FileManager.default.createDirectory(at: importedFolder,
+                                                 withIntermediateDirectories: true)
+        let importedTake = RecorderTakeStore.Take(id: importedID, folder: importedFolder)
+        expect(RecorderTakeStore.shared.importVideo(at: importSource, into: importedTake),
+               "an ordinary video is staged as an editor take")
+        expect((try? Data(contentsOf: importedTake.videoURL)) == masterBytes,
+               "the staged editor take keeps every source byte")
+        let changedSourceBytes = Data("changed outside the editor".utf8)
+        try? changedSourceBytes.write(to: importSource)
+        expect((try? Data(contentsOf: importedTake.videoURL)) == masterBytes,
+               "external changes to the original never alter the staged editor master")
+        RecorderTakeStore.shared.delete(importedTake)
+        expect((try? Data(contentsOf: importSource)) == changedSourceBytes,
+               "discarding an imported take never changes the original video")
+
         expect(RecorderSupport.canStart(freeBytes: 10_000_000_000)
                 && !RecorderSupport.canStart(freeBytes: 100_000_000),
                "a recording refuses to start when the disk is nearly full")
@@ -12889,9 +12909,18 @@ struct MetricsTests {
         expect(padded.width > 960 && padded.height > 640,
                "a margin grows the canvas instead of shrinking the recording")
         let wide = RecorderSupport.canvasSize(source: CGSize(width: 640, height: 640),
-                                              padding: 0, aspect: .wide)
+                                              padding: 0,
+                                              aspect: .wide,
+                                              cropsToAspect: true)
         expect(abs(wide.width / wide.height - 16.0 / 9.0) < 0.02,
                "a shape preset gives the canvas that shape")
+        expect(wide.width <= 640 && wide.height <= 640,
+               "a shape without a background crops inside the source instead of adding bars")
+        let framedWide = RecorderSupport.canvasSize(source: CGSize(width: 640, height: 640),
+                                                    padding: 0,
+                                                    aspect: .wide)
+        expect(framedWide.width > 640,
+               "a shape with a background grows around the source instead of cropping it")
         let huge = RecorderSupport.canvasSize(source: CGSize(width: 6000, height: 4000),
                                               padding: 0.3, aspect: .original)
         expect(max(huge.width, huge.height) <= RecorderSupport.maximumCanvasEdge,
@@ -12906,6 +12935,24 @@ struct MetricsTests {
                "the recording is centred in the canvas")
         expect(card.minX >= 0 && card.maxX <= 1200 && card.minY >= 0 && card.maxY <= 800,
                "the recording never hangs off the canvas")
+        let squareCrop = RecorderSupport.cardRect(canvas: CGSize(width: 640, height: 640),
+                                                  source: CGSize(width: 960, height: 640),
+                                                  padding: 0,
+                                                  fillsCanvas: true)
+        expect(squareCrop.height == 640 && squareCrop.width == 960 && squareCrop.minX == -160,
+               "a centred crop covers the chosen shape and clips equal excess from both sides")
+        let rotatedGeometry = RecorderSupport.videoGeometry(
+            naturalSize: CGSize(width: 1920, height: 1080),
+            preferredTransform: CGAffineTransform(rotationAngle: .pi / 2))
+        let rotatedRect = CGRect(origin: .zero, size: CGSize(width: 1920, height: 1080))
+            .applying(rotatedGeometry.transform)
+        expect(rotatedGeometry.size == CGSize(width: 1080, height: 1920),
+               "an imported rotated video uses its displayed portrait dimensions")
+        expect(abs(rotatedRect.minX) < 0.001 && abs(rotatedRect.minY) < 0.001,
+               "an imported video transform is normalized to the output origin")
+        expect(RecorderSupport.videoGeometry(naturalSize: .zero,
+                                             preferredTransform: .identity).size == .zero,
+               "missing video dimensions stay invalid instead of becoming an artificial frame")
 
         expect(RecorderSupport.sanitizedZoomAmount(99) == RecorderSupport.zoomAmountRange.upperBound
                 && RecorderSupport.sanitizedZoomAmount(.nan) == 1.8,
