@@ -8,8 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Summary
 Vorssaint 3.3.2 adds batch image conversion, local Command Bar scripts, recent captures,
-desktop window controls and edge-activated Shelf access. It also improves capture, app discovery,
-conversions, volume, Switcher behavior, menu bar sizing and compatibility with older development tools.
+desktop window controls, edge-activated Shelf access and faster access to recording and
+maintenance tools. It also improves capture, app discovery, conversions, volume, Switcher behavior,
+menu bar sizing and compatibility with older development tools.
 
 ### Added
 - Media now converts images in batches with resizing, watermarks, renaming and
@@ -19,6 +20,9 @@ conversions, volume, Switcher behavior, menu bar sizing and compatibility with o
 - Screenshot and screen recording now open recent captures from the panel, their editors
   and the Command Bar.
   Thanks to @lmilojevicc.
+- The quick panel can now start and stop screen recordings from its grid.
+- The Radial Menu can now start or stop screen recording and open Cleaner,
+  Uninstaller and App Updates directly.
 - Window Layout can send the active window to the previous or next desktop with
   optional shortcuts.
 - Emoji can open directly from a shortcut assigned to its Command Bar row.

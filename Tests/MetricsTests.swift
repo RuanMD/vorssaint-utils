@@ -12225,6 +12225,17 @@ struct MetricsTests {
                "the default recording shortcut sits next to the screenshot's own")
         expect(Defaults.registeredDefaults[DefaultsKey.panelUtilityScreenRecorder] as? Bool == true,
                "the screen recorder panel tile ships visible like its siblings")
+        let quickLauncherServiceSource = (try? String(
+            contentsOfFile: "Sources/Vorssaint/Services/QuickTools/QuickLauncherService.swift",
+            encoding: .utf8)) ?? ""
+        let quickLauncherViewSource = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/QuickLauncher/QuickLauncherView.swift",
+            encoding: .utf8)) ?? ""
+        expect(quickLauncherServiceSource.contains("case .screenRecorder: return .screenRecorder")
+                && quickLauncherServiceSource.contains("ScreenRecorderService.shared.toggle()")
+                && quickLauncherViewSource.contains(
+                    "case .screenRecorder: return recorder.isRecording ? \"stop.circle\" : \"record.circle\""),
+               "the screen recorder keeps its quick-panel tile, action and recording state")
         expect(Defaults.registeredDefaults[DefaultsKey.recorderSystemAudio] as? Bool == true,
                "a recording carries the sound of the Mac unless the person turns it off")
         expect(Defaults.registeredDefaults[DefaultsKey.recorderMicrophone] as? Bool == false,
