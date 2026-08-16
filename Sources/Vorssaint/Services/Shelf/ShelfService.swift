@@ -63,6 +63,18 @@ final class ShelfService: ObservableObject {
             case let .batch(items): return items.reduce(0) { $0 + $1.leafCount }
             }
         }
+
+        /// This item flattened into the kinds ShelfTooltipSupport's pile
+        /// breakdown needs, recursing the same way leafCount does so a pile
+        /// containing another pile still counts every real leaf.
+        var tooltipLeafKinds: [ShelfTooltipLeafKind] {
+            switch payload {
+            case .file: return [isImage ? .image : .file]
+            case .text: return [.note]
+            case .link: return [.link]
+            case let .batch(items): return items.flatMap { $0.tooltipLeafKinds }
+            }
+        }
     }
 
     @Published private(set) var items: [Item] = [] {

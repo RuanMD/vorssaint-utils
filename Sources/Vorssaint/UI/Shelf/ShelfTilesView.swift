@@ -245,6 +245,7 @@ final class ShelfTileView: NSView, NSDraggingSource {
     }
 
     private func buildSubviews() {
+        toolTip = Self.tooltipText(for: item)
         if item.isBatch { addStackBackplates() }
 
         let iconWell = NSView(frame: NSRect(x: 7, y: 6, width: 64, height: 50))
@@ -311,6 +312,39 @@ final class ShelfTileView: NSView, NSDraggingSource {
         closeButton.action = #selector(removeSelf)
         closeButton.isHidden = true
         addSubview(closeButton)
+    }
+
+    private static func tooltipText(for item: ShelfService.Item) -> String {
+        switch item.payload {
+        case let .file(url):
+            return ShelfTooltipSupport.text(forFile: item.title, resolvedKind: resolvedFileKind(for: url))
+        case let .text(string):
+            return ShelfTooltipSupport.text(forText: string)
+        case let .link(url):
+            return ShelfTooltipSupport.text(forLink: url)
+        case .batch:
+            let breakdown = ShelfTooltipSupport.breakdown(of: item.tooltipLeafKinds)
+            let s = L10n.shared.s
+            let strings = ShelfTooltipStrings(itemsFormat: s.shelfTooltipItemsFormat,
+                                              imageSingular: s.shelfTooltipImageSingular,
+                                              imagePlural: s.shelfTooltipImagePlural,
+                                              fileSingular: s.shelfTooltipFileSingular,
+                                              filePlural: s.shelfTooltipFilePlural,
+                                              noteSingular: s.shelfTooltipNoteSingular,
+                                              notePlural: s.shelfTooltipNotePlural,
+                                              linkSingular: s.shelfTooltipLinkSingular,
+                                              linkPlural: s.shelfTooltipLinkPlural)
+            return ShelfTooltipSupport.text(forPile: breakdown, strings: strings)
+        }
+    }
+
+    /// The one part of this that has to touch the filesystem: the system's
+    /// own localized description of what kind of file this is, the same
+    /// text Finder's Get Info panel shows. A missing file or any other read
+    /// failure is not worth surfacing here; the caller falls back to the
+    /// name alone.
+    private static func resolvedFileKind(for url: URL) -> String? {
+        (try? url.resourceValues(forKeys: [.localizedTypeDescriptionKey]))?.localizedTypeDescription
     }
 
     private func addStackBackplates() {
