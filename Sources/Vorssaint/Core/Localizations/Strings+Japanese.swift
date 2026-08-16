@@ -900,6 +900,8 @@ extension Strings {
         invertHorizontalScroll: "横スクロールを反転",
         switcherShowShortcutHints: "ショートカットのヒントを表示",
         switcherShowShortcutHintsCaption: "アイコンの下にアプリとウインドウのショートカットを表示します。",
-        uninstallerHomebrewPackageFormat: "%@ も Homebrew から削除されます。"
+        uninstallerHomebrewPackageFormat: "%@ も Homebrew から削除されます。",
+        shelfEdgeToggle: "画面の端に近づけたら開く",
+        shelfEdgeCaption: "ファイルを画面の端に向けてドラッグすると、シェルフが少しだけ現れます。そこでドロップするか、手を戻すとシェルフは引っ込みます。"
     )
 }

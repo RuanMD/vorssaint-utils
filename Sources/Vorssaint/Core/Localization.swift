@@ -1045,6 +1045,8 @@ struct Strings {
     let switcherShowShortcutHints: String
     let switcherShowShortcutHintsCaption: String
     let uninstallerHomebrewPackageFormat: String
+    let shelfEdgeToggle: String
+    let shelfEdgeCaption: String
 }
 
 // MARK: - Português (Brasil)
@@ -1946,7 +1948,9 @@ extension Strings {
         invertHorizontalScroll: "Inverter rolagem horizontal",
         switcherShowShortcutHints: "Mostrar dicas de atalhos",
         switcherShowShortcutHintsCaption: "Exibe os atalhos de apps e janelas abaixo dos ícones.",
-        uninstallerHomebrewPackageFormat: "%@ também será removido do Homebrew."
+        uninstallerHomebrewPackageFormat: "%@ também será removido do Homebrew.",
+        shelfEdgeToggle: "Abrir perto de uma borda da tela",
+        shelfEdgeCaption: "Ao arrastar um arquivo para perto da borda da tela, a área espia para dentro. Solte ali, ou puxe de volta e ela recua."
     )
 }
 
@@ -2849,6 +2853,8 @@ extension Strings {
         invertHorizontalScroll: "Invert horizontal scrolling",
         switcherShowShortcutHints: "Show shortcut hints",
         switcherShowShortcutHintsCaption: "Shows the app and window shortcuts below the icons.",
-        uninstallerHomebrewPackageFormat: "%@ will also be removed from Homebrew."
+        uninstallerHomebrewPackageFormat: "%@ will also be removed from Homebrew.",
+        shelfEdgeToggle: "Open near a screen edge",
+        shelfEdgeCaption: "Drag a file toward the screen edge to peek the shelf in. Drop it there, or pull back and it retreats."
     )
 }

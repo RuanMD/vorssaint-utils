@@ -900,6 +900,8 @@ extension Strings {
         invertHorizontalScroll: "Inverser le défilement horizontal",
         switcherShowShortcutHints: "Afficher les raccourcis",
         switcherShowShortcutHintsCaption: "Affiche les raccourcis des apps et des fenêtres sous les icônes.",
-        uninstallerHomebrewPackageFormat: "%@ sera aussi retiré de Homebrew."
+        uninstallerHomebrewPackageFormat: "%@ sera aussi retiré de Homebrew.",
+        shelfEdgeToggle: "Ouvrir près d’un bord de l’écran",
+        shelfEdgeCaption: "Faites glisser un fichier vers le bord de l’écran pour entrevoir l’étagère. Déposez-le là, ou reculez et elle se retire."
     )
 }

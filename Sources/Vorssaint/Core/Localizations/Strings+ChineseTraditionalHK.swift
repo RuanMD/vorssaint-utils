@@ -901,6 +901,8 @@ extension Strings {
         invertHorizontalScroll: "反轉水平捲動",
         switcherShowShortcutHints: "顯示快速鍵提示",
         switcherShowShortcutHintsCaption: "在圖示下方顯示 App 和視窗快速鍵。",
-        uninstallerHomebrewPackageFormat: "%@ 亦會從 Homebrew 移除。"
+        uninstallerHomebrewPackageFormat: "%@ 亦會從 Homebrew 移除。",
+        shelfEdgeToggle: "接近螢幕邊緣時開啟",
+        shelfEdgeCaption: "將檔案拖曳至螢幕邊緣，暫存架便會探出一角。放在那裡即可放低，往回拖曳暫存架便會縮回去。"
     )
 }

@@ -901,6 +901,8 @@ extension Strings {
         invertHorizontalScroll: "Инвертировать горизонтальную прокрутку",
         switcherShowShortcutHints: "Показывать подсказки сочетаний клавиш",
         switcherShowShortcutHintsCaption: "Показывает сочетания клавиш для приложений и окон под значками.",
-        uninstallerHomebrewPackageFormat: "%@ также будет удалён из Homebrew."
+        uninstallerHomebrewPackageFormat: "%@ также будет удалён из Homebrew.",
+        shelfEdgeToggle: "Открывать у края экрана",
+        shelfEdgeCaption: "Перетащите файл к краю экрана, чтобы полка выглянула. Отпустите его там, или потяните обратно, и полка уберётся."
     )
 }

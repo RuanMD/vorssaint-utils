@@ -900,6 +900,8 @@ extension Strings {
         invertHorizontalScroll: "Yatay kaydırmayı ters çevir",
         switcherShowShortcutHints: "Kısayol ipuçlarını göster",
         switcherShowShortcutHintsCaption: "Simge sırasının altında uygulama ve pencere kısayollarını gösterir.",
-        uninstallerHomebrewPackageFormat: "%@, Homebrew'den de kaldırılacak."
+        uninstallerHomebrewPackageFormat: "%@, Homebrew'den de kaldırılacak.",
+        shelfEdgeToggle: "Ekran kenarına yaklaşınca aç",
+        shelfEdgeCaption: "Bir dosyayı ekran kenarına doğru sürüklediğinde raf belirmeye başlar. Bıraktığın yerde kalır, ya da geri çekersen raf da geri çekilir."
     )
 }

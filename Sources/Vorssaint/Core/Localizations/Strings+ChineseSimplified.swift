@@ -900,6 +900,8 @@ extension Strings {
         invertHorizontalScroll: "反转水平滚动",
         switcherShowShortcutHints: "显示快捷键提示",
         switcherShowShortcutHintsCaption: "在图标下方显示 App 和窗口快捷键。",
-        uninstallerHomebrewPackageFormat: "%@ 也会从 Homebrew 中移除。"
+        uninstallerHomebrewPackageFormat: "%@ 也会从 Homebrew 中移除。",
+        shelfEdgeToggle: "靠近屏幕边缘时打开",
+        shelfEdgeCaption: "将文件拖向屏幕边缘，暂存架就会探出一角。放在那里即可放下，往回拖则会收回去。"
     )
 }
