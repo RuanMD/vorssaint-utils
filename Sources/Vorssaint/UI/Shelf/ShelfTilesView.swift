@@ -245,7 +245,6 @@ final class ShelfTileView: NSView, NSDraggingSource {
     }
 
     private func buildSubviews() {
-        toolTip = Self.tooltipText(for: item)
         if item.isBatch { addStackBackplates() }
 
         let iconWell = NSView(frame: NSRect(x: 7, y: 6, width: 64, height: 50))
@@ -312,12 +311,25 @@ final class ShelfTileView: NSView, NSDraggingSource {
         closeButton.action = #selector(removeSelf)
         closeButton.isHidden = true
         addSubview(closeButton)
+        // Registered lazily rather than by setting toolTip directly: this
+        // view is torn down and rebuilt on every layout pass, including
+        // once per pile merge on the main thread while the drag session is
+        // still unwinding, and file items resolve their Kind from disk.
+        // addToolTip defers that read until the pointer has actually
+        // hovered long enough to show something, instead of paying for it
+        // on every rebuild whether or not anyone hovers.
+        _ = addToolTip(bounds, owner: self, userData: nil)
+    }
+
+    @objc func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint,
+                     userData: UnsafeMutableRawPointer?) -> String {
+        Self.tooltipText(for: item)
     }
 
     private static func tooltipText(for item: ShelfService.Item) -> String {
         switch item.payload {
         case let .file(url):
-            return ShelfTooltipSupport.text(forFile: item.title, resolvedKind: resolvedFileKind(for: url))
+            return ShelfTooltipSupport.text(forFileNamed: item.title, resolvedKind: resolvedFileKind(for: url))
         case let .text(string):
             return ShelfTooltipSupport.text(forText: string)
         case let .link(url):

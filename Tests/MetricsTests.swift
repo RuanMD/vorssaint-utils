@@ -5612,13 +5612,13 @@ struct MetricsTests {
                                                  noteSingular: "%d note", notePlural: "%d notes",
                                                  linkSingular: "%d link", linkPlural: "%d links")
 
-        expectEqual(ShelfTooltipSupport.text(forFile: "risaPOGCHAMP.gif", resolvedKind: "GIF Image"),
+        expectEqual(ShelfTooltipSupport.text(forFileNamed: "risaPOGCHAMP.gif", resolvedKind: "GIF Image"),
                     "risaPOGCHAMP.gif\nGIF Image",
                     "file tooltip shows the name and the resolved kind on separate lines")
-        expectEqual(ShelfTooltipSupport.text(forFile: "mystery.xyz", resolvedKind: nil),
+        expectEqual(ShelfTooltipSupport.text(forFileNamed: "mystery.xyz", resolvedKind: nil),
                     "mystery.xyz",
                     "file tooltip falls back to the name alone when the kind lookup failed")
-        expectEqual(ShelfTooltipSupport.text(forFile: "mystery.xyz", resolvedKind: ""),
+        expectEqual(ShelfTooltipSupport.text(forFileNamed: "mystery.xyz", resolvedKind: ""),
                     "mystery.xyz",
                     "an empty resolved kind is treated the same as no kind at all")
 

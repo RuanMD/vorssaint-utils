@@ -180,7 +180,7 @@ enum ShelfTooltipSupport {
     /// went away, or the lookup failed for any reason) is not worth
     /// surfacing as an error to someone just hovering, so it falls back to
     /// the name alone rather than showing a blank second line.
-    static func text(forFile title: String, resolvedKind: String?) -> String {
+    static func text(forFileNamed title: String, resolvedKind: String?) -> String {
         guard let resolvedKind, !resolvedKind.isEmpty else { return title }
         return "\(title)\n\(resolvedKind)"
     }
