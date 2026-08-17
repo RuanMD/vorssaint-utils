@@ -165,7 +165,9 @@ struct ShelfTilesView: NSViewRepresentable {
     private func revealIfNeeded(in document: NSView,
                                 columns: Int,
                                 coordinator: Coordinator) {
-        guard let revealID, revealSerial != coordinator.revealedSerial else { return }
+        guard let revealID,
+              ShelfRevealSupport.shouldReveal(serial: revealSerial, lastHonored: coordinator.revealedSerial)
+        else { return }
         guard let index = items.firstIndex(where: { $0.id == revealID }) else { return }
         // Ordered after the index lookup so each guard reads as its own
         // precondition, rather than recording the serial ahead of a check

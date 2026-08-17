@@ -5393,6 +5393,13 @@ struct MetricsTests {
                                                     expanded: []) == nil,
                "an id that is not on the shelf reveals nothing")
 
+        expect(ShelfRevealSupport.shouldReveal(serial: 1, lastHonored: nil),
+               "the shelf's first ever add is always revealed")
+        expect(!ShelfRevealSupport.shouldReveal(serial: 1, lastHonored: 1),
+               "an already honored serial does not reveal again, e.g. a pile expanding with nothing added")
+        expect(ShelfRevealSupport.shouldReveal(serial: 2, lastHonored: 1),
+               "a new serial reveals even when the resolved target repeats, e.g. two drops into the same collapsed pile")
+
         expect(ShelfTileLayout.columnCount(contentWidth: 276,
                                            tileWidth: 78,
                                            spacing: 10,

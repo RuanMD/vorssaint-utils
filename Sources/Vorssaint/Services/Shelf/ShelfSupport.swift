@@ -55,6 +55,15 @@ enum ShelfRevealSupport {
         }
         return nil
     }
+
+    /// Whether this add is one the Shelf hasn't already scrolled to. Keyed
+    /// on the add serial rather than the resolved target: the target alone
+    /// changes when a pile is expanded or collapsed with nothing added,
+    /// and repeats when two files land in the same collapsed pile back to
+    /// back, either of which would misfire a target-keyed dedup.
+    static func shouldReveal(serial: Int, lastHonored: Int?) -> Bool {
+        serial != lastHonored
+    }
 }
 
 enum ShelfTileLayout {
