@@ -8315,6 +8315,16 @@ struct MetricsTests {
             "automationFinder", "automationTerminal", "audioCapture", "microphone", "camera",
             "appManagement",
         ], "permission portal contains every supported permission")
+        let onboardingViewSource = (try? String(
+            contentsOfFile: "Sources/Vorssaint/UI/Onboarding/OnboardingView.swift",
+            encoding: .utf8)) ?? ""
+        let additionalPermissionsAlignment =
+            #"DisclosureGroup\(isExpanded: \$showingOtherPermissions\) \{\s+"#
+            + #"VStack\(alignment: \.leading, spacing: 14\)"#
+        expect(onboardingViewSource.range(
+            of: additionalPermissionsAlignment,
+            options: .regularExpression) != nil,
+               "the additional onboarding permission rows share one leading edge")
         expect(FeaturePreset.essential.features.flatMap(\.onboardingPermissions).isEmpty,
                "the essential first-run choice asks for no broad permission")
         expect(Set(FeaturePreset.windows.features.flatMap(\.onboardingPermissions))
