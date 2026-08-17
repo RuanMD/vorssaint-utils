@@ -1033,6 +1033,12 @@ final class ShelfService: ObservableObject {
         cleanSelectionState()
         retireOwnedPayloads(in: removed)
         noteInteraction()
+        // A tooltip already showing for the removed tile, or a sibling
+        // whose pile just changed shape, has nothing left to describe.
+        // None of these removal paths (the close button, the trash
+        // button, a drag-out) go through a tile's own mouseDown, the
+        // only other place a showing tooltip gets hidden.
+        ShelfTooltipPopover.shared.hide()
     }
 
     /// Removes several items at once — used after a successful drag-out so the
@@ -1044,6 +1050,7 @@ final class ShelfService: ObservableObject {
         cleanSelectionState()
         retireOwnedPayloads(in: removed)
         noteInteraction()
+        ShelfTooltipPopover.shared.hide()
     }
 
     func clear() {
@@ -1054,6 +1061,7 @@ final class ShelfService: ObservableObject {
         expandedBatches = []
         retireOwnedPayloads(in: removed)
         noteInteraction()
+        ShelfTooltipPopover.shared.hide()
     }
 
     func toggleSelection(_ id: UUID) {
