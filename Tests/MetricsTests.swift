@@ -1720,6 +1720,27 @@ struct MetricsTests {
                && minimizedHiddenSpaceWindow.windowOwnerPID == 202
                && minimizedHiddenSpaceWindow.isOnHiddenSpace,
                "App Switcher preserves window ownership and other-desktop state across updates")
+
+        // MARK: Hidden app windows (issue #656)
+        let hiddenAppWindow = SwitcherItem.window(id: 79,
+                                                  title: "Hidden Project",
+                                                  appName: "Primary",
+                                                  pid: 101,
+                                                  isOnScreen: false,
+                                                  isAppHidden: true,
+                                                  frame: CGRect(x: 20, y: 20, width: 900, height: 600))
+        expect(hiddenAppWindow.isAppHidden
+               && hiddenAppWindow.withMinimized(true).isAppHidden
+               && SwitcherItem.appOnly(appName: "Primary", pid: 101,
+                                       isAppHidden: true).isAppHidden,
+               "App Switcher carries a hidden app's state through every entry shape")
+        expect(SwitcherSupport.isConfirmedHiddenAppWindow(appIsHidden: true,
+                                                          windowSpaces: [3])
+               && !SwitcherSupport.isConfirmedHiddenAppWindow(appIsHidden: false,
+                                                               windowSpaces: [3])
+               && !SwitcherSupport.isConfirmedHiddenAppWindow(appIsHidden: true,
+                                                               windowSpaces: []),
+               "App Switcher keeps only hidden-app surfaces assigned to a real desktop")
         expect(SwitcherSupport.sessionSourceItem(frontmostPID: 101,
                                                  focusedWindowID: nil,
                                                  items: [embeddedWindow])?.id == embeddedWindow.id,

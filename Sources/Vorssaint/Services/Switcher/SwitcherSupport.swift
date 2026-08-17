@@ -446,6 +446,13 @@ enum SwitcherSupport {
         return appRules[bundleIdentifier] == .hidden
     }
 
+    /// When Accessibility does not match a hidden app's WindowServer surface,
+    /// its Space assignment distinguishes a real window from a leftover.
+    static func isConfirmedHiddenAppWindow(appIsHidden: Bool,
+                                           windowSpaces: [UInt64]) -> Bool {
+        appIsHidden && !windowSpaces.isEmpty
+    }
+
     /// Downsamples a capture into a small alpha grid for classification.
     static func alphaGrid(of image: CGImage, gridSize: Int = captureAlphaGridSize) -> [Double]? {
         guard gridSize > 0 else { return nil }

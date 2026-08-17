@@ -77,6 +77,8 @@ compatibility with older development tools.
   previews. Turn on Show one entry per app to group them.
 - The App Switcher now marks windows that are on another desktop.
   Thanks to @AB-boi.
+- Hidden apps now keep their windows in the App Switcher and show a clear hidden-state badge.
+  Thanks to @AB-boi.
 - Foot conversions in the Command Bar now show localized feet and inches while
   keeping small measurements precise. Thanks to @tenbux.
 

@@ -20,6 +20,7 @@ struct SwitcherItem: Identifiable, Equatable {
     /// The backing CGWindow: thumbnails and AX raising go through it.
     let windowID: CGWindowID?
     let isOnScreen: Bool
+    let isAppHidden: Bool
     let isMinimized: Bool
     let isFullscreen: Bool
     /// The window belongs only to Spaces that are not currently visible.
@@ -65,6 +66,7 @@ struct SwitcherItem: Identifiable, Equatable {
                      windowOwnerPID: windowOwnerPID,
                      windowID: windowID,
                      isOnScreen: minimized ? false : true,
+                     isAppHidden: isAppHidden,
                      isMinimized: minimized,
                      isFullscreen: isFullscreen,
                      isOnHiddenSpace: isOnHiddenSpace,
@@ -79,6 +81,7 @@ struct SwitcherItem: Identifiable, Equatable {
                      windowOwnerPID: windowOwnerPID,
                      windowID: windowID,
                      isOnScreen: isOnScreen,
+                     isAppHidden: isAppHidden,
                      isMinimized: isMinimized,
                      isFullscreen: isFullscreen,
                      isOnHiddenSpace: hidden,
@@ -87,19 +90,23 @@ struct SwitcherItem: Identifiable, Equatable {
 
     static func window(id: CGWindowID, title: String, appName: String, pid: pid_t,
                        windowOwnerPID: pid_t? = nil,
-                       isOnScreen: Bool, isMinimized: Bool = false,
+                       isOnScreen: Bool, isAppHidden: Bool = false,
+                       isMinimized: Bool = false,
                        isFullscreen: Bool = false, frame: CGRect) -> SwitcherItem {
         SwitcherItem(id: "w:\(id)", title: title, appName: appName,
                      pid: pid, windowOwnerPID: windowOwnerPID ?? pid,
                      windowID: id, isOnScreen: isOnScreen,
+                     isAppHidden: isAppHidden,
                      isMinimized: isMinimized, isFullscreen: isFullscreen,
                      isOnHiddenSpace: false,
                      frame: frame)
     }
 
-    static func appOnly(appName: String, pid: pid_t) -> SwitcherItem {
+    static func appOnly(appName: String, pid: pid_t,
+                        isAppHidden: Bool = false) -> SwitcherItem {
         SwitcherItem(id: "a:\(pid)", title: appName, appName: appName,
                      pid: pid, windowOwnerPID: pid, windowID: nil, isOnScreen: false,
+                     isAppHidden: isAppHidden,
                      isMinimized: false, isFullscreen: false,
                      isOnHiddenSpace: false, frame: .zero)
     }
