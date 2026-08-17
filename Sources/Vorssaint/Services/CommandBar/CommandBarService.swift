@@ -84,6 +84,10 @@ final class CommandBarService: ObservableObject {
     /// numbers, which teaches it without a single pixel of permanent clutter.
     @Published private(set) var commandIsHeld = false
 
+    /// True when the bar was dragged off the spot it opens on by default,
+    /// so Settings can offer the way back.
+    @Published private(set) var hasCustomPosition = false
+
     private let hotkey = QuickToolHotkey(id: 20)
     private var rowHotkeys: [QuickToolHotkey] = []
     private var panel: NSPanel?
@@ -613,6 +617,7 @@ final class CommandBarService: ObservableObject {
     private func reloadPreferenceCaches() {
         pinCache = Set(pins)
         shortcutCache = rowShortcuts
+        hasCustomPosition = positionOffset != .zero
     }
 
     func isPinned(_ entry: CommandBarEntry) -> Bool {
@@ -1980,22 +1985,63 @@ final class CommandBarService: ObservableObject {
     /// Centered, a bit above the middle of the screen the pointer is on:
     /// where the eye already is, and where the system's own search field
     /// puts itself. Anchored by the top edge so the list can grow and shrink
-    /// below a field that never moves.
-    private func position(_ panel: NSPanel) {
+    /// below a field that never moves. Wherever the person dragged the bar
+    /// away from that spot is added on, so the choice survives the close.
+    private func position(_ panel: NSPanel, animated: Bool = false) {
         panel.contentViewController?.view.layoutSubtreeIfNeeded()
         let size = panel.contentViewController?.view.fittingSize ?? NSSize(width: 560, height: 380)
         // Decided once, here: moving the pointer to another display while
         // typing must not clamp the panel against a screen it is not on.
         let screen = NSScreen.pointerVisibleFrame
         panelScreen = screen
-        let x = screen.midX - size.width / 2
-        let top = screen.minY + screen.height * 0.72
-        panel.setFrame(NSRect(x: max(screen.minX + 16, min(x, screen.maxX - size.width - 16)),
-                              y: max(screen.minY + 16, top - size.height),
-                              width: size.width,
-                              height: size.height),
+        let offset = positionOffset
+        let origin = CommandBarPreferences.clampedPanelOrigin(
+            size: size, in: screen, offset: offset)
+        panel.setFrame(NSRect(origin: origin, size: size),
                        display: true,
-                       animate: false)
+                       animate: animated)
+    }
+
+    /// How far the person dragged the bar from the spot it would otherwise
+    /// open on.
+    private var positionOffset: CGSize {
+        CommandBarPreferences.decodePositionOffset(
+            UserDefaults.standard.string(forKey: DefaultsKey.commandBarPositionOffset) ?? "")
+    }
+
+    // MARK: - Moving the bar
+
+    /// Clamps and saves only after the person's drag has ended. Programmatic
+    /// positioning and content-driven resizing never rewrite this preference.
+    func finishPanelDrag() {
+        guard let panel else { return }
+        let screen = panel.screen?.visibleFrame ?? panelScreen ?? NSScreen.pointerVisibleFrame
+        panelScreen = screen
+        let draggedOffset = CGSize(
+            width: panel.frame.midX - screen.midX,
+            height: panel.frame.maxY - (screen.minY + screen.height * 0.72))
+        let origin = CommandBarPreferences.clampedPanelOrigin(
+            size: panel.frame.size, in: screen, offset: draggedOffset)
+        if panel.frame.origin != origin { panel.setFrameOrigin(origin) }
+        let offset = CGSize(width: panel.frame.midX - screen.midX,
+                            height: panel.frame.maxY - (screen.minY + screen.height * 0.72))
+        let encoded = CommandBarPreferences.encodePositionOffset(offset)
+        if encoded.isEmpty {
+            UserDefaults.standard.removeObject(forKey: DefaultsKey.commandBarPositionOffset)
+        } else {
+            UserDefaults.standard.set(encoded, forKey: DefaultsKey.commandBarPositionOffset)
+        }
+        hasCustomPosition = !encoded.isEmpty
+    }
+
+    /// The way back: a double-click on the mark, or the button in Settings,
+    /// returns the bar to the spot it opens on by default, with the same
+    /// short slide it took on the way there.
+    func resetPanelPosition() {
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.commandBarPositionOffset)
+        hasCustomPosition = false
+        guard let panel, panel.isVisible else { return }
+        position(panel, animated: true)
     }
 
     // MARK: - Monitors

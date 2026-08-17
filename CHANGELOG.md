@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The format follows
 Vorssaint 3.3.2 adds unified screen capture, batch image conversion,
 imported-video editing, local Command Bar scripts, recent captures, desktop
 window controls, edge-activated Shelf access and faster access to recording
-and maintenance tools. It also improves Clipboard access, capture, app discovery,
+and maintenance tools. It also improves Clipboard access, Command Bar placement, capture, app discovery,
 conversions, volume, Switcher behavior, Settings reachability, menu bar sizing,
 setup screens, customizable Super key combinations, command-line setup,
 accidental middle clicks while typing and
@@ -71,6 +71,8 @@ compatibility with older development tools.
   consistently. Thanks to @PathGao.
 - The Command Bar now accepts Control-P and Control-N to move through results.
   Thanks to @theafox.
+- The Command Bar can now be placed anywhere on a screen by dragging its mark,
+  with reset controls in the bar and Settings. Thanks to @tingke.
 - Shelf now supports Shift-click ranges, Command-A to select every visible item
   and Escape to clear the selection. Thanks to @cimu233.
 - Shelf can now open when a dragged file reaches a screen edge. Enable it under
