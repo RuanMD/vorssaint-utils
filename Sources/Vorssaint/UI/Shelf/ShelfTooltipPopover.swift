@@ -19,6 +19,7 @@ final class ShelfTooltipPopover {
     private static let showDelay: TimeInterval = 1.0
     private static let margin: CGFloat = 6
     private static let gap: CGFloat = 6
+    private static let maxWidth: CGFloat = 280
 
     private var panel: NSPanel?
     private var label: NSTextField?
@@ -56,12 +57,18 @@ final class ShelfTooltipPopover {
     private func show(text: String, near owner: NSView) {
         guard let ownerWindow = owner.window else { return }
         let panel = ensurePanel()
-        label?.stringValue = text
         guard let label else { return }
-        label.sizeToFit()
-        let size = NSSize(width: label.frame.width + Self.margin * 2,
-                          height: label.frame.height + Self.margin * 2)
-        label.frame.origin = NSPoint(x: Self.margin, y: Self.margin)
+        label.stringValue = text
+        // preferredMaxLayoutWidth, not a plain sizeToFit(), so long content
+        // (an untruncated filename, a full URL, up to 500 characters of
+        // pasted text) wraps within a fixed width instead of measuring as
+        // one unbounded line and running the popup off the edge of the
+        // screen.
+        label.preferredMaxLayoutWidth = Self.maxWidth
+        let natural = label.intrinsicContentSize
+        let textWidth = min(natural.width, Self.maxWidth)
+        label.frame = NSRect(x: Self.margin, y: Self.margin, width: textWidth, height: natural.height)
+        let size = NSSize(width: textWidth + Self.margin * 2, height: natural.height + Self.margin * 2)
         panel.contentView?.frame = NSRect(origin: .zero, size: size)
 
         // Anchored to the tile's own frame, not the live cursor position:
@@ -70,6 +77,12 @@ final class ShelfTooltipPopover {
         let ownerScreenFrame = ownerWindow.convertToScreen(owner.convert(owner.bounds, to: nil))
         let screen = ownerWindow.screen?.visibleFrame ?? NSScreen.pointerVisibleFrame
         var origin = NSPoint(x: ownerScreenFrame.minX, y: ownerScreenFrame.minY - Self.gap - size.height)
+        if origin.y < screen.minY {
+            // Not enough room below the tile - flip above it instead of
+            // letting the clamp below just pin it in place, which would
+            // otherwise overlap the bottom of the tile it's describing.
+            origin.y = ownerScreenFrame.maxY + Self.gap
+        }
         origin.x = min(max(screen.minX, origin.x), screen.maxX - size.width)
         origin.y = min(max(screen.minY, origin.y), screen.maxY - size.height)
 
@@ -99,8 +112,12 @@ final class ShelfTooltipPopover {
         let label = NSTextField(labelWithString: "")
         label.font = .systemFont(ofSize: 11)
         label.textColor = .labelColor
-        label.lineBreakMode = .byTruncatingTail
-        label.maximumNumberOfLines = 2
+        // Wraps rather than truncates: the whole point of this tooltip is
+        // to show what the tile itself couldn't fit. Content is already
+        // capped upstream (500 characters for pasted text), so unlimited
+        // lines here just means "wrap that, don't cut it again."
+        label.lineBreakMode = .byWordWrapping
+        label.maximumNumberOfLines = 0
 
         effect.addSubview(label)
         panel.contentView = effect
