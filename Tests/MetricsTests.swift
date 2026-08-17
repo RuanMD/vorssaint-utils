@@ -8718,9 +8718,17 @@ struct MetricsTests {
                "the shortcut editor lists installed roles even without reading enable keys")
 
         let superSpace = GlobalShortcut(keyCode: Int64(kVK_Space), modifiers: .validMask)
-        expect(superSpace.superKeyAlternative(capsLockLabel: "Caps Lock") == "Caps Lock + Space"
-                && GlobalShortcut.commandBarDefault.superKeyAlternative(capsLockLabel: "Caps Lock") == nil,
-               "the shortcut editor only shows a Super key alternative for all four modifiers")
+        let customSuperSpace = GlobalShortcut(keyCode: Int64(kVK_Space),
+                                              modifiers: [.control, .option, .command])
+        expect(superSpace.superKeyAlternative(capsLockLabel: "Caps Lock",
+                                              superKeyModifiers: .validMask) == "Caps Lock + Space"
+                && customSuperSpace.superKeyAlternative(
+                    capsLockLabel: "Caps Lock",
+                    superKeyModifiers: [.control, .option, .command]) == "Caps Lock + Space"
+                && GlobalShortcut.commandBarDefault.superKeyAlternative(
+                    capsLockLabel: "Caps Lock",
+                    superKeyModifiers: [.control, .option, .command]) == nil,
+               "the shortcut editor follows the configured Super key modifiers")
 
         // MARK: Features hub strings
 
@@ -8835,8 +8843,9 @@ struct MetricsTests {
                 .compactMap { $0.value as? String }
             expect(superKeyValues.count == 14 && superKeyValues.allSatisfy { !$0.isEmpty },
                    "every super key string is set for \(language.rawValue)")
-            expect(superKeyValues.allSatisfy { !$0.contains("—") },
-                   "no em-dash in visible super key strings (\(language.rawValue))")
+            expect(superKeyValues.allSatisfy { !$0.contains("—") }
+                    && FeatureStrings.superKey(language).panelCaptionFormat.contains("%@"),
+                   "super key strings keep their format and avoid em-dashes (\(language.rawValue))")
             let shortcutValues = Mirror(reflecting: FeatureStrings.shortcuts(language)).children
                 .compactMap { $0.value as? String }
             expect(shortcutValues.count == 3 && shortcutValues.allSatisfy { !$0.isEmpty },
@@ -11149,6 +11158,9 @@ struct MetricsTests {
 
         expect(Defaults.registeredDefaults[DefaultsKey.superKeyEnabled] as? Bool == false,
                "the super key ships off by default")
+        expect(Defaults.registeredDefaults[DefaultsKey.superKeyModifiers] as? String
+                == SuperKeySupport.defaultModifierStorageValue,
+               "the super key starts with all four modifiers")
         expect(Defaults.registeredDefaults[DefaultsKey.superKeySoloAction] as? String
                 == SuperKeySoloAction.none.rawValue,
                "a tap on its own does nothing until the user picks something")
@@ -11158,8 +11170,9 @@ struct MetricsTests {
                "the mapping flag is machine state, so it is never registered and never backed up")
         expect(!SettingsBackupSupport.exportKeys().contains(DefaultsKey.superKeyMappingApplied)
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.superKeyEnabled)
+                && SettingsBackupSupport.exportKeys().contains(DefaultsKey.superKeyModifiers)
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.superKeySoloAction),
-               "the switch and the solo action travel in a backup, the mapping state stays behind")
+               "the Super key preferences travel in a backup, the mapping state stays behind")
         expect(AppFeature.superKey.enabledKeys == [DefaultsKey.superKeyEnabled]
                 && AppFeature.superKey.permissions == [.accessibility]
                 && AppFeature.superKey.group == .mouseKeyboard
@@ -11173,6 +11186,19 @@ struct MetricsTests {
                 && SuperKeySoloAction.sanitized("nonsense") == SuperKeySoloAction.none
                 && SuperKeySoloAction.sanitized(nil) == SuperKeySoloAction.none,
                "a stored solo action is trusted only when the app still knows it")
+        expect(SuperKeySupport.modifiers(from: "control+option+command")
+                == [.control, .option, .command]
+                && SuperKeySupport.modifiers(from: "shift") == .validMask
+                && SuperKeySupport.modifiers(from: "control+") == .validMask
+                && SuperKeySupport.modifiers(from: "") == .validMask
+                && SuperKeySupport.modifiers(from: "invalid") == .validMask
+                && SuperKeySupport.modifiers(from: nil) == .validMask,
+               "stored Super key modifiers require a shortcut modifier or use the default")
+        expect(SuperKeySupport.storageValue(for: [.control, .option, .command])
+                == "control+option+command"
+                && SuperKeySupport.storageValue(for: [])
+                    == SuperKeySupport.defaultModifierStorageValue,
+               "Super key modifiers keep stable storage and never save an empty combination")
 
         let capsMapping = SuperKeyMapping(source: SuperKeySupport.capsLockUsage,
                                           destination: SuperKeySupport.triggerUsage)
@@ -11253,7 +11279,7 @@ struct MetricsTests {
         expect(superKeyState.isHeld
                 && superKeyState.decide(.otherKey) == .addModifiers
                 && superKeyState.decide(.otherKey) == .addModifiers,
-               "every key pressed while it is held carries the four modifiers")
+               "every key pressed while it is held carries the configured modifiers")
         expect(superKeyState.decide(.triggerUp) == .swallow && !superKeyState.isHeld,
                "releasing after a combination does nothing on its own")
 

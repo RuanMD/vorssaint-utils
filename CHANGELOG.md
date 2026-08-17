@@ -12,7 +12,8 @@ imported-video editing, local Command Bar scripts, recent captures, desktop
 window controls, edge-activated Shelf access and faster access to recording
 and maintenance tools. It also improves Clipboard access, capture, app discovery,
 conversions, volume, Switcher behavior, Settings reachability, menu bar sizing,
-setup screens, command-line setup, accidental middle clicks while typing and
+setup screens, customizable Super key combinations, command-line setup,
+accidental middle clicks while typing and
 compatibility with older development tools.
 
 ### Added
@@ -78,6 +79,7 @@ compatibility with older development tools.
 - The App Switcher now marks windows that are on another desktop.
   Thanks to @AB-boi.
 - Hidden apps now keep their windows in the App Switcher and show a clear hidden-state badge.
+- Super key can now use the modifier combination you choose.
   Thanks to @AB-boi.
 - Foot conversions in the Command Bar now show localized feet and inches while
   keeping small measurements precise. Thanks to @tenbux.
