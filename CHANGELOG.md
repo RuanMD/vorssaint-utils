@@ -75,6 +75,8 @@ compatibility with older development tools.
   Shelf. Thanks to @tenbux.
 - The simple App Switcher now shows and cycles through individual windows without
   previews. Turn on Show one entry per app to group them.
+- The App Switcher now marks windows that are on another desktop.
+  Thanks to @AB-boi.
 - Foot conversions in the Command Bar now show localized feet and inches while
   keeping small measurements precise. Thanks to @tenbux.
 

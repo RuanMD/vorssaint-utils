@@ -31,25 +31,31 @@ enum WindowEnumerator {
     private static let maximumConcurrentQueries = 24
 
     static func listWindows() -> [SwitcherItem] {
-        listWindows(appRules: SwitcherAppRule.rules(
-            storedValue: UserDefaults.standard.dictionary(forKey: DefaultsKey.switcherAppRules)))
+        listWindows(
+            appRules: SwitcherAppRule.rules(
+                storedValue: UserDefaults.standard.dictionary(forKey: DefaultsKey.switcherAppRules)),
+            marksHiddenSpaces: true
+        )
     }
 
     /// The Command Bar shares the window walk, not the Switcher's visibility
     /// preferences. An app hidden from ⌘Tab must remain searchable there.
     static func listWindowsForCommandBar() -> [SwitcherItem] {
-        listWindows(appRules: [:])
+        listWindows(appRules: [:], marksHiddenSpaces: false)
     }
 
-    private static func listWindows(appRules: [String: SwitcherAppRule]) -> [SwitcherItem] {
+    private static func listWindows(appRules: [String: SwitcherAppRule],
+                                    marksHiddenSpaces: Bool) -> [SwitcherItem] {
         let windowlessApps = SwitcherWindowlessApps.mode(
             storedValue: UserDefaults.standard.string(forKey: DefaultsKey.switcherWindowlessApps))
+        let currentSpaceOnly = UserDefaults.standard.bool(forKey: DefaultsKey.switcherCurrentSpaceOnly)
         return listWindows(filterPID: nil,
                            maximumCount: maximumCount,
                            windowlessApps: windowlessApps,
                            appRules: appRules,
                            groupByApp: UserDefaults.standard.bool(forKey: DefaultsKey.switcherMergeTabs),
-                           currentSpaceOnly: UserDefaults.standard.bool(forKey: DefaultsKey.switcherCurrentSpaceOnly))
+                           currentSpaceOnly: currentSpaceOnly,
+                           marksHiddenSpaces: marksHiddenSpaces && !currentSpaceOnly)
     }
 
     static func listWindows(for pid: pid_t, maximumCount: Int = 12) -> [SwitcherItem] {
@@ -68,7 +74,8 @@ enum WindowEnumerator {
                     windowlessApps: .off,
                     appRules: [:],
                     groupByApp: false,
-                    currentSpaceOnly: false)
+                    currentSpaceOnly: false,
+                    marksHiddenSpaces: false)
     }
 
     private static func listWindows(filterPID: pid_t?,
@@ -76,7 +83,8 @@ enum WindowEnumerator {
                                     windowlessApps: SwitcherWindowlessApps,
                                     appRules: [String: SwitcherAppRule],
                                     groupByApp: Bool,
-                                    currentSpaceOnly: Bool) -> [SwitcherItem] {
+                                    currentSpaceOnly: Bool,
+                                    marksHiddenSpaces: Bool) -> [SwitcherItem] {
         let raw = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] ?? []
 
         let ownPid = ProcessInfo.processInfo.processIdentifier
@@ -275,6 +283,12 @@ enum WindowEnumerator {
                              ownPID: pid_t(ownPid),
                              withheldPIDs: withheldPIDs,
                              appRules: appRules)
+        if marksHiddenSpaces {
+            windows = windows.map { window in
+                guard let windowID = window.windowID else { return window }
+                return window.withHiddenSpaceState(isOnHiddenSpace(windowID))
+            }
+        }
         if groupByApp {
             windows = groupWindowsByApp(windows)
         }

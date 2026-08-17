@@ -24,8 +24,9 @@ private extension SwitcherItem {
     /// What the screen reader hears. An app entry replaces the window title
     /// with its state on screen, so the label has to carry that state too or
     /// the entry sounds identical to a window of the same app.
-    func spokenLabel(noOpenWindow: String) -> String {
-        isAppEntry ? "\(appName), \(noOpenWindow)" : accessibilityTitle
+    func spokenLabel(noOpenWindow: String, otherDesktop: String) -> String {
+        let label = isAppEntry ? "\(appName), \(noOpenWindow)" : accessibilityTitle
+        return isOnHiddenSpace ? "\(label), \(otherDesktop)" : label
     }
 }
 
@@ -559,6 +560,10 @@ private struct SwitcherWindowTitleChip: View {
                 Image(systemName: "minus.rectangle")
                     .font(.system(size: 9, weight: .semibold))
             }
+            if window.isOnHiddenSpace {
+                Image(systemName: "rectangle.stack")
+                    .font(.system(size: 9, weight: .semibold))
+            }
             Text(window.isAppEntry ? l10n.s.switcherNoOpenWindow : window.displayTitle)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -580,7 +585,8 @@ private struct SwitcherWindowTitleChip: View {
         .contentShape(Capsule(style: .continuous))
         .onTapGesture(perform: onSelect)
         .onHover(perform: onHover)
-        .accessibilityLabel(window.spokenLabel(noOpenWindow: l10n.s.switcherNoOpenWindow))
+        .accessibilityLabel(window.spokenLabel(noOpenWindow: l10n.s.switcherNoOpenWindow,
+                                               otherDesktop: l10n.s.switcherOtherDesktop))
     }
 }
 
@@ -603,9 +609,14 @@ private struct SwitcherIconTile: View {
     }
 
     private var spokenLabel: String {
-        showsWindowTitle
-            ? window.spokenLabel(noOpenWindow: l10n.s.switcherNoOpenWindow)
-            : window.appName
+        if showsWindowTitle {
+            return window.spokenLabel(noOpenWindow: l10n.s.switcherNoOpenWindow,
+                                      otherDesktop: l10n.s.switcherOtherDesktop)
+        }
+        if windowCount == 1, window.isOnHiddenSpace {
+            return "\(window.appName), \(l10n.s.switcherOtherDesktop)"
+        }
+        return window.appName
     }
 
     var body: some View {
@@ -626,6 +637,13 @@ private struct SwitcherIconTile: View {
                         .padding(.vertical, 2)
                         .background(Capsule(style: .continuous).fill(Color.accentColor))
                         .offset(x: -2, y: 2)
+                } else if window.isOnHiddenSpace {
+                    Image(systemName: "rectangle.stack")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Color.white)
+                        .frame(width: 18, height: 16)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(Color.accentColor))
+                        .offset(x: 1, y: -1)
                 } else if window.isMinimized || window.isFullscreen {
                     Circle()
                         .fill(Color.accentColor)
@@ -675,7 +693,7 @@ private struct SwitcherWindowPreviewTile: View {
     @State private var suppressNextCommit = false
 
     private var hasStatusBadges: Bool {
-        window.isMinimized || window.isFullscreen
+        window.isMinimized || window.isFullscreen || window.isOnHiddenSpace
     }
 
     private var showsCloseButton: Bool {
@@ -764,7 +782,8 @@ private struct SwitcherWindowPreviewTile: View {
         }
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.12), value: showsCloseButton)
-        .accessibilityLabel(window.spokenLabel(noOpenWindow: l10n.s.switcherNoOpenWindow))
+        .accessibilityLabel(window.spokenLabel(noOpenWindow: l10n.s.switcherNoOpenWindow,
+                                               otherDesktop: l10n.s.switcherOtherDesktop))
     }
 
     @ViewBuilder
@@ -797,6 +816,9 @@ private struct SwitcherWindowPreviewTile: View {
             }
             if window.isFullscreen {
                 statusBadge(systemName: "arrow.up.left.and.arrow.down.right")
+            }
+            if window.isOnHiddenSpace {
+                statusBadge(systemName: "rectangle.stack")
             }
         }
     }
@@ -831,7 +853,7 @@ private struct WindowCard: View {
     }
 
     private var hasStatusBadges: Bool {
-        window.isMinimized || window.isFullscreen
+        window.isMinimized || window.isFullscreen || window.isOnHiddenSpace
     }
 
     /// Without a thumbnail the app icon already fills the card, so the small
@@ -942,7 +964,8 @@ private struct WindowCard: View {
         .scaleEffect(isSelected ? 1.0 : 0.97)
         .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isSelected)
         .animation(.easeOut(duration: 0.12), value: showsCloseButton)
-        .accessibilityLabel(window.spokenLabel(noOpenWindow: l10n.s.switcherNoOpenWindow))
+        .accessibilityLabel(window.spokenLabel(noOpenWindow: l10n.s.switcherNoOpenWindow,
+                                               otherDesktop: l10n.s.switcherOtherDesktop))
     }
 
     /// An app with no window has nothing to take a thumbnail of. Saying so
@@ -970,6 +993,9 @@ private struct WindowCard: View {
         }
         if window.isFullscreen {
             statusBadge(systemName: "arrow.up.left.and.arrow.down.right")
+        }
+        if window.isOnHiddenSpace {
+            statusBadge(systemName: "rectangle.stack")
         }
     }
 

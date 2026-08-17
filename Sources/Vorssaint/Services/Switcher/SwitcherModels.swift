@@ -22,6 +22,8 @@ struct SwitcherItem: Identifiable, Equatable {
     let isOnScreen: Bool
     let isMinimized: Bool
     let isFullscreen: Bool
+    /// The window belongs only to Spaces that are not currently visible.
+    let isOnHiddenSpace: Bool
     let frame: CGRect
 
     /// The window whose thumbnail represents this entry.
@@ -65,6 +67,21 @@ struct SwitcherItem: Identifiable, Equatable {
                      isOnScreen: minimized ? false : true,
                      isMinimized: minimized,
                      isFullscreen: isFullscreen,
+                     isOnHiddenSpace: isOnHiddenSpace,
+                     frame: frame)
+    }
+
+    func withHiddenSpaceState(_ hidden: Bool) -> SwitcherItem {
+        SwitcherItem(id: id,
+                     title: title,
+                     appName: appName,
+                     pid: pid,
+                     windowOwnerPID: windowOwnerPID,
+                     windowID: windowID,
+                     isOnScreen: isOnScreen,
+                     isMinimized: isMinimized,
+                     isFullscreen: isFullscreen,
+                     isOnHiddenSpace: hidden,
                      frame: frame)
     }
 
@@ -76,12 +93,14 @@ struct SwitcherItem: Identifiable, Equatable {
                      pid: pid, windowOwnerPID: windowOwnerPID ?? pid,
                      windowID: id, isOnScreen: isOnScreen,
                      isMinimized: isMinimized, isFullscreen: isFullscreen,
+                     isOnHiddenSpace: false,
                      frame: frame)
     }
 
     static func appOnly(appName: String, pid: pid_t) -> SwitcherItem {
         SwitcherItem(id: "a:\(pid)", title: appName, appName: appName,
                      pid: pid, windowOwnerPID: pid, windowID: nil, isOnScreen: false,
-                     isMinimized: false, isFullscreen: false, frame: .zero)
+                     isMinimized: false, isFullscreen: false,
+                     isOnHiddenSpace: false, frame: .zero)
     }
 }

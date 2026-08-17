@@ -1714,8 +1714,12 @@ struct MetricsTests {
                && embeddedWindow.windowOwnerPID == 202
                && embeddedWindow.previewWindowID == 77,
                "App Switcher keeps regular app identity separate from the window owner")
-        expect(embeddedWindow.withMinimized(true).windowOwnerPID == 202,
-               "App Switcher preserves the real window owner across state updates")
+        let hiddenSpaceWindow = embeddedWindow.withHiddenSpaceState(true)
+        let minimizedHiddenSpaceWindow = hiddenSpaceWindow.withMinimized(true)
+        expect(hiddenSpaceWindow.isOnHiddenSpace
+               && minimizedHiddenSpaceWindow.windowOwnerPID == 202
+               && minimizedHiddenSpaceWindow.isOnHiddenSpace,
+               "App Switcher preserves window ownership and other-desktop state across updates")
         expect(SwitcherSupport.sessionSourceItem(frontmostPID: 101,
                                                  focusedWindowID: nil,
                                                  items: [embeddedWindow])?.id == embeddedWindow.id,
@@ -7776,6 +7780,9 @@ struct MetricsTests {
             expect(!strings.switcherCurrentSpaceOnlyCaption.isEmpty
                    && !strings.switcherCurrentSpaceOnlyCaption.contains("—"),
                    "\(prefix) App Switcher current-desktop caption is present without em dash")
+            expect(!strings.switcherOtherDesktop.isEmpty
+                   && !strings.switcherOtherDesktop.contains("—"),
+                   "\(prefix) App Switcher other-desktop label is present without em dash")
             expect(!strings.switcherSearchPin.isEmpty
                    && !strings.switcherSearchPinCaption.isEmpty
                    && !strings.switcherSearchPin.contains("—")
