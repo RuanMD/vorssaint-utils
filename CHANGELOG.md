@@ -18,10 +18,11 @@ accidental middle clicks while typing and
 compatibility with older development tools.
 
 ### Added
-- One screen-capture shortcut now opens a shared selector for screenshots,
-  recordings, screen text and colors. It only shows installed tools and keeps
-  recording sound and microphone choices beside the mode selector. Their
-  settings now live on one page with native controls for each installed mode.
+- One screen-capture shortcut now opens a floating palette for screenshots,
+  recordings, screen text and colors, with every installed tool and its 1
+  through 4 key visible at once. It disappears as soon as selection begins,
+  keeps recording sound and microphone choices nearby, and puts every mode's
+  settings on one page.
 - Media now converts images in batches with resizing, watermarks, renaming and
   reusable profiles. Thanks to @ruvelro.
 - Saved Command Bar shortcuts can now run local scripts and show their results as

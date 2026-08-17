@@ -10243,6 +10243,26 @@ struct MetricsTests {
         expect(ScreenCaptureTool.available(isAvailable: captureFeatures.contains)
                 == [.screenshot, .recording, .text, .color],
                "the capture chooser keeps a stable order for every installed mode")
+        expect(ScreenCaptureTool.allCases.map(\.shortcutKey) == ["1", "2", "3", "4"]
+                && ScreenCaptureTool.matchingShortcut("1") == .screenshot
+                && ScreenCaptureTool.matchingShortcut("2") == .recording
+                && ScreenCaptureTool.matchingShortcut("3") == .text
+                && ScreenCaptureTool.matchingShortcut("4") == .color
+                && ScreenCaptureTool.matchingShortcut("5") == nil,
+               "number keys select the same capture mode shown in the chooser")
+        expect(ScreenshotSupport.captureGuideIsVisible(pointerOnDisplay: true,
+                                                       selectionInProgress: false,
+                                                       capturePending: false)
+                && !ScreenshotSupport.captureGuideIsVisible(pointerOnDisplay: true,
+                                                            selectionInProgress: true,
+                                                            capturePending: false)
+                && !ScreenshotSupport.captureGuideIsVisible(pointerOnDisplay: true,
+                                                            selectionInProgress: false,
+                                                            capturePending: true)
+                && !ScreenshotSupport.captureGuideIsVisible(pointerOnDisplay: false,
+                                                            selectionInProgress: false,
+                                                            capturePending: false),
+               "the capture chooser disappears for the whole drag and while capture is pending")
 
         let cocoa = ScreenshotSupport.cocoaRect(fromWindowServer: CGRect(x: 10, y: 30, width: 200, height: 100),
                                                 mainScreenHeight: 900)
