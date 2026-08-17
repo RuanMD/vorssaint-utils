@@ -10,7 +10,8 @@ All notable changes to this project are documented here. The format follows
 Vorssaint 3.3.2 adds unified screen capture, batch image conversion,
 imported-video editing, local Command Bar scripts, recent captures, desktop
 window controls, edge-activated Shelf access and faster access to recording
-and maintenance tools. It also improves Clipboard access, Command Bar placement, capture, app discovery,
+and maintenance tools. It also improves Clipboard access, Command Bar search and
+placement, capture, app discovery,
 conversions, volume, Switcher behavior, Settings reachability, menu bar sizing,
 setup screens, customizable Super key combinations, command-line setup,
 accidental middle clicks while typing and
@@ -39,8 +40,24 @@ compatibility with older development tools.
   Thanks to @MaximilianMauroner.
 - The clipboard can now clear itself after a delay, and when the Mac sleeps, the
   display sleeps or the screen locks. Under Clipboard.
+- The Command Bar can now find files by name in the folders you name, through
+  the Mac's own search. Vorssaint builds no index and searches nowhere beyond
+  the folders you choose. Under Command Bar, and it does nothing until you add
+  a folder. Thanks to @ruvelro.
+- The Command Bar can now open any of the Mac's own System Settings panes, and
+  finds them by what they hold in your language even where macOS only names them
+  in English. It is its own source, so it can be switched off on its own.
+  Thanks to @ruvelro.
+- The Command Bar can now show an app, a folder or a saved place where it lives,
+  with ⌘Return or from the actions key. Thanks to @ruvelro.
 
 ### Changed
+- The Command Bar now remembers which row you picked after which few letters
+  and puts it first when you type them again. It is never written down: like
+  everything you type into the bar, it is forgotten when the app quits.
+  Thanks to @ruvelro.
+- The Command Bar now finds apps by alternate names macOS knows, including
+  older and localized names. Thanks to @ruvelro.
 - Clipboard history now opens as a compact palette with uncluttered rows and an
   on-demand preview for reading or editing the full item.
 - Menu bar icons now match surrounding icons in size and alignment. Thanks to @bambidotexe.
