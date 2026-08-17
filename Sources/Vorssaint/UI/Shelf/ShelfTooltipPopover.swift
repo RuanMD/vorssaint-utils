@@ -59,16 +59,22 @@ final class ShelfTooltipPopover {
         let panel = ensurePanel()
         guard let label else { return }
         label.stringValue = text
-        // preferredMaxLayoutWidth, not a plain sizeToFit(), so long content
-        // (an untruncated filename, a full URL, up to 500 characters of
-        // pasted text) wraps within a fixed width instead of measuring as
-        // one unbounded line and running the popup off the edge of the
-        // screen.
-        label.preferredMaxLayoutWidth = Self.maxWidth
-        let natural = label.intrinsicContentSize
-        let textWidth = min(natural.width, Self.maxWidth)
-        label.frame = NSRect(x: Self.margin, y: Self.margin, width: textWidth, height: natural.height)
-        let size = NSSize(width: textWidth + Self.margin * 2, height: natural.height + Self.margin * 2)
+        // Measured with boundingRect, not intrinsicContentSize: this field
+        // has no Auto Layout constraints (plain frame positioning), and
+        // preferredMaxLayoutWidth/intrinsicContentSize both silently ignore
+        // that outside of an actual constraint-based layout pass - it was
+        // returning single-line width regardless, chopping a wrapped
+        // second line off a pile's tooltip ("6 items: 6" instead of
+        // "6 items: 6 files"). boundingRect measures wrapped text directly,
+        // independent of any layout system.
+        let attributes: [NSAttributedString.Key: Any] = [.font: label.font as Any]
+        let bounding = (text as NSString).boundingRect(
+            with: NSSize(width: Self.maxWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attributes)
+        let textSize = NSSize(width: ceil(bounding.width), height: ceil(bounding.height))
+        label.frame = NSRect(x: Self.margin, y: Self.margin, width: textSize.width, height: textSize.height)
+        let size = NSSize(width: textSize.width + Self.margin * 2, height: textSize.height + Self.margin * 2)
         panel.contentView?.frame = NSRect(origin: .zero, size: size)
 
         // Anchored to the tile's own frame, not the live cursor position:
