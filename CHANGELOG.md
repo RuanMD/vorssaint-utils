@@ -11,7 +11,7 @@ Vorssaint 3.3.2 adds unified screen capture, batch image conversion,
 imported-video editing, local Command Bar scripts, recent captures, desktop
 window controls, edge-activated Shelf access and faster access to recording
 and maintenance tools. It also improves Clipboard access, capture, app discovery,
-conversions, volume, Switcher behavior, menu bar sizing, accidental middle
+conversions, volume, Switcher behavior, menu bar sizing, command-line setup, accidental middle
 clicks while typing and compatibility with older development tools.
 
 ### Added
@@ -141,6 +141,8 @@ clicks while typing and compatibility with older development tools.
   Thanks to @MineraleYT.
 - Homebrew now clears removed package details and returns its package list to the
   start after an uninstall. Thanks to @MineraleYT.
+- Command-line setup now follows the login shell and creates its configuration
+  folder when needed. Thanks to @danpalmer.
 - The menu panel now stays open when focus changes without an outside click.
   Thanks to @CALLmeDOMIN.
 - Fan Control can now request its required approval instead of appearing

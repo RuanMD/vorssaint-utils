@@ -7523,9 +7523,15 @@ struct MetricsTests {
         expectEqual(HomebrewCommandBuilder.shellProfilePath(homeDirectory: "/Users/test", shellPath: "/bin/bash"),
                     "/Users/test/.bash_profile",
                     "Homebrew shell setup uses bash_profile for bash")
-        expectEqual(HomebrewCommandBuilder.shellEnvLine(brewPath: brewPath),
+        expectEqual(HomebrewCommandBuilder.shellProfilePath(homeDirectory: "/Users/test", shellPath: "/opt/homebrew/bin/fish"),
+                    "/Users/test/.config/fish/config.fish",
+                    "Homebrew shell setup uses the interactive shell config")
+        expectEqual(HomebrewCommandBuilder.shellEnvLine(brewPath: brewPath, shellPath: "/bin/zsh"),
                     #"eval "$(/opt/homebrew/bin/brew shellenv)""#,
                     "Homebrew shell setup line uses brew shellenv")
+        expectEqual(HomebrewCommandBuilder.shellEnvLine(brewPath: brewPath, shellPath: "/opt/homebrew/bin/fish"),
+                    "eval (/opt/homebrew/bin/brew shellenv fish)",
+                    "Homebrew shell setup line matches the interactive shell")
         expectEqual(HomebrewAnalytics.url(kind: .formula).absoluteString,
                     "https://formulae.brew.sh/api/analytics/install-on-request/homebrew-core/30d.json",
                     "Homebrew formula popularity uses install-on-request analytics")
@@ -7538,10 +7544,21 @@ struct MetricsTests {
         let shellSetupCommand = HomebrewCommandBuilder.shellConfigCommand(brewPath: brewPath,
                                                                           homeDirectory: "/Users/test",
                                                                           shellPath: "/bin/zsh")
-        expect(shellSetupCommand.contains("PROFILE=/Users/test/.zprofile"),
+        expect(shellSetupCommand.hasPrefix("/bin/sh -c ")
+                && shellSetupCommand.contains("PROFILE=/Users/test/.zprofile")
+                && shellSetupCommand.hasSuffix(#"; eval "$(/opt/homebrew/bin/brew shellenv)"; brew --version"#),
                "Homebrew shell setup command targets the detected profile")
         expect(shellSetupCommand.contains(#"grep -qxF "$LINE""#),
                "Homebrew shell setup command avoids duplicate profile lines")
+        let alternateShellSetupCommand = HomebrewCommandBuilder.shellConfigCommand(
+            brewPath: brewPath,
+            homeDirectory: "/Users/test",
+            shellPath: "/opt/homebrew/bin/fish"
+        )
+        expect(alternateShellSetupCommand.hasPrefix("/bin/sh -c ")
+                && alternateShellSetupCommand.contains("/bin/mkdir -p /Users/test/.config/fish")
+                && alternateShellSetupCommand.hasSuffix("; eval (/opt/homebrew/bin/brew shellenv fish); brew --version"),
+               "Homebrew shell setup creates and activates the interactive shell config")
         expectClose(HomebrewProgressParser.progressFraction(in: "######## 42.5%") ?? -1,
                     0.425,
                     "Homebrew progress parser reads percentage output")
