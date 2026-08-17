@@ -10,9 +10,9 @@ All notable changes to this project are documented here. The format follows
 Vorssaint 3.3.2 adds unified screen capture, batch image conversion,
 imported-video editing, local Command Bar scripts, recent captures, desktop
 window controls, edge-activated Shelf access and faster access to recording
-and maintenance tools. It also improves capture, app discovery, conversions,
-volume, Switcher behavior, menu bar sizing, accidental middle clicks while
-typing and compatibility with older development tools.
+and maintenance tools. It also improves Clipboard access, capture, app discovery,
+conversions, volume, Switcher behavior, menu bar sizing, accidental middle
+clicks while typing and compatibility with older development tools.
 
 ### Added
 - One screen-capture shortcut now opens a shared selector for screenshots,
@@ -39,6 +39,8 @@ typing and compatibility with older development tools.
   display sleeps or the screen locks. Under Clipboard.
 
 ### Changed
+- Clipboard history now opens as a compact palette with uncluttered rows and an
+  on-demand preview for reading or editing the full item.
 - Menu bar icons now match surrounding icons in size and alignment. Thanks to @bambidotexe.
 - Volume Mixer percentages can now be entered directly for the system output and each app.
 - Building Vorssaint from source now works with older development tools.
