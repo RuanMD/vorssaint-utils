@@ -20,9 +20,10 @@ final class ShelfTooltipPopover {
     private static let margin: CGFloat = 6
     private static let gap: CGFloat = 6
     private static let maxWidth: CGFloat = 280
+    private static let font = NSFont.systemFont(ofSize: 11)
 
     private var panel: NSPanel?
-    private var label: NSTextField?
+    private var textView: TextView?
     private var pendingWork: DispatchWorkItem?
 
     private init() {}
@@ -57,24 +58,18 @@ final class ShelfTooltipPopover {
     private func show(text: String, near owner: NSView) {
         guard let ownerWindow = owner.window else { return }
         let panel = ensurePanel()
-        guard let label else { return }
-        label.stringValue = text
-        // Measured with boundingRect, not intrinsicContentSize: this field
-        // has no Auto Layout constraints (plain frame positioning), and
-        // preferredMaxLayoutWidth/intrinsicContentSize both silently ignore
-        // that outside of an actual constraint-based layout pass - it was
-        // returning single-line width regardless, chopping a wrapped
-        // second line off a pile's tooltip ("6 items: 6" instead of
-        // "6 items: 6 files"). boundingRect measures wrapped text directly,
-        // independent of any layout system.
-        let attributes: [NSAttributedString.Key: Any] = [.font: label.font as Any]
+        guard let textView else { return }
+
+        let attributes: [NSAttributedString.Key: Any] = [.font: Self.font]
         let bounding = (text as NSString).boundingRect(
             with: NSSize(width: Self.maxWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: attributes)
-        let textSize = NSSize(width: ceil(bounding.width), height: ceil(bounding.height))
-        label.frame = NSRect(x: Self.margin, y: Self.margin, width: textSize.width, height: textSize.height)
+        let textSize = NSSize(width: min(ceil(bounding.width) + 4, Self.maxWidth), height: ceil(bounding.height) + 4)
         let size = NSSize(width: textSize.width + Self.margin * 2, height: textSize.height + Self.margin * 2)
+
+        textView.text = text
+        textView.frame = NSRect(x: Self.margin, y: Self.margin, width: textSize.width, height: textSize.height)
         panel.contentView?.frame = NSRect(origin: .zero, size: size)
 
         // Anchored to the tile's own frame, not the live cursor position:
@@ -115,20 +110,35 @@ final class ShelfTooltipPopover {
         effect.layer?.cornerRadius = 5
         effect.layer?.masksToBounds = true
 
-        let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 11)
-        label.textColor = .labelColor
-        // Wraps rather than truncates: the whole point of this tooltip is
-        // to show what the tile itself couldn't fit. Content is already
-        // capped upstream (500 characters for pasted text), so unlimited
-        // lines here just means "wrap that, don't cut it again."
-        label.lineBreakMode = .byWordWrapping
-        label.maximumNumberOfLines = 0
-
-        effect.addSubview(label)
+        let textView = TextView()
+        effect.addSubview(textView)
         panel.contentView = effect
         self.panel = panel
-        self.label = label
+        self.textView = textView
         return panel
+    }
+
+    /// Draws its text directly rather than going through NSTextField/NSCell:
+    /// the cell-based label this replaced kept rendering a truncated first
+    /// portion of its own verified-correct stringValue (confirmed via
+    /// stringValue, attributedStringValue and cell.title all matching, a
+    /// frame sized wider than the measured text needed, and an explicit
+    /// forced display pass - none of it changed what actually painted).
+    /// NSString.draw(in:withAttributes:) has none of that cell machinery to
+    /// go wrong.
+    private final class TextView: NSView {
+        var text: String = "" {
+            didSet { needsDisplay = true }
+        }
+
+        override var isFlipped: Bool { true }
+
+        override func draw(_ dirtyRect: NSRect) {
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: ShelfTooltipPopover.font,
+                .foregroundColor: NSColor.labelColor,
+            ]
+            (text as NSString).draw(in: bounds, withAttributes: attributes)
+        }
     }
 }
