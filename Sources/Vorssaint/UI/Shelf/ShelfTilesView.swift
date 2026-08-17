@@ -150,7 +150,7 @@ struct ShelfTilesView: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    /// Remembers which add has been honoured, so the shelf scrolls once per
+    /// Remembers which add has been honored, so the shelf scrolls once per
     /// arrival and stays put for every other redraw. Keyed on the add serial
     /// rather than the resolved target: the target alone changes when a pile
     /// is expanded or collapsed with nothing added, and repeats when two
