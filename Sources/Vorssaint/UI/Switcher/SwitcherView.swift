@@ -609,7 +609,7 @@ private struct SwitcherIconTile: View {
     }
 
     var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: SwitcherIconRowLayout.iconTileSpacing) {
             ZStack(alignment: .topTrailing) {
                 if let icon = window.appIcon {
                     Image(nsImage: icon)
@@ -641,10 +641,11 @@ private struct SwitcherIconTile: View {
                 .foregroundStyle(isSelected ? SwitcherIconStyle.text : SwitcherIconStyle.secondaryText)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .frame(width: labelWidth)
+                .frame(width: labelWidth,
+                       height: SwitcherIconRowLayout.iconTitleHeight)
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, 5)
+        .padding(.vertical, SwitcherIconRowLayout.iconTileVerticalPadding)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(isSelected ? SwitcherIconStyle.tileSelected : Color.clear)

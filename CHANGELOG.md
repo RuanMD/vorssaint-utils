@@ -129,6 +129,8 @@ compatibility with older development tools.
   Thanks to @liuxxxu.
 - The App Switcher now keeps its shortcut working after your Mac wakes from sleep.
 - The App Switcher now restores minimized windows when selected.
+- The App Switcher selection now stays neatly inside the icon row at every size.
+  Thanks to @AB-boi.
 - The Settings window now remains reachable from the app switcher while open.
   Thanks to @danpalmer.
 - The App Switcher can now close windows kept on another desktop. Thanks to @AB-boi.

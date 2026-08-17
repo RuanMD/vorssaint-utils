@@ -6026,6 +6026,13 @@ struct MetricsTests {
                     "App Switcher Small keeps a windowless app icon inside its preview")
         expectClose(Double(SwitcherIconRowLayout.appEntrySpacing), 5.25,
                     "App Switcher Small keeps windowless app content proportionally spaced")
+        let selectedIconTileHeight = SwitcherIconRowLayout.selectedIconSize
+            + SwitcherIconRowLayout.iconTileSpacing
+            + SwitcherIconRowLayout.iconTitleHeight
+            + SwitcherIconRowLayout.iconTileVerticalPadding * 2
+        expectClose(Double(SwitcherIconRowLayout.rowHeight - selectedIconTileHeight),
+                    Double(SwitcherIconRowLayout.iconTileVerticalMargin * 2),
+                    "App Switcher Small keeps the selection outline inside its icon row")
         expectClose(Double(DockPreviewSupport.cardSpacing), 6,
                     "Dock Preview Small previews tighten card spacing")
         expectClose(Double(DockPreviewSupport.panelPadding), 9,
