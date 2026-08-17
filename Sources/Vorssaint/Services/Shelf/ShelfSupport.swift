@@ -196,9 +196,13 @@ enum ShelfTooltipSupport {
     }
 
     /// A link tile's tooltip: the full URL. The tile's own title is only
-    /// the host, so this is where the rest of it becomes visible.
-    static func text(forLink url: URL) -> String {
-        url.absoluteString
+    /// the host, so this is where the rest of it becomes visible. Capped
+    /// the same way pasted text is: an unbroken query token can otherwise
+    /// produce an unusably tall popover with no line breaks to wrap on.
+    static func text(forLink url: URL, cap: Int = textCap) -> String {
+        let string = url.absoluteString
+        guard string.count > cap else { return string }
+        return String(string.prefix(cap)) + "…"
     }
 
     /// Counts a pile's flattened leaves by kind.

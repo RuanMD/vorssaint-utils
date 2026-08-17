@@ -157,8 +157,15 @@ struct ShelfTilesView: NSViewRepresentable {
                                                    spacing: Self.spacing,
                                                    inset: inset)
 
+        // Item.== is id-only (by design, for selection/lookup purposes
+        // elsewhere), which isn't the question this cache needs answered:
+        // ShelfService.replaceItem swaps in a same-id item with a healed
+        // URL/title/icon after a moved or renamed file's bookmark
+        // resolves, and an id-only comparison would call that "unchanged"
+        // and leave the tile showing the stale pre-heal name indefinitely.
         let unchanged = !force
-            && items == lastRebuiltItems
+            && items.count == lastRebuiltItems?.count
+            && zip(items, lastRebuiltItems ?? []).allSatisfy { $0.hasSameContent(as: $1) }
             && selection == lastRebuiltSelection
             && expandedBatches == lastRebuiltExpandedBatches
             && scroll.contentSize == lastRebuiltContentSize

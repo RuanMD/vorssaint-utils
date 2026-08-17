@@ -47,6 +47,23 @@ final class ShelfService: ObservableObject {
 
         static func == (lhs: Item, rhs: Item) -> Bool { lhs.id == rhs.id }
 
+        /// Unlike `==`, which is id-only for selection and lookup purposes,
+        /// this compares what actually determines a tile's appearance.
+        /// Needed because replaceItem swaps in a same-id item with a
+        /// healed URL/title after a moved or renamed file's bookmark
+        /// resolves - an id-only comparison would call that unchanged.
+        func hasSameContent(as other: Item) -> Bool {
+            guard id == other.id, title == other.title, isImage == other.isImage else { return false }
+            switch (payload, other.payload) {
+            case let (.file(lhs), .file(rhs)): return lhs == rhs
+            case let (.text(lhs), .text(rhs)): return lhs == rhs
+            case let (.link(lhs), .link(rhs)): return lhs == rhs
+            case let (.batch(lhs), .batch(rhs)):
+                return lhs.count == rhs.count && zip(lhs, rhs).allSatisfy { $0.hasSameContent(as: $1) }
+            default: return false
+            }
+        }
+
         var isBatch: Bool {
             if case .batch = payload { return true }
             return false
@@ -1557,6 +1574,12 @@ final class ShelfService: ObservableObject {
         removeItems(sourceIDs, from: &items, removed: &moved)
         guard merge(additions, into: targetID) else { return false }
         internalDragWasMerged = true
+        // Bypasses the public removeItem/removeItems wrappers (it's
+        // reparenting, not a user-facing removal), so it doesn't get the
+        // tooltip-hide those centralize. A drag always starts with
+        // mouseDown on the source tile, which already hides any showing
+        // tooltip, so this is defense in depth rather than a live gap.
+        ShelfTooltipPopover.shared.hide()
         return true
     }
 
