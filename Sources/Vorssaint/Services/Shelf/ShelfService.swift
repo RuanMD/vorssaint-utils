@@ -793,6 +793,7 @@ final class ShelfService: ObservableObject {
         guard edgePeekMatch != nil else { return }
         resetAutoHide()
         panel?.orderOut(nil)
+        ShelfTooltipPopover.shared.hide()
         scheduleDockedSync()
     }
 
@@ -1926,6 +1927,7 @@ final class ShelfService: ObservableObject {
         resetAutoHide()
         isPinned = false
         panel?.orderOut(nil)
+        ShelfTooltipPopover.shared.hide()
         scheduleDockedSync()
     }
 
@@ -2068,6 +2070,7 @@ final class ShelfService: ObservableObject {
             self.autoHideFadeTimer = nil
             self.autoHideFadeStart = nil
             panel.orderOut(nil)
+            ShelfTooltipPopover.shared.hide()
             panel.alphaValue = 1
             self.pointerInsidePanel = false
             self.dropTargeted = false

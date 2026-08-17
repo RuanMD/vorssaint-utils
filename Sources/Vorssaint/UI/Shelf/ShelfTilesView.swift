@@ -116,8 +116,38 @@ struct ShelfTilesView: NSViewRepresentable {
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
+        Self.rebuildTiles(scroll: scroll, items: items, selection: selection, expandedBatches: expandedBatches,
+                          revealID: revealID, revealSerial: revealSerial, coordinator: context.coordinator)
+    }
+
+    private static var lastRebuiltItems: [ShelfService.Item]?
+    private static var lastRebuiltSelection: Set<UUID>?
+    private static var lastRebuiltExpandedBatches: Set<UUID>?
+    private static var lastRebuiltContentSize: NSSize?
+
+    /// Lays out every tile from scratch. Shared with `ShelfTileView`, which
+    /// calls this directly (bypassing SwiftUI) right after a successful
+    /// merge onto a tile, whether the drag came from outside the app or from
+    /// another tile: SwiftUI's own `updateNSView` observably lags behind the
+    /// mutation while an AppKit drag session is still unwinding, so the
+    /// merged tile otherwise stays visually stale until some later,
+    /// unrelated event forces a redraw.
+    ///
+    /// Skips the teardown/rebuild entirely when nothing has actually
+    /// changed since the last call, unless `force` is set: SwiftUI calls
+    /// `updateNSView` on every re-render of the enclosing view, not only
+    /// when this view's own inputs change, so without this guard every
+    /// unrelated re-render (anything else observing the same ShelfService
+    /// instance) destroys and recreates every tile.
+    static func rebuildTiles(scroll: NSScrollView,
+                             items: [ShelfService.Item],
+                             selection: Set<UUID>,
+                             expandedBatches: Set<UUID>,
+                             revealID: UUID? = nil,
+                             revealSerial: Int = 0,
+                             coordinator: Coordinator? = nil,
+                             force: Bool = false) {
         guard let document = scroll.documentView else { return }
-        document.subviews.forEach { $0.removeFromSuperview() }
 
         let tile = Self.tileSize
         let inset = Self.inset
@@ -126,6 +156,33 @@ struct ShelfTilesView: NSViewRepresentable {
                                                    tileWidth: tile.width,
                                                    spacing: Self.spacing,
                                                    inset: inset)
+
+        let unchanged = !force
+            && items == lastRebuiltItems
+            && selection == lastRebuiltSelection
+            && expandedBatches == lastRebuiltExpandedBatches
+            && scroll.contentSize == lastRebuiltContentSize
+        if unchanged {
+            // The bypass call from performDragOperation (below) has no
+            // coordinator to honor a reveal with, and primes this same
+            // cache with the post-merge state - so the next, real
+            // SwiftUI-driven call (which does carry a coordinator) would
+            // otherwise see nothing changed and skip the reveal it exists
+            // to perform. Revealing doesn't require rebuilding a single
+            // tile, so it's checked here regardless of the skip.
+            if let coordinator {
+                revealIfNeeded(in: document, columns: columns, items: items,
+                               revealID: revealID, revealSerial: revealSerial, coordinator: coordinator)
+            }
+            return
+        }
+        lastRebuiltItems = items
+        lastRebuiltSelection = selection
+        lastRebuiltExpandedBatches = expandedBatches
+        lastRebuiltContentSize = scroll.contentSize
+
+        document.subviews.forEach { $0.removeFromSuperview() }
+
         let rows = max(1, Int(ceil(Double(items.count) / Double(columns))))
 
         for (index, item) in items.enumerated() {
@@ -145,7 +202,10 @@ struct ShelfTilesView: NSViewRepresentable {
                                 y: 0,
                                 width: contentWidth,
                                 height: max(contentHeight, scroll.contentSize.height))
-        revealIfNeeded(in: document, columns: columns, coordinator: context.coordinator)
+        if let coordinator {
+            revealIfNeeded(in: document, columns: columns, items: items,
+                           revealID: revealID, revealSerial: revealSerial, coordinator: coordinator)
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -162,9 +222,12 @@ struct ShelfTilesView: NSViewRepresentable {
     /// Brings a newly added tile into view. scrollToVisible already does
     /// nothing when the rect is on screen, so a shelf with room to spare
     /// never moves.
-    private func revealIfNeeded(in document: NSView,
-                                columns: Int,
-                                coordinator: Coordinator) {
+    private static func revealIfNeeded(in document: NSView,
+                                       columns: Int,
+                                       items: [ShelfService.Item],
+                                       revealID: UUID?,
+                                       revealSerial: Int,
+                                       coordinator: Coordinator) {
         guard let revealID,
               ShelfRevealSupport.shouldReveal(serial: revealSerial, lastHonored: coordinator.revealedSerial)
         else { return }
@@ -311,19 +374,6 @@ final class ShelfTileView: NSView, NSDraggingSource {
         closeButton.action = #selector(removeSelf)
         closeButton.isHidden = true
         addSubview(closeButton)
-        // Registered lazily rather than by setting toolTip directly: this
-        // view is torn down and rebuilt on every layout pass, including
-        // once per pile merge on the main thread while the drag session is
-        // still unwinding, and file items resolve their Kind from disk.
-        // addToolTip defers that read until the pointer has actually
-        // hovered long enough to show something, instead of paying for it
-        // on every rebuild whether or not anyone hovers.
-        _ = addToolTip(bounds, owner: self, userData: nil)
-    }
-
-    @objc func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint,
-                     userData: UnsafeMutableRawPointer?) -> String {
-        Self.tooltipText(for: item)
     }
 
     private static func tooltipText(for item: ShelfService.Item) -> String {
@@ -382,8 +432,15 @@ final class ShelfTileView: NSView, NSDraggingSource {
                                        owner: self, userInfo: nil))
     }
 
-    override func mouseEntered(with event: NSEvent) { closeButton.isHidden = false }
-    override func mouseExited(with event: NSEvent) { closeButton.isHidden = true }
+    override func mouseEntered(with event: NSEvent) {
+        closeButton.isHidden = false
+        ShelfTooltipPopover.shared.scheduleShow(text: Self.tooltipText(for: item), for: self)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        closeButton.isHidden = true
+        ShelfTooltipPopover.shared.hide()
+    }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
@@ -442,6 +499,7 @@ final class ShelfTileView: NSView, NSDraggingSource {
     override func mouseDown(with event: NSEvent) {
         ShelfService.shared.noteInteraction()
         window?.makeKey()
+        ShelfTooltipPopover.shared.hide()
         mouseDownPoint = event.locationInWindow
         didDrag = false
     }
@@ -586,6 +644,21 @@ final class ShelfTileView: NSView, NSDraggingSource {
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         let merged = ShelfService.shared.mergePasteboard(sender.draggingPasteboard, into: item.id)
         setDropTargeted(false)
+        // mergePasteboard mutates ShelfService synchronously (whether the
+        // drag came from outside the app or from another tile), but SwiftUI's
+        // own updateNSView observably lags behind it while this AppKit drag
+        // session is still unwinding, leaving the merged tile visually stale
+        // until some unrelated later event forces a redraw. Rebuilding
+        // directly here, with the service's own current state, bypasses that
+        // lag for the one thing that has to be immediate: showing the drop
+        // actually worked.
+        if merged, let scroll = superview?.enclosingScrollView {
+            ShelfTilesView.rebuildTiles(scroll: scroll,
+                                       items: ShelfService.shared.visibleItems,
+                                       selection: ShelfService.shared.selection,
+                                       expandedBatches: ShelfService.shared.expandedBatches,
+                                       force: true)
+        }
         return merged
     }
 
