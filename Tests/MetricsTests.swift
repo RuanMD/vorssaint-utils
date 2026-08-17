@@ -12323,6 +12323,23 @@ struct MetricsTests {
                 && quickLauncherViewSource.contains(
                     "case .screenRecorder: return recorder.isRecording ? \"stop.circle\" : \"record.circle\""),
                "the screen recorder keeps its quick-panel tile, action and recording state")
+        var windowRetention = WindowActivationRetention()
+        let firstWindowNeedsPromotion = windowRetention.retain()
+        let secondWindowNeedsPromotion = windowRetention.retain()
+        let firstCloseNeedsDemotion = windowRetention.release()
+        let lastCloseNeedsDemotion = windowRetention.release()
+        let extraCloseNeedsDemotion = windowRetention.release()
+        expect(firstWindowNeedsPromotion && !secondWindowNeedsPromotion
+                && !firstCloseNeedsDemotion && lastCloseNeedsDemotion
+                && !extraCloseNeedsDemotion && windowRetention.count == 0,
+               "user-facing windows share one balanced app activation lifetime")
+        let appDelegateSource = (try? String(
+            contentsOfFile: "Sources/Vorssaint/App/AppDelegate.swift",
+            encoding: .utf8)) ?? ""
+        expect(appDelegateSource.contains("if !settingsKeepsAppRegular {")
+                && appDelegateSource.contains("WindowActivationPolicy.retain()")
+                && appDelegateSource.contains("WindowActivationPolicy.release()"),
+               "Settings retains Command Tab presence only while its window is visible")
         expect(Defaults.registeredDefaults[DefaultsKey.recorderSystemAudio] as? Bool == true,
                "a recording carries the sound of the Mac unless the person turns it off")
         expect(Defaults.registeredDefaults[DefaultsKey.recorderMicrophone] as? Bool == false,
