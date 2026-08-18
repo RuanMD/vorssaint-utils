@@ -226,6 +226,8 @@ private struct FeatureHubRow: View {
 
     private var installed: Bool { feature.isAvailable }
 
+    private var supported: Bool { feature.isSupportedOnCurrentSystem }
+
     private var accessibilityTitle: String {
         let title = feature.hubTitle(l10n.s, hub: hub)
         return feature.isBeta ? "\(title). \(l10n.s.betaFeatureWarning)" : title
@@ -272,6 +274,7 @@ private struct FeatureHubRow: View {
                 Button(hub.installButton) { flip(to: true) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                    .disabled(!supported)
                     .accessibilityLabel("\(hub.installButton) \(accessibilityTitle)")
             }
         }
