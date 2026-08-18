@@ -58,7 +58,8 @@ compatibility with older development tools.
   everything you type into the bar, it is forgotten when the app quits.
   Thanks to @ruvelro.
 - The Command Bar now finds apps by alternate names macOS knows, including
-  older and localized names. Thanks to @ruvelro.
+  older and localized names. Localized Chinese app names also answer to their
+  name on disk, full pronunciation and initials. Thanks to @ruvelro and @tingke.
 - Clipboard history now opens as a compact palette with uncluttered rows and an
   on-demand preview for reading or editing the full item.
 - Menu bar icons now match surrounding icons in size and alignment. Thanks to @bambidotexe.

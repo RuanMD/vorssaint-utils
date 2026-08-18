@@ -13629,6 +13629,25 @@ struct MetricsTests {
                                         keywords: "Recent captures screenshot recording",
                                         query: "recent captures"),
                "recent captures stays searchable by its familiar English name")
+        expect(CommandBarSearch.pinyinKeywords("云笔记") == "yunbiji ybj",
+               "pinyin keywords run the syllables together and add the initials")
+        expect(CommandBarSearch.pinyinKeywords("Reader").isEmpty,
+               "a name without Han characters gets no pinyin keywords")
+        let pinyinKeywords = CommandBarSearch.pinyinKeywords("云笔记")
+        expect(CommandBarSearch.matches(title: "云笔记", keywords: pinyinKeywords,
+                                        query: "yunbiji"),
+               "a Chinese title is found by its pinyin")
+        expect(CommandBarSearch.matches(title: "云笔记", keywords: pinyinKeywords, query: "ybj"),
+               "a Chinese title is found by its pinyin initials")
+        let applicationKeywords = CommandBarSearch.applicationKeywords(
+            title: "云笔记", diskName: "CloudNotes", alternateNames: ["Former Notes"])
+        expect(CommandBarSearch.matches(title: "云笔记", keywords: applicationKeywords,
+                                        query: "cloudnotes")
+                && CommandBarSearch.matches(title: "云笔记", keywords: applicationKeywords,
+                                            query: "former")
+                && CommandBarSearch.matches(title: "云笔记", keywords: applicationKeywords,
+                                            query: "yunbiji"),
+               "an app keeps its disk, alternate and phonetic names searchable")
         expect(CommandBarSearch.matches(title: "Silenciar microfone", query: "silenciar micro"),
                "tokens match in any order as prefixes")
         expect(!CommandBarSearch.matches(title: "Silenciar microfone", query: "silenciar tela"),
