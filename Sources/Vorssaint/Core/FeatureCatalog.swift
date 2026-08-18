@@ -135,6 +135,21 @@ extension AppFeature {
 
     var isBeta: Bool { self == .fanControl || self == .menuBarOrganizer }
 
+    /// Whether the feature is safe to run on the current macOS major.
+    /// Injectable so the unit tests can exercise future system versions.
+    static func isSupported(_ feature: AppFeature,
+                            onOperatingSystemMajorVersion major: Int =
+                                ProcessInfo.processInfo.operatingSystemVersion.majorVersion) -> Bool {
+        // The organizer drives macOS 26 menu-bar hosting internals that are
+        // not proven on macOS 27: enabling it there crashes and nothing moves.
+        // Other features keep their pre-existing OS commitments.
+        feature == .menuBarOrganizer ? major <= 26 : true
+    }
+
+    var isSupportedOnCurrentSystem: Bool {
+        Self.isSupported(self)
+    }
+
     /// Availability read straight from defaults. Existing features stay
     /// available on update; explicit beta opt-ins may start unavailable.
     var isAvailable: Bool {

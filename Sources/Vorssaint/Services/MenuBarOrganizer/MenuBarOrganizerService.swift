@@ -47,6 +47,13 @@ final class MenuBarOrganizerService: ObservableObject {
     private init() {}
 
     func syncWithPreferences() {
+        // Never touch the WindowServer probes on systems the feature does not
+        // support yet: macOS 27 crashes on enable, so even defaults carried
+        // over from an older OS must stay inert.
+        guard AppFeature.menuBarOrganizer.isSupportedOnCurrentSystem else {
+            stop()
+            return
+        }
         let enabled = AppFeature.menuBarOrganizer.isAvailable
             && UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerEnabled)
         conflictingManagers = MenuBarManagerDetection.runningManagers()

@@ -8553,6 +8553,20 @@ struct MetricsTests {
                "every feature belongs to exactly one group")
         expect(!FeatureGroup.allCases.contains { AppFeature.features(in: $0).isEmpty },
                "no hub group is empty")
+
+        // MARK: macOS support gate
+
+        expect(AppFeature.isSupported(.menuBarOrganizer, onOperatingSystemMajorVersion: 14)
+                && AppFeature.isSupported(.menuBarOrganizer, onOperatingSystemMajorVersion: 15)
+                && AppFeature.isSupported(.menuBarOrganizer, onOperatingSystemMajorVersion: 26),
+               "menu bar organizer stays available on macOS 14/15/26")
+        expect(!AppFeature.isSupported(.menuBarOrganizer, onOperatingSystemMajorVersion: 27)
+                && !AppFeature.isSupported(.menuBarOrganizer, onOperatingSystemMajorVersion: 28),
+               "menu bar organizer is blocked on macOS 27 and later")
+        expect(AppFeature.isSupported(.switcher, onOperatingSystemMajorVersion: 27)
+                && AppFeature.isSupported(.fanControl, onOperatingSystemMajorVersion: 27),
+               "the macOS 27 gate only affects the menu bar organizer")
+
         expect(AppPermission.allCases.map(\.rawValue) == [
             "accessibility", "screenRecording", "fullDiskAccess", "filesAndFolders", "notifications",
             "automationFinder", "automationTerminal", "audioCapture", "microphone", "camera",
