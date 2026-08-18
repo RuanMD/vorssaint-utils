@@ -34,14 +34,14 @@ struct FeatureHubSettings: View {
                 if tab == .features {
                     HStack(spacing: 8) {
                         Text(String(format: hub.activeCountFormat,
-                                    features.availableCount, AppFeature.allCases.count))
+                                    features.availableCount, features.supportedCount))
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                         Spacer(minLength: 8)
                         Button(hub.installAllButton) {
                             FeatureRuntime.shared.setAllAvailable(true)
                         }
-                        .disabled(features.availableCount == AppFeature.allCases.count)
+                        .disabled(features.availableCount == features.supportedCount)
                         Button(hub.uninstallAllButton) {
                             FeatureRuntime.shared.setAllAvailable(false)
                         }
@@ -228,6 +228,17 @@ private struct FeatureHubRow: View {
 
     private var supported: Bool { feature.isSupportedOnCurrentSystem }
 
+    private var unsupportedCaption: String? {
+        guard !supported, feature == .menuBarOrganizer else { return nil }
+        return FeatureStrings.menuBarOrganizer(l10n.language).unsupportedSystem
+    }
+
+    private var accessibilityDescription: String {
+        [feature.hubDescription(hub), unsupportedCaption]
+            .compactMap { $0 }
+            .joined(separator: ". ")
+    }
+
     private var accessibilityTitle: String {
         let title = feature.hubTitle(l10n.s, hub: hub)
         return feature.isBeta ? "\(title). \(l10n.s.betaFeatureWarning)" : title
@@ -246,7 +257,7 @@ private struct FeatureHubRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            if installed, feature.hasNavigableSettingsDestination {
+            if installed, supported, feature.hasNavigableSettingsDestination {
                 Button {
                     SettingsRouter.shared.request(feature.settingsDestination)
                 } label: {
@@ -254,13 +265,13 @@ private struct FeatureHubRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(accessibilityTitle). \(feature.hubDescription(hub))")
+                .accessibilityLabel("\(accessibilityTitle). \(accessibilityDescription)")
                 .accessibilityAddTraits(.isLink)
                 .accessibilityRemoveTraits(.isButton)
             } else {
                 rowContent(showsChevron: false)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(accessibilityTitle). \(feature.hubDescription(hub))")
+                    .accessibilityLabel("\(accessibilityTitle). \(accessibilityDescription)")
             }
             if working {
                 ProgressView()
@@ -325,6 +336,12 @@ private struct FeatureHubRow: View {
                 Text(feature.hubDescription(hub))
                     .font(.caption)
                     .foregroundStyle(installed ? Color.secondary : Color.secondary.opacity(0.6))
+                if let unsupportedCaption {
+                    Label(unsupportedCaption, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
             if showsChevron {

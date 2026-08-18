@@ -6,6 +6,7 @@ import Foundation
 struct MenuBarOrganizerStrings {
     let pageTitle: String
     let hubDescription: String
+    let unsupportedSystem: String
     let enable: String
     let enableCaption: String
     let setupTitle: String
@@ -78,6 +79,7 @@ extension MenuBarOrganizerStrings {
     static let enUS = MenuBarOrganizerStrings(
         pageTitle: "Menu Bar",
         hubDescription: "Hide, reveal and arrange menu bar items",
+        unsupportedSystem: "Not yet compatible with macOS 27. Your saved setup will be kept for a future update.",
         enable: "Manage menu bar items",
         enableCaption: "Adds movable dividers for visible, hidden and always-hidden items.",
         setupTitle: "Set up your sections",
@@ -129,6 +131,7 @@ extension MenuBarOrganizerStrings {
     static let ptBR = MenuBarOrganizerStrings(
         pageTitle: "Barra de menus",
         hubDescription: "Oculte, revele e organize itens da barra de menus",
+        unsupportedSystem: "Ainda não é compatível com o macOS 27. Sua configuração salva será mantida para uma atualização futura.",
         enable: "Gerenciar itens da barra de menus",
         enableCaption: "Adiciona divisores móveis para itens visíveis, ocultos e sempre ocultos.",
         setupTitle: "Configure suas seções",
@@ -180,6 +183,7 @@ extension MenuBarOrganizerStrings {
     static let tr = MenuBarOrganizerStrings(
         pageTitle: "Menü Çubuğu",
         hubDescription: "Menü çubuğu öğelerini gizleyin, gösterin ve düzenleyin",
+        unsupportedSystem: "Henüz macOS 27 ile uyumlu değil. Kayıtlı ayarlarınız gelecekteki bir güncelleme için korunur.",
         enable: "Menü çubuğu öğelerini yönet",
         enableCaption: "Görünür, gizli ve her zaman gizli öğeler için taşınabilir ayırıcılar ekler.",
         setupTitle: "Bölümlerinizi ayarlayın",
@@ -231,6 +235,7 @@ extension MenuBarOrganizerStrings {
     static let ru = MenuBarOrganizerStrings(
         pageTitle: "Строка меню",
         hubDescription: "Скрывайте, показывайте и упорядочивайте значки строки меню",
+        unsupportedSystem: "Пока не поддерживается в macOS 27. Сохранённая конфигурация останется для будущего обновления.",
         enable: "Управлять значками строки меню",
         enableCaption: "Добавляет перемещаемые разделители для видимых, скрытых и всегда скрытых значков.",
         setupTitle: "Настройте разделы",
@@ -282,6 +287,7 @@ extension MenuBarOrganizerStrings {
     static let es = MenuBarOrganizerStrings(
         pageTitle: "Barra de menús",
         hubDescription: "Oculta, muestra y ordena los elementos de la barra",
+        unsupportedSystem: "Aún no es compatible con macOS 27. Tu configuración guardada se conservará para una futura actualización.",
         enable: "Gestionar los elementos de la barra de menús",
         enableCaption: "Añade separadores móviles para elementos visibles, ocultos y siempre ocultos.",
         setupTitle: "Configura tus secciones",
@@ -333,6 +339,7 @@ extension MenuBarOrganizerStrings {
     static let de = MenuBarOrganizerStrings(
         pageTitle: "Menüleiste",
         hubDescription: "Menüleistenobjekte ausblenden, einblenden und anordnen",
+        unsupportedSystem: "Noch nicht mit macOS 27 kompatibel. Deine gespeicherte Konfiguration bleibt für ein zukünftiges Update erhalten.",
         enable: "Menüleistenobjekte verwalten",
         enableCaption: "Fügt verschiebbare Trenner für sichtbare, ausgeblendete und immer ausgeblendete Objekte hinzu.",
         setupTitle: "Bereiche einrichten",
@@ -384,6 +391,7 @@ extension MenuBarOrganizerStrings {
     static let fr = MenuBarOrganizerStrings(
         pageTitle: "Barre des menus",
         hubDescription: "Masquer, afficher et organiser les éléments de la barre",
+        unsupportedSystem: "Pas encore compatible avec macOS 27. Votre configuration enregistrée sera conservée pour une future mise à jour.",
         enable: "Gérer les éléments de la barre des menus",
         enableCaption: "Ajoute des séparateurs mobiles pour les éléments visibles, masqués et toujours masqués.",
         setupTitle: "Configurer les sections",
@@ -435,6 +443,7 @@ extension MenuBarOrganizerStrings {
     static let it = MenuBarOrganizerStrings(
         pageTitle: "Barra dei menu",
         hubDescription: "Nascondi, mostra e ordina gli elementi della barra",
+        unsupportedSystem: "Non è ancora compatibile con macOS 27. La configurazione salvata verrà conservata per un aggiornamento futuro.",
         enable: "Gestisci gli elementi della barra dei menu",
         enableCaption: "Aggiunge separatori mobili per elementi visibili, nascosti e sempre nascosti.",
         setupTitle: "Configura le sezioni",
@@ -486,6 +495,7 @@ extension MenuBarOrganizerStrings {
     static let ja = MenuBarOrganizerStrings(
         pageTitle: "メニューバー",
         hubDescription: "メニューバー項目を隠す、表示する、並べ替える",
+        unsupportedSystem: "macOS 27にはまだ対応していません。保存済みの設定は今後のアップデート用に保持されます。",
         enable: "メニューバー項目を管理",
         enableCaption: "表示、非表示、常に非表示の項目を分ける移動可能な区切りを追加します。",
         setupTitle: "セクションを設定",
@@ -537,6 +547,7 @@ extension MenuBarOrganizerStrings {
     static let ko = MenuBarOrganizerStrings(
         pageTitle: "메뉴 막대",
         hubDescription: "메뉴 막대 항목을 숨기고 표시하고 정렬합니다",
+        unsupportedSystem: "아직 macOS 27과 호환되지 않습니다. 저장된 설정은 향후 업데이트를 위해 유지됩니다.",
         enable: "메뉴 막대 항목 관리",
         enableCaption: "표시, 숨김, 항상 숨김 항목을 위한 이동 가능한 구분선을 추가합니다.",
         setupTitle: "섹션 설정",
@@ -588,6 +599,7 @@ extension MenuBarOrganizerStrings {
     static let zhHans = MenuBarOrganizerStrings(
         pageTitle: "菜单栏",
         hubDescription: "隐藏、显示和排列菜单栏项目",
+        unsupportedSystem: "暂不兼容 macOS 27。已保存的设置将保留，供未来更新使用。",
         enable: "管理菜单栏项目",
         enableCaption: "为显示、隐藏和始终隐藏的项目添加可移动分隔项。",
         setupTitle: "设置菜单栏分区",
@@ -639,6 +651,7 @@ extension MenuBarOrganizerStrings {
     static let zhTW = MenuBarOrganizerStrings(
         pageTitle: "選單列",
         hubDescription: "隱藏、顯示和排列選單列項目",
+        unsupportedSystem: "尚未支援 macOS 27。已儲存的設定會保留，以供日後更新使用。",
         enable: "管理選單列項目",
         enableCaption: "為顯示、隱藏和永遠隱藏的項目加入可移動分隔項。",
         setupTitle: "設定選單列分區",
@@ -690,6 +703,7 @@ extension MenuBarOrganizerStrings {
     static let zhHK = MenuBarOrganizerStrings(
         pageTitle: "選單列",
         hubDescription: "隱藏、顯示及排列選單列項目",
+        unsupportedSystem: "暫未支援 macOS 27。已儲存的設定會保留，供日後更新使用。",
         enable: "管理選單列項目",
         enableCaption: "為顯示、隱藏及永遠隱藏的項目加入可移動分隔項。",
         setupTitle: "設定選單列分區",

@@ -8563,6 +8563,9 @@ struct MetricsTests {
         expect(!AppFeature.isSupported(.menuBarOrganizer, onOperatingSystemMajorVersion: 27)
                 && !AppFeature.isSupported(.menuBarOrganizer, onOperatingSystemMajorVersion: 28),
                "menu bar organizer is blocked on macOS 27 and later")
+        expect(!FeatureVisibilitySupport.isPageVisible(.menuBarOrganizer) {
+            AppFeature.isSupported($0, onOperatingSystemMajorVersion: 27)
+        }, "unsupported organizer settings stay out of navigation on macOS 27")
         expect(AppFeature.isSupported(.switcher, onOperatingSystemMajorVersion: 27)
                 && AppFeature.isSupported(.fanControl, onOperatingSystemMajorVersion: 27),
                "the macOS 27 gate only affects the menu bar organizer")
@@ -9255,9 +9258,10 @@ struct MetricsTests {
                    "every menu bar organizer string is set for \(language.rawValue)")
             expect(menuBarOrganizerValues.allSatisfy { !$0.contains("—") },
                    "no em-dash in menu bar organizer strings (\(language.rawValue))")
-            expect(FeatureStrings.menuBarOrganizer(language).unresolvedCountFormat.contains("%d")
+            expect(FeatureStrings.menuBarOrganizer(language).unsupportedSystem.contains("27")
+                    && FeatureStrings.menuBarOrganizer(language).unresolvedCountFormat.contains("%d")
                     && FeatureStrings.menuBarOrganizer(language).conflictFormat.contains("%@"),
-                   "organizer formats keep their placeholders (\(language.rawValue))")
+                   "organizer compatibility and formats stay explicit (\(language.rawValue))")
             let screenshotValues = Mirror(reflecting: FeatureStrings.screenshot(language)).children
                 .compactMap { $0.value as? String }
             expect(!screenshotValues.isEmpty && screenshotValues.allSatisfy { !$0.isEmpty },

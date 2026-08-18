@@ -46,7 +46,15 @@ final class FeatureRuntime: ObservableObject {
 
     func isAvailable(_ feature: AppFeature) -> Bool { feature.isAvailable }
 
-    var availableCount: Int { AppFeature.allCases.filter(\.isAvailable).count }
+    var availableCount: Int {
+        AppFeature.allCases.filter {
+            $0.isAvailable && $0.isSupportedOnCurrentSystem
+        }.count
+    }
+
+    var supportedCount: Int {
+        AppFeature.allCases.filter(\.isSupportedOnCurrentSystem).count
+    }
 
     /// Flipping availability runs the feature's binding immediately: off
     /// tears every resource down on the spot, on restores whatever enabled
@@ -87,7 +95,7 @@ final class FeatureRuntime: ObservableObject {
         // Features that stayed installed still need a sync: their enable
         // keys may have just flipped on. Syncs are idempotent, so a repeat
         // for the ones handled above costs nothing.
-        for feature in selected {
+        for feature in selected where feature.isSupportedOnCurrentSystem {
             Self.bindings[feature]?()
         }
         revision += 1

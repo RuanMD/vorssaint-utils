@@ -764,7 +764,9 @@ enum CommandBarCatalog {
             .flatMap(\.items)
             .filter { item in
                 !pagesCoveredByActions.contains(item.page)
-                    && FeatureVisibilitySupport.isPageVisible(item.page) { $0.isAvailable }
+                    && FeatureVisibilitySupport.isPageVisible(item.page) {
+                        $0.isAvailable && $0.isSupportedOnCurrentSystem
+                    }
             }
             .map { item in
                 CommandBarEntry(
