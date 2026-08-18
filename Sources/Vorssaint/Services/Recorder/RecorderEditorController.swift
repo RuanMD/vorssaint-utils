@@ -128,7 +128,11 @@ final class RecorderEditorModel: ObservableObject, BackdropEditing {
             else { return }
             self.duration = max(0, CMTimeGetSeconds(seconds))
             if let track = try? await self.sourceAsset.loadTracks(withMediaType: .video).first {
-                self.sourceSize = (try? await track.load(.naturalSize)) ?? .zero
+                let naturalSize = (try? await track.load(.naturalSize)) ?? .zero
+                let preferredTransform = (try? await track.load(.preferredTransform)) ?? .identity
+                self.sourceSize = RecorderSupport.videoGeometry(
+                    naturalSize: naturalSize,
+                    preferredTransform: preferredTransform).size
                 let rate = (try? await track.load(.nominalFrameRate)) ?? 60
                 self.sourceFrameRate = RecorderSupport.sanitizedFrameRate(Int(rate.rounded()))
             }
@@ -492,7 +496,8 @@ final class RecorderEditorModel: ObservableObject, BackdropEditing {
         let padding = style.kind == .none ? 0 : style.padding * 0.18
         let canvas = RecorderSupport.canvasSize(source: sourceSize,
                                                 padding: padding,
-                                                aspect: document.resolvedAspect)
+                                                aspect: document.resolvedAspect,
+                                                cropsToAspect: style.kind == .none)
         return RecorderSupport.outputSize(source: canvas, quality: document.resolvedQuality)
     }
 

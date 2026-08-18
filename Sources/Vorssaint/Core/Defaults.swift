@@ -42,7 +42,8 @@ enum DefaultsKey {
     static let mouseNavigationEnabled = "mouseNavigationEnabled" // side buttons trigger Back and Forward
     static let mouseButtonShortcutsEnabled = "mouseButtonShortcutsEnabled" // extra buttons press a key combination (issue #282)
     static let mouseButtonShortcuts = "mouseButtonShortcuts" // [button number: GlobalShortcut storage value]
-    static let superKeyEnabled = "superKeyEnabled"        // Caps Lock holds the four modifiers (issue #330)
+    static let superKeyEnabled = "superKeyEnabled"        // Caps Lock holds the chosen modifiers (issue #330)
+    static let superKeyModifiers = "superKeyModifiers"     // GlobalShortcutModifiers storage tokens
     static let superKeySoloAction = "superKeySoloAction"  // SuperKeySoloAction raw value
     // Machine state, never exported: whether the keyboard mapping is in place,
     // so a launch after a crash can take it back out.
@@ -406,6 +407,12 @@ enum DefaultsKey {
     static let commandBarHidden = "commandBarHidden"         // row keys the person never wants offered
     static let commandBarLinks = "commandBarLinks"           // Data: [CommandBarLink] JSON
     static let commandBarRowShortcuts = "commandBarRowShortcuts" // {row key: shortcut}
+    static let commandBarPositionOffset = "commandBarPositionOffset" // "dx,dy" from the default spot
+    // The folders a file search looks in, one per line, written with a tilde
+    // so an exported list still points somewhere on another Mac. Empty means
+    // the bar looks for no files at all, which is the setting out of the box.
+    static let commandBarFileScopes = "commandBarFileScopes"
+    static let commandBarFileIgnores = "commandBarFileIgnores" // names a file search never shows
     static let panelUtilityCommandBar = "panelUtilityCommandBar"
     static let scratchpadRetention = "scratchpadRetention"   // never | day | week | month
     static let scratchpadCloseOnClickOutside = "scratchpadCloseOnClickOutside"
@@ -430,6 +437,7 @@ enum DefaultsKey {
     // Screenshot capture and editor.
     static let screenshotShortcutEnabled = "screenshotShortcutEnabled"
     static let screenshotShortcut = "screenshotShortcut"
+    static let unifiedScreenCaptureShortcutMigrated = "unifiedScreenCaptureShortcutMigrated"
     static let screenshotFullScreenShortcutEnabled = "screenshotFullScreenShortcutEnabled"
     static let screenshotFullScreenShortcut = "screenshotFullScreenShortcut"
     static let screenshotLastCaptureShortcutEnabled = "screenshotLastCaptureShortcutEnabled"
@@ -740,6 +748,7 @@ enum Defaults {
         DefaultsKey.mouseButtonShortcutsEnabled: false,
         DefaultsKey.mouseButtonShortcuts: [String: String](),
         DefaultsKey.superKeyEnabled: false,
+        DefaultsKey.superKeyModifiers: SuperKeySupport.defaultModifierStorageValue,
         DefaultsKey.superKeySoloAction: SuperKeySoloAction.none.rawValue,
         DefaultsKey.smoothScrollExceptions: [String](),
         DefaultsKey.scrollInverterExceptions: [String](),
@@ -1054,7 +1063,10 @@ enum Defaults {
         DefaultsKey.commandBarAliases: "",
         DefaultsKey.commandBarPins: "",
         DefaultsKey.commandBarHidden: "",
+        DefaultsKey.commandBarFileScopes: "",
+        DefaultsKey.commandBarFileIgnores: "",
         DefaultsKey.commandBarShortcut: GlobalShortcut.commandBarDefault.storageValue,
+        DefaultsKey.commandBarPositionOffset: "",
         DefaultsKey.panelUtilityCommandBar: true,
         DefaultsKey.scratchpadRetention: ScratchpadRetention.never.rawValue,
         DefaultsKey.scratchpadCloseOnClickOutside: true,
@@ -1089,6 +1101,7 @@ enum Defaults {
         DefaultsKey.panelUtilityScreenRecorder: true,
         DefaultsKey.screenshotShortcutEnabled: false,
         DefaultsKey.screenshotShortcut: GlobalShortcut.screenshotDefault.storageValue,
+        DefaultsKey.unifiedScreenCaptureShortcutMigrated: false,
         DefaultsKey.screenshotFullScreenShortcutEnabled: false,
         DefaultsKey.screenshotFullScreenShortcut: GlobalShortcut.screenshotFullScreenDefault.storageValue,
         DefaultsKey.screenshotLastCaptureShortcutEnabled: false,
@@ -1168,6 +1181,7 @@ enum Defaults {
         migrateUtilityOrderForScreenshot(in: defaults)
         migrateUtilityOrderForAppUpdates(in: defaults)
         migrateScreenshotOpenEditorDirectly(in: defaults)
+        migrateUnifiedScreenCaptureShortcut(in: defaults)
         migrateSilentHeadphonesDisconnectVolume(in: defaults)
         migrateSwitcherWindowlessFinder(in: defaults)
     }
@@ -1220,6 +1234,37 @@ enum Defaults {
         guard action.isEmpty else { return }
         defaults.set(ScreenshotDefaultAction.edit.rawValue,
                      forKey: DefaultsKey.screenshotDefaultAction)
+    }
+
+    /// The four screen tools now share the screenshot shortcut. Preserve the
+    /// first dedicated shortcut an existing setup had enabled, while fresh
+    /// installs keep the combined shortcut off by default.
+    static func migrateUnifiedScreenCaptureShortcut(in defaults: UserDefaults) {
+        guard !defaults.bool(forKey: DefaultsKey.unifiedScreenCaptureShortcutMigrated) else {
+            return
+        }
+        defer {
+            defaults.set(true, forKey: DefaultsKey.unifiedScreenCaptureShortcutMigrated)
+        }
+        guard !defaults.bool(forKey: DefaultsKey.screenshotShortcutEnabled) else { return }
+
+        let legacyChoices: [(enabled: String, shortcut: String, fallback: GlobalShortcut)] = [
+            (DefaultsKey.recorderShortcutEnabled,
+             DefaultsKey.recorderShortcut,
+             .screenRecorderDefault),
+            (DefaultsKey.screenOCRShortcutEnabled,
+             DefaultsKey.screenOCRShortcut,
+             .screenOCRDefault),
+            (DefaultsKey.colorPickerShortcutEnabled,
+             DefaultsKey.colorPickerShortcut,
+             .colorPickerDefault),
+        ]
+        guard let choice = legacyChoices.first(where: {
+            defaults.bool(forKey: $0.enabled)
+        }) else { return }
+        let shortcut = defaults.string(forKey: choice.shortcut) ?? choice.fallback.storageValue
+        defaults.set(true, forKey: DefaultsKey.screenshotShortcutEnabled)
+        defaults.set(shortcut, forKey: DefaultsKey.screenshotShortcut)
     }
 
     static func migrateLegacySwitcherWindowShortcut(in defaults: UserDefaults) {

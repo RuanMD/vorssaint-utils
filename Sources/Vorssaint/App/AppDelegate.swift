@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     private var isTerminating = false
     private var cancellables = Set<AnyCancellable>()
     private var settingsWindow: NSWindow?
+    private var settingsKeepsAppRegular = false
     private var feedbackWindow: NSWindow?
     private var onboardingWindow: NSWindow?
     private var supportIntroWindow: NSWindow?
@@ -1191,6 +1192,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if let window = settingsWindow {
             positionSettingsWindow(window, force: createdWindow)
         }
+        if !settingsKeepsAppRegular {
+            settingsKeepsAppRegular = true
+            WindowActivationPolicy.retain()
+        }
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
         DispatchQueue.main.async { [weak self] in
@@ -1616,6 +1621,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if window === settingsWindow {
             // Covers size changes that end without a live resize (zoom).
             saveSettingsWindowSize(window)
+            if settingsKeepsAppRegular {
+                settingsKeepsAppRegular = false
+                WindowActivationPolicy.release()
+            }
             return
         }
         if window === onboardingWindow {

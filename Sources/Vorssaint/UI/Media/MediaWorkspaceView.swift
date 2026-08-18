@@ -98,6 +98,7 @@ struct MediaWorkspaceView: View {
     @State private var mediaDefaultsTask: Task<Void, Never>?
     @State private var profileName = ""
     @State private var imageMoreOptionsExpanded = false
+    @State private var isImportingVideo = false
 
     var compact: Bool
     var onClose: (() -> Void)? = nil
@@ -105,6 +106,10 @@ struct MediaWorkspaceView: View {
     private var inputURL: URL? { inputURLs.first }
     private var imageText: MediaImageConverterStrings {
         MediaImageConverterStrings.localized(l10n.language)
+    }
+
+    private var screenshotText: ScreenshotFeatureStrings {
+        FeatureStrings.screenshot(l10n.language)
     }
 
     private var selectedTool: MediaTool {
@@ -351,6 +356,19 @@ struct MediaWorkspaceView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(inputURLs.isEmpty || isRunning)
+
+            if selectedTool == .videoCompressor {
+                Button {
+                    openVideoEditor()
+                } label: {
+                    Label(screenshotText.editButton, systemImage: "crop")
+                }
+                .disabled(inputURLs.count != 1 || isRunning || isImportingVideo)
+                if isImportingVideo {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
 
             if isRunning {
                 Button {
@@ -1205,6 +1223,35 @@ struct MediaWorkspaceView: View {
         guard let duration = try? await AVURLAsset(url: url).load(.duration).seconds else { return nil }
         guard duration.isFinite, duration > 0 else { return nil }
         return (duration * 10).rounded() / 10
+    }
+
+    @MainActor
+    private func openVideoEditor() {
+        guard let url = inputURL, !isImportingVideo else { return }
+        isImportingVideo = true
+        localMessage = nil
+        Task { @MainActor in
+            let asset = AVURLAsset(url: url)
+            let hasVideo = ((try? await asset.loadTracks(withMediaType: .video)) ?? []).isEmpty == false
+            guard hasVideo else {
+                isImportingVideo = false
+                localMessage = l10n.s.mediaErrorNoVideo
+                return
+            }
+            let take = await Task.detached(priority: .userInitiated) {
+                RecorderTakeStore.shared.importVideo(at: url)
+            }.value
+            isImportingVideo = false
+            guard inputURL == url else {
+                if let take { RecorderTakeStore.shared.delete(take) }
+                return
+            }
+            guard let take else {
+                localMessage = l10n.s.mediaErrorUnsupported
+                return
+            }
+            ScreenRecorderService.shared.openEditor(with: take)
+        }
     }
 
     private func run() {

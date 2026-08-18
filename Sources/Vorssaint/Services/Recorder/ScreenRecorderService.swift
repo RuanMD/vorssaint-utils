@@ -159,20 +159,15 @@ private final class RecorderSession: NSObject, RecorderCaptureEngineDelegate {
 /// The screen recorder: picks an area the same way the screenshot tool does,
 /// records it with either optional sound source, and leaves a video file behind.
 ///
-/// At rest the only resource is the optional global shortcut registration.
-/// Everything else, the stream, the writer, the floating indicator and the one
-/// timer that draws the elapsed time, is created when a recording starts and
-/// released when it ends.
+/// At rest it holds no recorder resource; the shared capture service owns the
+/// optional global shortcut. The stream, writer, floating indicator and the
+/// one timer that draws elapsed time are created only while recording.
 final class ScreenRecorderService: ObservableObject {
     static let shared = ScreenRecorderService()
 
     @Published private(set) var isRecording = false
     @Published private(set) var isPaused = false
     @Published private(set) var elapsedSeconds = 0
-    @Published private(set) var shortcutRegistrationFailed = false
-
-    private let hotkey = QuickToolHotkey(id: 21)
-    private var selection: ScreenshotSelectionController?
     private var session: RecorderSession?
     private var indicator: RecorderIndicator?
     private var editors: [RecorderEditorController] = []
@@ -192,28 +187,16 @@ final class ScreenRecorderService: ObservableObject {
         FeatureStrings.recorder(L10n.shared.language)
     }
 
-    private init() {
-        hotkey.onPress = { [weak self] in self?.toggle() }
-    }
+    private init() {}
 
     // MARK: - Preferences
 
     func syncWithPreferences() {
         guard AppFeature.screenRecorder.isAvailable else {
-            shortcutRegistrationFailed = false
-            hotkey.unregister()
             teardownSurfaces()
             return
         }
-        let enabled = UserDefaults.standard.bool(forKey: DefaultsKey.recorderShortcutEnabled)
-        let shortcut = GlobalShortcut.saved(for: DefaultsKey.recorderShortcut,
-                                            fallback: .screenRecorderDefault)
-        shortcutRegistrationFailed = !hotkey.sync(enabled: enabled, shortcut: shortcut)
         sweepTakes()
-    }
-
-    func suspend() {
-        hotkey.unregister()
     }
 
     /// Uninstalling the feature in the hub has to take everything off the
@@ -224,8 +207,6 @@ final class ScreenRecorderService: ObservableObject {
         countdown = nil
         indicator?.hide()
         indicator = nil
-        selection?.cancel()
-        selection = nil
         for editor in editors {
             editor.close()
         }
@@ -238,7 +219,7 @@ final class ScreenRecorderService: ObservableObject {
     // MARK: - Editor
 
     func openEditor(with take: RecorderTakeStore.Take) {
-        EditorActivationPolicy.retain()
+        WindowActivationPolicy.retain()
         let editor = RecorderEditorController(take: take)
         editors.append(editor)
         editor.show()
@@ -247,7 +228,7 @@ final class ScreenRecorderService: ObservableObject {
     func editorDidClose(_ editor: RecorderEditorController) {
         guard editors.contains(where: { $0 === editor }) else { return }
         editors.removeAll { $0 === editor }
-        EditorActivationPolicy.release()
+        WindowActivationPolicy.release()
     }
 
     // MARK: - Entry
@@ -255,68 +236,52 @@ final class ScreenRecorderService: ObservableObject {
     /// The one control the shortcut, the panel tile and the command bar all
     /// use: it starts when nothing is running and stops when something is.
     func toggle() {
-        if isRecording {
+        if stopOrCancelActiveCapture() { return }
+        ScreenCaptureService.shared.capture(initial: .recording)
+    }
+
+    func stopOrCancelActiveCapture() -> Bool {
+        if isRecording || session != nil {
             stop()
-            return
+            return true
         }
         if countdown != nil {
             countdown?.cancel()
             countdown = nil
             indicator?.hide()
             indicator = nil
-            return
+            return true
         }
-        guard selection == nil, !isFinishing else { return }
-        guard !ScreenshotSelectionController.isSessionOnScreen else { return }
+        return isFinishing
+    }
+
+    func prepareForSelection() -> Bool {
+        guard AppFeature.screenRecorder.isAvailable, !isFinishing,
+              session == nil, countdown == nil else { return false }
         guard Permissions.shared.screenRecording else {
             Permissions.shared.requestScreenRecording()
-            return
+            return false
         }
         guard Permissions.shared.accessibility else {
             Permissions.shared.requestAccessibility()
-            return
+            return false
         }
         guard RecorderSupport.canStart(freeBytes: RecorderTakeStore.shared.freeBytes()) else {
             reportNoSpace()
-            return
+            return false
         }
-        beginSelection()
+        return true
     }
 
-    private func beginSelection() {
-        // Freeze the displays while the region is chosen so the Dock, menu bar
-        // and app windows cannot move the target out from under the gesture.
-        let audioOptions = RecorderSelectionAudioOptions()
-        let controller = ScreenshotSelectionController(freeze: true,
-                                                       includePointer: false,
-                                                       showLastRegion: true,
-                                                       hideVorssaintWindows: false,
-                                                       protectedWindowIDs: {
-                                                           ScreenshotService.shared
-                                                               .protectedWindowIDsForCapture
-                                                       },
-                                                       purpose: strings.selectionPurpose,
-                                                       mode: .geometry,
-                                                       recorderAudioOptions: audioOptions)
-        selection = controller
-        controller.begin { [weak self] outcome in
-            guard let self else { return }
-            self.selection = nil
-            switch outcome {
-            case .region(let region):
-                let indicator = RecorderIndicator(
-                    onPause: { [weak self] in self?.togglePause() },
-                    onStop: { [weak self] in self?.stop() })
-                indicator.showRegionGuide(for: region)
-                self.indicator = indicator
-                self.prepareCountdown(for: region,
-                                      wantsMicrophone: audioOptions.microphone)
-            case .captured, .scrollingRegion, .cancelled:
-                break
-            case .failed:
-                QuickToolHUD.show(icon: "record.circle", message: self.strings.recordFailed)
-            }
-        }
+    func record(_ region: RecorderSupport.Region,
+                audioOptions: RecorderSelectionAudioOptions) {
+        guard prepareForSelection() else { return }
+        let indicator = RecorderIndicator(
+            onPause: { [weak self] in self?.togglePause() },
+            onStop: { [weak self] in self?.stop() })
+        indicator.showRegionGuide(for: region)
+        self.indicator = indicator
+        prepareCountdown(for: region, wantsMicrophone: audioOptions.microphone)
     }
 
     private func prepareCountdown(for region: RecorderSupport.Region, wantsMicrophone: Bool) {

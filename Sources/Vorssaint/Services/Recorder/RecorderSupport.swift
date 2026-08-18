@@ -267,14 +267,44 @@ enum RecorderSupport {
         Aspect(rawValue: raw ?? "") ?? .original
     }
 
+    struct VideoGeometry: Equatable {
+        let size: CGSize
+        let transform: CGAffineTransform
+    }
+
+    /// Normalizes a movie track's orientation into a display-sized rectangle
+    /// whose origin is zero. Screen recordings are already identity; imported
+    /// portrait and rotated movies commonly are not.
+    static func videoGeometry(naturalSize: CGSize,
+                              preferredTransform: CGAffineTransform) -> VideoGeometry {
+        guard naturalSize.width.isFinite, naturalSize.height.isFinite,
+              naturalSize.width > 0, naturalSize.height > 0
+        else { return VideoGeometry(size: .zero, transform: .identity) }
+        let naturalRect = CGRect(origin: .zero, size: naturalSize)
+        let displayed = naturalRect.applying(preferredTransform)
+        guard displayed.width.isFinite, displayed.height.isFinite,
+              displayed.width != 0, displayed.height != 0
+        else { return VideoGeometry(size: .zero, transform: .identity) }
+        var normalized = preferredTransform
+        normalized.tx -= displayed.minX
+        normalized.ty -= displayed.minY
+        return VideoGeometry(
+            size: evenSize(CGSize(width: abs(displayed.width), height: abs(displayed.height))),
+            transform: normalized)
+    }
+
     /// Nothing is ever encoded larger than this on its long edge: a background
     /// with a generous margin can otherwise ask for a picture much bigger than
     /// the recording it frames, for no visible gain.
     static let maximumCanvasEdge: CGFloat = 3840
 
-    /// The whole picture, background included. The recording keeps its own
-    /// pixels and the canvas grows around it, so a margin never costs sharpness.
-    static func canvasSize(source: CGSize, padding: Double, aspect: Aspect) -> CGSize {
+    /// The whole picture, background included. With a background the canvas
+    /// grows around the recording, so a margin never costs sharpness. Without
+    /// one, choosing a shape crops the largest centred frame from the source.
+    static func canvasSize(source: CGSize,
+                           padding: Double,
+                           aspect: Aspect,
+                           cropsToAspect: Bool = false) -> CGSize {
         guard source.width > 0, source.height > 0 else { return evenSize(source) }
         let margin = min(0.35, max(0, padding))
         let inner = 1 - 2 * margin
@@ -282,11 +312,20 @@ enum RecorderSupport {
         var width = source.width / inner
         var height = source.height / inner
         if let ratio = aspect.ratio {
-            // Grow the short side until the shape matches; never crop.
-            if width / height < ratio {
-                width = height * ratio
+            if cropsToAspect {
+                if width / height > ratio {
+                    width = height * ratio
+                } else {
+                    height = width / ratio
+                }
             } else {
-                height = width / ratio
+                // A visible background grows the short side instead of
+                // cutting away the recording it is meant to frame.
+                if width / height < ratio {
+                    width = height * ratio
+                } else {
+                    height = width / ratio
+                }
             }
         }
         let longest = max(width, height)
@@ -298,15 +337,20 @@ enum RecorderSupport {
         return evenSize(CGSize(width: width, height: height))
     }
 
-    /// Where the recording sits inside the canvas: centred, as large as the
-    /// margin allows, keeping its own proportions.
-    static func cardRect(canvas: CGSize, source: CGSize, padding: Double) -> CGRect {
+    /// Where the recording sits inside the canvas: centred and keeping its own
+    /// proportions. A crop covers the canvas and lets the excess hang outside;
+    /// a framed recording fits wholly inside its available area.
+    static func cardRect(canvas: CGSize,
+                         source: CGSize,
+                         padding: Double,
+                         fillsCanvas: Bool = false) -> CGRect {
         guard source.width > 0, source.height > 0, canvas.width > 0, canvas.height > 0
         else { return CGRect(origin: .zero, size: canvas) }
         let margin = min(0.35, max(0, padding))
         let available = CGSize(width: canvas.width * (1 - 2 * margin),
                                height: canvas.height * (1 - 2 * margin))
-        let factor = min(available.width / source.width, available.height / source.height)
+        let factors = (available.width / source.width, available.height / source.height)
+        let factor = fillsCanvas ? max(factors.0, factors.1) : min(factors.0, factors.1)
         let size = CGSize(width: (source.width * factor).rounded(),
                           height: (source.height * factor).rounded())
         return CGRect(x: ((canvas.width - size.width) / 2).rounded(),
