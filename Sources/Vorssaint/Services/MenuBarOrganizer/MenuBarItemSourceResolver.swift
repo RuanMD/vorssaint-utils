@@ -111,6 +111,14 @@ actor MenuBarItemSourceResolver {
         for record in records {
             guard !Task.isCancelled else { return [:] }
             for axItem in axItems {
+                // A generic hosted slot can overlap Control Center's own AX
+                // child exactly. That match identifies the host, not the app
+                // that supplied the item, and must remain provisional.
+                if MenuBarOrganizerSupport.isGenericControlCenterHostedTitle(record.title),
+                   axItem.source.bundleIdentifier
+                    == MenuBarOrganizerSupport.controlCenterBundleIdentifier {
+                    continue
+                }
                 guard let score = MenuBarOrganizerSupport.frameMatchScore(
                     record.frame, axItem.frame)
                 else { continue }

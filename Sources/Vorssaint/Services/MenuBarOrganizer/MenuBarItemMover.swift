@@ -27,11 +27,18 @@ final class MenuBarItemMover {
         guard item.identityState == .stable else {
             throw MenuBarItemMoveError.provisionalIdentity
         }
-        guard item.isMovable, !item.isProtected, let sourcePID = item.sourcePID else {
+        guard item.isMovable, !item.isProtected else {
             throw MenuBarItemMoveError.itemNotMovable
         }
         guard !isMoving else { throw MenuBarItemMoveError.busy }
-        guard !Self.hasOpenMenu(for: sourcePID) else { throw MenuBarItemMoveError.menuOpen }
+        let targetPID = MenuBarOrganizerSupport.eventTargetPID(
+            ownerPID: item.ownerPID,
+            ownerBundleIdentifier: item.ownerBundleIdentifier,
+            sourcePID: item.sourcePID)
+        let relevantPIDs = Set([targetPID, item.sourcePID].compactMap { $0 })
+        guard !Self.hasOpenMenu(for: relevantPIDs) else {
+            throw MenuBarItemMoveError.menuOpen
+        }
         isMoving = true
         defer { isMoving = false }
 
@@ -52,7 +59,7 @@ final class MenuBarItemMover {
         try await postCommandDrag(
             from: CGPoint(x: item.frame.midX, y: item.frame.midY),
             to: end,
-            targetPID: sourcePID)
+            targetPID: targetPID)
     }
 
     func click(item: ManagedMenuBarItem) async throws {
@@ -69,9 +76,13 @@ final class MenuBarItemMover {
                                mouseCursorPosition: point,
                                mouseButton: .left)
         else { throw MenuBarItemMoveError.eventCreationFailed }
-        post(down, targetPID: item.sourcePID)
+        let targetPID = MenuBarOrganizerSupport.eventTargetPID(
+            ownerPID: item.ownerPID,
+            ownerBundleIdentifier: item.ownerBundleIdentifier,
+            sourcePID: item.sourcePID)
+        post(down, targetPID: targetPID)
         try await Task.sleep(for: .milliseconds(35))
-        post(up, targetPID: item.sourcePID)
+        post(up, targetPID: targetPID)
     }
 
     private func waitForIdleInput() async throws {
@@ -136,7 +147,7 @@ final class MenuBarItemMover {
         }
     }
 
-    private static func hasOpenMenu(for pid: pid_t) -> Bool {
+    private static func hasOpenMenu(for pids: Set<pid_t>) -> Bool {
         guard let windows = CGWindowListCopyWindowInfo(
             [.optionOnScreenOnly, .excludeDesktopElements],
             kCGNullWindowID) as? [[String: Any]]
@@ -146,7 +157,8 @@ final class MenuBarItemMover {
             Int(CGWindowLevelForKey(.mainMenuWindow)),
         ])
         return windows.contains { dictionary in
-            guard (dictionary[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid,
+            guard let pid = (dictionary[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value,
+                  pids.contains(pid),
                   let level = (dictionary[kCGWindowLayer as String] as? NSNumber)?.intValue
             else { return false }
             return menuLevels.contains(level)

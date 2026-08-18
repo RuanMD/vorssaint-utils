@@ -8771,6 +8771,17 @@ struct MetricsTests {
                     for: [hostedRecord],
                     sources: [3: anonymousHostedSource])[3]?.state == .provisional,
                "a resolved process without a stable AX item name remains provisional")
+        let controlCenterHostSource = MenuBarItemSourceIdentity(
+            pid: 42,
+            bundleIdentifier: MenuBarOrganizerSupport.controlCenterBundleIdentifier,
+            name: "Control Center",
+            axIdentifier: "Item-0",
+            axTitle: "Item-0")
+        let hostOnlyIdentity = MenuBarOrganizerSupport.identities(
+            for: [hostedRecord], sources: [3: controlCenterHostSource])[3]
+        expect(hostOnlyIdentity?.state == .provisional
+                && hostOnlyIdentity?.source == nil,
+               "a generic Control Center AX match identifies only the host")
         expect(MenuBarOrganizerSupport.frameMatchScore(
                     CGRect(x: 10, y: 0, width: 20, height: 22),
                     CGRect(x: 11, y: 0, width: 20, height: 22)) != nil
@@ -8778,6 +8789,25 @@ struct MetricsTests {
                     CGRect(x: 10, y: 0, width: 20, height: 22),
                     CGRect(x: 100, y: 0, width: 20, height: 22)) == nil,
                "AX and WindowServer frames match only at the same menu bar slot")
+        expect(MenuBarOrganizerSupport.isGenericControlCenterHostedTitle("Item-0")
+                && MenuBarOrganizerSupport.isGenericControlCenterHostedTitle("item-42")
+                && MenuBarOrganizerSupport.isGenericControlCenterHostedTitle("  ")
+                && !MenuBarOrganizerSupport.isGenericControlCenterHostedTitle("Clock"),
+               "generic Control Center slots never become stable source identities")
+        expect(MenuBarOrganizerSupport.eventTargetPID(
+                    ownerPID: 42,
+                    ownerBundleIdentifier:
+                        MenuBarOrganizerSupport.controlCenterBundleIdentifier,
+                    sourcePID: 99) == 42
+                && MenuBarOrganizerSupport.eventTargetPID(
+                    ownerPID: 7,
+                    ownerBundleIdentifier: "com.example.direct",
+                    sourcePID: 99) == 99
+                && MenuBarOrganizerSupport.eventTargetPID(
+                    ownerPID: 7,
+                    ownerBundleIdentifier: "com.example.direct",
+                    sourcePID: nil) == 7,
+               "synthetic events target the window host on macOS 26 and otherwise prefer the source")
         let menuBarFurniture = menuBarRecord(
             4,
             ownerName: "Window Server",

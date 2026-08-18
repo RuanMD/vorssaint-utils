@@ -64,6 +64,7 @@ struct ManagedMenuBarItem: Identifiable {
     let id: MenuBarItemIdentity
     let windowID: CGWindowID
     let ownerPID: pid_t
+    let ownerBundleIdentifier: String
     let sourcePID: pid_t?
     let ownerName: String
     let sourceName: String
@@ -152,19 +153,27 @@ enum MenuBarOrganizerSupport {
         let seeds = records.map { record -> Seed in
             let source = sources[record.windowID]
             let isHosted = record.ownerBundleIdentifier == controlCenterBundleIdentifier
+            // A generic Control Center AX child proves only which process hosts
+            // the window. It does not prove which third-party app created the
+            // status item, so never promote that host fallback to a stable
+            // persisted identity.
+            let sourceIsOnlyHost = isHosted
+                && source?.bundleIdentifier == controlCenterBundleIdentifier
+                && isGenericControlCenterHostedTitle(record.title)
+            let resolvedSource = sourceIsOnlyHost ? nil : source
             let state: MenuBarItemIdentityState = isHosted
-                && (source == nil || source?.stableTitle == nil)
+                && (resolvedSource == nil || resolvedSource?.stableTitle == nil)
                 ? .provisional
                 : .stable
-            let namespace = source?.bundleIdentifier.nonEmpty
+            let namespace = resolvedSource?.bundleIdentifier.nonEmpty
                 ?? record.ownerBundleIdentifier.nonEmpty
                 ?? "pid:\(record.ownerPID)"
-            let title = source?.stableTitle?.nonEmpty
+            let title = resolvedSource?.stableTitle?.nonEmpty
                 ?? record.title.nonEmpty
                 ?? record.ownerName.nonEmpty
                 ?? "window:\(record.windowID)"
             return Seed(record: record,
-                        source: source,
+                        source: resolvedSource,
                         namespace: namespace,
                         title: title,
                         state: state)
@@ -223,12 +232,31 @@ enum MenuBarOrganizerSupport {
         return centerDistance + sizeDistance * 0.25 - overlap
     }
 
+    static func isGenericControlCenterHostedTitle(_ title: String) -> Bool {
+        let normalized = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.isEmpty
+            || normalized.range(of: #"^Item-\d+$"#,
+                                options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    /// Synthetic events must go to the process that owns the window under the
+    /// pointer. On macOS 26 that is commonly Control Center, not the app that
+    /// logically created the status item.
+    static func eventTargetPID(ownerPID: pid_t,
+                               ownerBundleIdentifier: String,
+                               sourcePID: pid_t?) -> pid_t {
+        if ownerBundleIdentifier == controlCenterBundleIdentifier {
+            return ownerPID
+        }
+        return sourcePID ?? ownerPID
+    }
+
     static func isSystemImmovable(bundleIdentifier: String, title: String) -> Bool {
         let normalized = title.lowercased()
         if bundleIdentifier == controlCenterBundleIdentifier {
             return normalized.contains("clock")
                 || normalized.contains("siri")
-                || normalized.range(of: #"^item-\d+$"#, options: .regularExpression) != nil
+                || isGenericControlCenterHostedTitle(title)
         }
         return bundleIdentifier == systemUIServerBundleIdentifier
             && (normalized.contains("clock") || normalized.contains("notification"))

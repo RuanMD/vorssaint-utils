@@ -48,6 +48,7 @@ final class MenuBarWindowProvider {
                     id: resolved.id,
                     windowID: record.windowID,
                     ownerPID: record.ownerPID,
+                    ownerBundleIdentifier: record.ownerBundleIdentifier,
                     sourcePID: source?.pid,
                     ownerName: record.ownerName,
                     sourceName: source?.name ?? record.ownerName,

@@ -378,6 +378,10 @@ final class MenuBarOrganizerService: ObservableObject {
             operationMessage = moveErrorMessage(.provisionalIdentity)
             return
         }
+        let movingWindowID = original.windowID
+        let targetWindowID = targetID.flatMap { id in
+            items.first(where: { $0.id == id })?.windowID
+        }
 
         let orderedBefore = MenuBarOrganizerSupport.orderedItems(items, in: original.section)
         let rightNeighbor = orderedBefore
@@ -393,13 +397,13 @@ final class MenuBarOrganizerService: ObservableObject {
         var lastError: MenuBarItemMoveError = .verificationFailed
         for attempt in 0..<2 {
             _ = await refreshNow()
-            guard let current = items.first(where: { $0.id == itemID }) else {
+            guard let current = items.first(where: { $0.windowID == movingWindowID }) else {
                 lastError = .itemUnavailable
                 break
             }
             guard let destination = destination(
                 for: section,
-                targetID: targetID,
+                targetWindowID: targetWindowID,
                 referenceFrame: current.frame)
             else {
                 lastError = .itemUnavailable
@@ -411,8 +415,8 @@ final class MenuBarOrganizerService: ObservableObject {
                                      placeAfter: destination.placeAfter)
                 try? await Task.sleep(for: .milliseconds(120 + attempt * 80))
                 _ = await refreshNow()
-                if moveWasVerified(itemID: itemID,
-                                   targetID: targetID,
+                if moveWasVerified(windowID: movingWindowID,
+                                   targetWindowID: targetWindowID,
                                    section: section) {
                     canUndo = undoRecord != nil
                     return
@@ -436,9 +440,10 @@ final class MenuBarOrganizerService: ObservableObject {
     }
 
     private func destination(for section: MenuBarOrganizerSection,
-                             targetID: MenuBarItemIdentity?,
+                             targetWindowID: CGWindowID?,
                              referenceFrame: CGRect) -> (frame: CGRect, placeAfter: Bool)? {
-        if let targetID, let target = items.first(where: { $0.id == targetID }) {
+        if let targetWindowID,
+           let target = items.first(where: { $0.windowID == targetWindowID }) {
             return (target.frame, false)
         }
         func quartzFrame(_ frame: CGRect, placeAfter: Bool) -> (CGRect, Bool) {
@@ -458,14 +463,16 @@ final class MenuBarOrganizerService: ObservableObject {
         }
     }
 
-    private func moveWasVerified(itemID: MenuBarItemIdentity,
-                                 targetID: MenuBarItemIdentity?,
+    private func moveWasVerified(windowID: CGWindowID,
+                                 targetWindowID: CGWindowID?,
                                  section: MenuBarOrganizerSection) -> Bool {
-        guard let current = items.first(where: { $0.id == itemID }),
+        guard let current = items.first(where: { $0.windowID == windowID }),
               current.section == section
         else { return false }
-        guard let targetID else { return true }
-        guard let target = items.first(where: { $0.id == targetID }) else { return false }
+        guard let targetWindowID else { return true }
+        guard let target = items.first(where: { $0.windowID == targetWindowID }) else {
+            return false
+        }
         return current.frame.maxX <= target.frame.minX + 3
     }
 
