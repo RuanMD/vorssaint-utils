@@ -22,8 +22,9 @@ compatibility with older development tools.
   editable plain text.
 - One screen-capture shortcut now opens a floating palette for screenshots,
   recordings, screen text and colors, with every installed tool and its 1
-  through 4 key visible at once. It disappears as soon as selection begins,
-  keeps recording sound and microphone choices nearby, and puts every mode's
+  through 4 key visible at once. It stays available across system edges, keeps
+  its position as modes change and disappears as soon as selection begins. It
+  keeps recording sound and microphone choices nearby and puts every mode's
   settings on one page.
 - Media now converts images in batches with resizing, watermarks, renaming and
   reusable profiles. Thanks to @ruvelro.

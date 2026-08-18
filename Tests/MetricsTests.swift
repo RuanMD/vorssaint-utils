@@ -10269,6 +10269,17 @@ struct MetricsTests {
                                                             selectionInProgress: false,
                                                             capturePending: false),
                "the capture chooser disappears for the whole drag and while capture is pending")
+        let captureSelectionSource = (try? String(
+            contentsOfFile: "Sources/Vorssaint/Services/QuickTools/ScreenshotSelectionController.swift",
+            encoding: .utf8)) ?? ""
+        expect(captureSelectionSource.contains(
+            "override func mouseExited(with event: NSEvent) {\n        refreshGuideVisibility()"),
+               "system chrome cannot hide the capture chooser while the pointer remains on its display")
+        expect(captureSelectionSource.contains(
+            "let height: CGFloat = screenCaptureOptions != nil\n            ? 146\n            : 72")
+                && captureSelectionSource.contains(
+                    ".opacity(options.selectedTool == .recording ? 1 : 0)"),
+               "capture modes reserve the recording controls' height so the chooser never jumps")
 
         let cocoa = ScreenshotSupport.cocoaRect(fromWindowServer: CGRect(x: 10, y: 30, width: 200, height: 100),
                                                 mainScreenHeight: 900)
