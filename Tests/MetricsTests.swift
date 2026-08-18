@@ -11382,8 +11382,8 @@ struct MetricsTests {
         expect(strandedState.decide(.otherKey) == .pass,
                "a key held while the tap goes away cannot leave typing stuck in modifiers")
         var unmappedKeyboardState = SuperKeySupport.State()
-        expect(unmappedKeyboardState.decide(.capsLock) == .remapNeeded,
-               "a real caps lock means that keyboard still needs the mapping")
+        expect(unmappedKeyboardState.decide(.capsLock) == .interceptAndRemap,
+               "a raw caps lock is intercepted while that keyboard's mapping is repaired")
 
         // MARK: Mouse app exceptions (issue #358)
 

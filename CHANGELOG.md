@@ -165,7 +165,8 @@ compatibility with older development tools.
 - Full-screen video windows now remain available in App Switcher and Dock Preview.
 - The app no longer quits while typing when the Switcher's Windows shortcut uses a
   key whose label comes from the keyboard layout. Thanks to @eioz.
-- The Super key now works when Caps Lock is set to do nothing.
+- The Super key now works when Caps Lock is set to do nothing and no longer
+  leaves Caps Lock active while repairing a keyboard mapping.
 - Dock Preview controls no longer show an oversized blue effect when focused or
   hovered.
 - The Volume Mixer now restores sound if an app's volume adjustment stops
