@@ -9,15 +9,17 @@ All notable changes to this project are documented here. The format follows
 ### Summary
 Vorssaint 3.3.2 adds unified screen capture, batch image conversion,
 imported-video editing, local Command Bar scripts, recent captures, desktop
-window controls, edge-activated Shelf access and faster access to recording
-and maintenance tools. It also improves Clipboard access, Command Bar search and
-placement, capture, app discovery,
+window controls, formatted Scratchpad previews, edge-activated Shelf access and
+faster access to recording and maintenance tools. It also improves Clipboard
+access, Command Bar search and placement, capture, app discovery,
 conversions, volume, Switcher behavior, Settings reachability, menu bar sizing,
 setup screens, customizable Super key combinations, command-line setup,
 accidental middle clicks while typing and
 compatibility with older development tools.
 
 ### Added
+- Scratchpad can now preview Markdown formatting while keeping every note as
+  editable plain text.
 - One screen-capture shortcut now opens a floating palette for screenshots,
   recordings, screen text and colors, with every installed tool and its 1
   through 4 key visible at once. It disappears as soon as selection begins,
