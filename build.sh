@@ -28,11 +28,15 @@ if (( DEV )); then
     EXECUTABLE="VorssaintDeveloper"
     APP_BUNDLE_ID="com.vorssaint.utils.dev"
     BUILD_VARIANT_FLAGS=(-D VORSSAINT_DEVELOPMENT)
+    APP_OPTIMIZATION_FLAGS=(-Onone)
+    BUILD_CONFIGURATION="debug"
 else
     APP_NAME="Vorssaint"
     EXECUTABLE="Vorssaint"
     APP_BUNDLE_ID="com.vorssaint.utils"
     BUILD_VARIANT_FLAGS=()
+    APP_OPTIMIZATION_FLAGS=(-O)
+    BUILD_CONFIGURATION="release"
 fi
 FAN_HELPER_ID="$APP_BUNDLE_ID.fan-control"
 TARGET="arm64-apple-macosx14.0"
@@ -46,6 +50,44 @@ developer_id_identity() {
         | sed -E 's/.*"(.*)".*/\1/' || true
 }
 
+codesign_with_timestamp_retry() {
+    local attempt
+    for attempt in 1 2 3; do
+        if /usr/bin/codesign "$@"; then
+            return 0
+        fi
+        if (( attempt < 3 )); then
+            echo "  Developer ID signing failed; retrying ($((attempt + 1))/3)"
+            sleep "$attempt"
+        fi
+    done
+    return 1
+}
+
+write_swift_output_file_map() {
+    local output_file="$1"
+    local object_dir="$2"
+    shift 2
+    local source artifact
+
+    {
+        print -r -- "{"
+        print -r -- "  \"\": {"
+        print -r -- "    \"swift-dependencies\": \"$object_dir/master.swiftdeps\""
+        print -r -- "  }"
+        for source in "$@"; do
+            artifact="${source//\//__}"
+            artifact="${artifact%.swift}"
+            print -r -- ","
+            print -r -- "  \"$source\": {"
+            print -r -- "    \"object\": \"$object_dir/$artifact.o\","
+            print -r -- "    \"swift-dependencies\": \"$object_dir/$artifact.swiftdeps\""
+            print -r -- "  }"
+        done
+        print -r -- "}"
+    } > "$output_file"
+}
+
 finalize_installed_bundle_after_child() {
     local bundle="$1"
     local helper="$bundle/Contents/Library/LaunchServices/$FAN_HELPER_ID"
@@ -55,9 +97,9 @@ finalize_installed_bundle_after_child() {
     echo "▸ Finalizing installed signature…"
     sleep 3
     if [[ -n "$devid" ]]; then
-        [[ -f "$helper" ]] && /usr/bin/codesign --force --strip-disallowed-xattrs \
+        [[ -f "$helper" ]] && codesign_with_timestamp_retry --force --strip-disallowed-xattrs \
             --options runtime --timestamp --identifier "$FAN_HELPER_ID" --sign "$devid" "$helper"
-        /usr/bin/codesign --force --strip-disallowed-xattrs --options runtime --timestamp \
+        codesign_with_timestamp_retry --force --strip-disallowed-xattrs --options runtime --timestamp \
             --entitlements "$ENTITLEMENTS" --sign "$devid" "$bundle"
     elif security find-identity -p codesigning 2>/dev/null | grep -q "$LEGACY_IDENTITY"; then
         [[ -f "$helper" ]] && /usr/bin/codesign --force --strip-disallowed-xattrs \
@@ -106,7 +148,10 @@ if (( TEST )); then
     echo "▸ Building & running unit tests against $(basename "$SDK")…"
     rm -rf build
     mkdir -p build
-    swiftc -O -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" \
+    # The full app build below remains optimized and is the optimizer gate.
+    # Unit assertions do not need optimization; avoiding it cuts most of the
+    # test harness compile time without reducing the code the tests exercise.
+    swiftc -Onone -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" \
         Sources/Vorssaint/Services/Media/MediaSupport.swift \
         Sources/Vorssaint/Core/Defaults.swift \
         Sources/Vorssaint/Core/FeatureCatalog.swift \
@@ -142,8 +187,10 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Snippets/TextSnippetSupport.swift \
         Sources/Vorssaint/Services/RadialMenu/RadialMenuSupport.swift \
         Sources/Vorssaint/Services/QuickTools/ScratchpadSupport.swift \
+        Sources/Vorssaint/Services/KillProcess/KillProcessSupport.swift \
         Sources/Vorssaint/Services/Recorder/RecorderSupport.swift \
         Sources/Vorssaint/Services/Recorder/RecordingSharingSupport.swift \
+        Sources/Vorssaint/Services/PrivateFileStore.swift \
         Sources/Vorssaint/Services/Recorder/RecorderTakeStore.swift \
         Sources/Vorssaint/Services/Recorder/RecorderMotion.swift \
         Sources/Vorssaint/Services/Recorder/RecorderPointerTrack.swift \
@@ -156,12 +203,14 @@ if (( TEST )); then
         Sources/Vorssaint/Core/Localization.swift \
         Sources/Vorssaint/Core/Localizations/Strings+*.swift \
         Sources/Vorssaint/Core/FeatureStrings.swift \
+        Sources/Vorssaint/Core/KillProcessStrings.swift \
         Sources/Vorssaint/Core/WhatsAppDownloadStrings.swift \
         Sources/Vorssaint/Core/WhatsAppOrganizerStrings.swift \
         Sources/Vorssaint/Core/ReleaseNotes.swift \
         Sources/Vorssaint/Core/URLCleaning.swift \
         Sources/Vorssaint/Services/GeneralPasteboardAccess.swift \
         Sources/Vorssaint/Services/Audio/MixerRoutingSupport.swift \
+        Sources/Vorssaint/Services/Audio/MusicLaunchSupport.swift \
         Sources/Vorssaint/UI/MenuPanel/MixerPercentNativeTextField.swift \
         Sources/Vorssaint/Services/Audio/BoostLimiter.swift \
         Sources/Vorssaint/Services/Audio/MixerRender.swift \
@@ -177,6 +226,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Shelf/ShelfSupport.swift \
         Sources/Vorssaint/Services/Finder/FinderRenameSupport.swift \
         Sources/Vorssaint/Services/Update/UpdateInstallerSupport.swift \
+        Sources/Vorssaint/Services/Update/UpdateServiceSupport.swift \
         Sources/Vorssaint/Services/InstalledApps.swift \
         Sources/Vorssaint/Services/LaunchAtLoginSupport.swift \
         Sources/Vorssaint/UI/Settings/SettingsSearchSupport.swift \
@@ -220,6 +270,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/SuperKeyStrings.swift \
         Sources/Vorssaint/Services/ScrollWheelSupport.swift \
         Sources/Vorssaint/Services/SmoothScrollSupport.swift \
+        Sources/Vorssaint/Services/FocusFollowsMouse/FocusFollowsMouseSupport.swift \
         Sources/Vorssaint/Services/Switcher/SwitcherModels.swift \
         Sources/Vorssaint/Services/Switcher/SwitcherSupport.swift \
         Sources/Vorssaint/Services/Switcher/SpaceHopSupport.swift \
@@ -228,6 +279,8 @@ if (( TEST )); then
         Sources/Vorssaint/Services/KeepAwakeAutomationSupport.swift \
         Sources/Vorssaint/Services/SudoersSupport.swift \
         Sources/Vorssaint/Services/Metrics/BatteryTimeSupport.swift \
+        Sources/Vorssaint/Services/BoundedProcessRunner.swift \
+        Sources/Vorssaint/Services/ShellSupport.swift \
         Sources/Vorssaint/Services/Metrics/NetworkProcessSupport.swift \
         Sources/Vorssaint/Services/Metrics/NetworkSampler.swift \
         Sources/Vorssaint/Services/Metrics/PeripheralBatterySupport.swift \
@@ -238,6 +291,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Metrics/SustainedAlertGate.swift \
         Sources/Vorssaint/Services/WindowLayout/WindowLayoutSupport.swift \
         Sources/Vorssaint/Services/WindowLayout/WindowGestureSupport.swift \
+        Sources/Vorssaint/Core/WindowDirectionalStrings.swift \
         Sources/Vorssaint/Services/CleaningMode/CleaningUnlockCounter.swift \
         Sources/Vorssaint/Services/Display/ExtraBrightnessSupport.swift \
         Sources/Vorssaint/Services/Display/BrightnessSupport.swift \
@@ -252,18 +306,31 @@ if (( TEST )); then
     exit $?
 fi
 
-echo "▸ Compiling (release) against $(basename "$SDK")…"
-rm -rf build
-mkdir -p build
-swiftc -O -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" "${BUILD_VARIANT_FLAGS[@]}" \
-    Sources/Vorssaint/**/*.swift \
-    -o "build/$EXECUTABLE"
+echo "▸ Compiling ($BUILD_CONFIGURATION) against $(basename "$SDK")…"
+APP_SOURCES=(Sources/Vorssaint/**/*.swift)
+if (( DEV )); then
+    APP_OBJECT_DIR="build/objects/$EXECUTABLE"
+    mkdir -p build "$APP_OBJECT_DIR"
+    APP_OUTPUT_FILE_MAP="$APP_OBJECT_DIR/output-file-map.json"
+    write_swift_output_file_map "$APP_OUTPUT_FILE_MAP" "$APP_OBJECT_DIR" "${APP_SOURCES[@]}"
+    swiftc "${APP_OPTIMIZATION_FLAGS[@]}" -incremental -j "$(sysctl -n hw.logicalcpu)" \
+        -output-file-map "$APP_OUTPUT_FILE_MAP" \
+        -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" "${BUILD_VARIANT_FLAGS[@]}" \
+        "${APP_SOURCES[@]}" -o "build/$EXECUTABLE"
+else
+    rm -rf build
+    mkdir -p build
+    swiftc "${APP_OPTIMIZATION_FLAGS[@]}" -target "$TARGET" -sdk "$SDK" \
+        "${SDK_COMPAT_FLAGS[@]}" "${BUILD_VARIANT_FLAGS[@]}" \
+        "${APP_SOURCES[@]}" -o "build/$EXECUTABLE"
+fi
 
 echo "▸ Compiling protected fan helper…"
 swiftc -O -target "$TARGET" -sdk "$SDK" "${SDK_COMPAT_FLAGS[@]}" "${BUILD_VARIANT_FLAGS[@]}" \
     Sources/Vorssaint/Services/FanControl/FanControlSupport.swift \
     Sources/Vorssaint/Services/FanControl/FanControlXPC.swift \
     Sources/Vorssaint/Services/SystemMonitor/SMCClient.swift \
+    Sources/Vorssaint/Services/Metrics/TemperatureSensorSelector.swift \
     Sources/Vorssaint/Services/FanControl/FanControlHardware.swift \
     Sources/FanControlHelper/main.swift \
     -o "build/$FAN_HELPER_ID"

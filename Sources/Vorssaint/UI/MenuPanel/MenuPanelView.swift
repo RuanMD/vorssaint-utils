@@ -447,13 +447,43 @@ struct MenuPanelView: View {
 
 private struct MenuPanelHeader: View {
     @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var l10n = L10n.shared
 
     var body: some View {
-        BrandMark(width: 48, tint: markTint)
-            .frame(height: 28)
-            .padding(.vertical, 4)
-            .accessibilityHidden(true)
-            .frame(maxWidth: .infinity, alignment: .center)
+        ZStack {
+            BrandMark(width: 48, tint: markTint)
+                .frame(height: 28)
+                .accessibilityHidden(true)
+
+            if AppInfo.isBeta {
+                HStack {
+                    Text(l10n.s.betaBadgeLabel.uppercased())
+                        .font(.system(size: 9, weight: .bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.18))
+                        .foregroundStyle(.orange)
+                        .clipShape(Capsule())
+
+                    Spacer()
+
+                    Button {
+                        appDelegate()?.openFeedbackWindow()
+                    } label: {
+                        Image(systemName: "bubble.left.and.text.bubble.right")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(FeatureStrings.feedback(l10n.language).openButton)
+                }
+            }
+        }
+        .frame(height: 28)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity)
     }
 
     private var markTint: Color {
@@ -986,7 +1016,7 @@ struct UtilitiesSection: View {
 }
 
 private enum ControlPanelItem: String, PanelOrderItem, Identifiable {
-    case mouseScroll, mouseNavigation, switcher, cutPaste, autoQuit, shelf, windowMaximize, dockPreview, keyDebounce,
+    case mouseScroll, focusFollowsMouse, mouseNavigation, switcher, cutPaste, autoQuit, shelf, windowMaximize, dockPreview, keyDebounce,
          dockClick, dockClickHide, dockClickCycle, middleClick, textSnippets, radialMenu, mouseButtonShortcuts, superKey
 
     var id: String { rawValue }
@@ -996,6 +1026,7 @@ private enum ControlPanelItem: String, PanelOrderItem, Identifiable {
     var feature: AppFeature {
         switch self {
         case .mouseScroll: return .scrollInverter
+        case .focusFollowsMouse: return .focusFollowsMouse
         case .mouseNavigation: return .mouseNavigation
         case .switcher: return .switcher
         case .cutPaste: return .finderCutPaste
@@ -1025,7 +1056,7 @@ private enum ControlCategory: String, CaseIterable, Identifiable {
         switch item {
         case .switcher, .dockPreview, .dockClick, .dockClickHide, .dockClickCycle, .windowMaximize, .autoQuit:
             return .windows
-        case .mouseScroll, .mouseNavigation, .mouseButtonShortcuts, .middleClick, .keyDebounce,
+        case .mouseScroll, .focusFollowsMouse, .mouseNavigation, .mouseButtonShortcuts, .middleClick, .keyDebounce,
              .textSnippets, .radialMenu, .superKey:
             return .inputDevices
         case .cutPaste, .shelf:
@@ -1049,6 +1080,7 @@ struct QuickControlsSection: View {
     @ObservedObject private var shelf = ShelfService.shared
     @AppStorage(DefaultsKey.scrollInverterEnabled) private var invertVertical = false
     @AppStorage(DefaultsKey.scrollInverterHorizontalEnabled) private var invertHorizontal = false
+    @AppStorage(DefaultsKey.focusFollowsMouseEnabled) private var focusFollowsMouseEnabled = false
     @AppStorage(DefaultsKey.mouseNavigationEnabled) private var mouseNavigationEnabled = false
     @AppStorage(DefaultsKey.switcherEnabled) private var switcherEnabled = true
     @AppStorage(DefaultsKey.switcherShortcut) private var switcherShortcutStorage = GlobalShortcut.switcherDefault.storageValue
@@ -1072,6 +1104,7 @@ struct QuickControlsSection: View {
     @AppStorage(DefaultsKey.superKeyModifiers) private var superKeyModifierStorage =
         SuperKeySupport.defaultModifierStorageValue
     @AppStorage(DefaultsKey.panelControlMouseScroll) private var showScroll = true
+    @AppStorage(DefaultsKey.panelControlFocusFollowsMouse) private var showFocusFollowsMouse = true
     @AppStorage(DefaultsKey.panelControlMouseNavigation) private var showMouseNavigation = true
     @AppStorage(DefaultsKey.panelControlSwitcher) private var showSwitcher = true
     @AppStorage(DefaultsKey.panelControlDockPreview) private var showDockPreview = true
@@ -1188,6 +1221,7 @@ struct QuickControlsSection: View {
     private func isEnabled(_ item: ControlPanelItem) -> Bool {
         switch item {
         case .mouseScroll: return scrollDirectionEnabled
+        case .focusFollowsMouse: return focusFollowsMouseEnabled
         case .mouseNavigation: return mouseNavigationEnabled
         case .switcher: return switcherEnabled
         case .cutPaste: return cutPasteEnabled
@@ -1262,6 +1296,7 @@ struct QuickControlsSection: View {
     private func isVisible(_ item: ControlPanelItem) -> Bool {
         switch item {
         case .mouseScroll: return showScroll
+        case .focusFollowsMouse: return showFocusFollowsMouse
         case .mouseNavigation: return showMouseNavigation
         case .switcher: return showSwitcher
         case .keyDebounce: return showKeyDebounce
@@ -1298,6 +1333,22 @@ struct QuickControlsSection: View {
                            permissionAction: accessibilityPermissionAction(scrollDirectionEnabled))
                 .onChange(of: scrollDirectionEnabled) { _, enabled in
                     ScrollInverter.shared.syncWithPreferences()
+                    requestAccessibilityIfNeeded(enabled)
+                }
+        case .focusFollowsMouse:
+            PanelToggleRow(title: l10n.s.focusFollowsMouseName,
+                           caption: caption(l10n.s.focusFollowsMouseCaption,
+                                            needsAccessibility: focusFollowsMouseEnabled),
+                           systemImage: "cursorarrow.and.square.on.square.dashed",
+                           isOn: $focusFollowsMouseEnabled,
+                           isEditing: editing,
+                           showsDragHandle: true,
+                           visibility: $showFocusFollowsMouse,
+                           needsAttention: focusFollowsMouseEnabled && !permissions.accessibility,
+                           permissionButtonTitle: l10n.s.permissionRequest,
+                           permissionAction: accessibilityPermissionAction(focusFollowsMouseEnabled))
+                .onChange(of: focusFollowsMouseEnabled) { _, enabled in
+                    FocusFollowsMouseService.shared.syncWithPreferences()
                     requestAccessibilityIfNeeded(enabled)
                 }
         case .mouseNavigation:
@@ -1624,6 +1675,7 @@ struct QuickControlsSection: View {
         PanelLayout.resetItemOrder(key: DefaultsKey.panelControlOrder)
         controlOrderRaw = ""
         showScroll = true
+        showFocusFollowsMouse = true
         showMouseNavigation = true
         showSwitcher = true
         showCutPaste = true
@@ -2207,6 +2259,9 @@ struct UpdateBanner: View {
     var body: some View {
         switch updates.state {
         case let .available(version):
+            let isBeta = UpdateServiceSupport.SemanticVersion(raw: version)?.isPrerelease ?? false
+            let tintColor: Color = isBeta ? .orange : .accentColor
+
             Button {
                 appDelegate()?.showUpdatePreview()
             } label: {
@@ -2228,7 +2283,7 @@ struct UpdateBanner: View {
                     Spacer()
                     Text(l10n.s.updateBannerAction)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(tintColor)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(.white))
@@ -2237,7 +2292,7 @@ struct UpdateBanner: View {
                 .padding(.vertical, 9)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.accentColor)
+                        .fill(tintColor)
                 )
             }
             .buttonStyle(.plain)

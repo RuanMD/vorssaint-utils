@@ -126,7 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             .receive(on: DispatchQueue.main)
             .sink { _ in
                 FeatureRuntime.shared.sync([
-                    .scrollInverter, .smoothScroll, .mouseNavigation, .switcher,
+                    .scrollInverter, .focusFollowsMouse, .smoothScroll, .mouseNavigation, .switcher,
                     .dockPreview, .finderCutPaste, .finderRename, .autoQuit, .dockClick,
                     .middleClick, .windowMaximizer, .keyboardDebounce, .windowLayout,
                     .textSnippets, .brightness, .radialMenu, .mouseButtonShortcuts,
@@ -223,6 +223,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         ExtraBrightnessService.shared.stop()
         ProcessUsageService.shared.stopNetworkMonitoring(force: true)
         URLCleanerService.shared.stop()
+        FocusFollowsMouseService.shared.stop()
         WindowMaximizer.shared.stop()
         WindowLayoutService.shared.suspend()
         KeyboardDebounceService.shared.suspend()
@@ -1170,6 +1171,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         let createdWindow = settingsWindow == nil
         if settingsWindow == nil {
             let host = NSHostingController(rootView: SettingsView())
+            // Empty on purpose: any automatic option here (.intrinsicContentSize,
+            // .maxSize, .preferredContentSize) lets SwiftUI's content - which
+            // varies wildly page to page, from a short toggle list to Kill
+            // Process's few-hundred-row List - drive the window's size, either
+            // growing it to fit content or freezing it at a stale snapshot.
+            // The window's size is fully owned by SettingsWindowSupport's
+            // explicit sizing below plus ordinary user drag-resize.
+            host.sizingOptions = []
             let window = NSWindow(contentViewController: host)
             // .miniaturizable so the Window menu's Minimize (Cmd+M) actually works.
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
@@ -1398,7 +1407,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         return true
     }
 
-    private func showUpdateHighlights() {
+    func showUpdateHighlights(includeSupportIntro: Bool = false) {
         closePopover()
         if let window = updateHighlightsWindow {
             NSApp.activate(ignoringOtherApps: true)
@@ -1411,7 +1420,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                 self.markUpdateHighlightsSeen()
                 self.updateHighlightsWindow?.close()
                 DispatchQueue.main.async { [weak self] in
-                    _ = self?.showSupportUpdateIntroIfNeeded()
+                    if includeSupportIntro {
+                        self?.showSupportUpdateIntro()
+                    } else {
+                        _ = self?.showSupportUpdateIntroIfNeeded()
+                    }
                 }
             }
         ))
@@ -1515,7 +1528,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         ))
         host.sizingOptions = .preferredContentSize
         let window = NSWindow(contentViewController: host)
-        window.title = L10n.shared.s.communityIntroTitle
+        window.title = L10n.shared.s.discordIntroTitle
         window.styleMask = [.titled, .fullSizeContentView]
         window.standardWindowButton(.closeButton)?.isHidden = true
         window.titlebarAppearsTransparent = true

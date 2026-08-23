@@ -6,7 +6,7 @@ import Foundation
 /// What a tap of the super key on its own does, when no other key was pressed
 /// while it was held.
 enum SuperKeySoloAction: String, CaseIterable, Identifiable {
-    case none, capsLock, escape
+    case none, capsLock, inputSource, escape
 
     var id: String { rawValue }
 
@@ -66,6 +66,8 @@ enum SuperKeySupport {
     /// F18 is the destination: a key defined by the standard, so the system
     /// delivers it like any other, and one no portable keyboard carries.
     static let triggerUsage: UInt64 = 0x70000006D
+    static let userMappingProperty = "UserKeyMapping"
+    static let modifierMappingProperty = "HIDKeyboardModifierMappingPairs"
 
     /// Virtual key codes of the same two keys, as they arrive in key events.
     static let triggerKeyCode: Int64 = 79
@@ -78,17 +80,87 @@ enum SuperKeySupport {
     /// removed when it is turned off.
     static func mappings(enablingSuperKey enabled: Bool,
                          existing: [SuperKeyMapping],
-                         includeNoAction: Bool = false) -> [SuperKeyMapping] {
-        let others = existing.filter {
-            $0.source != capsLockUsage
-                && !($0.source == noActionUsage && $0.destination == triggerUsage)
-        }
+                         includeNoAction: Bool = false,
+                         ownsExistingMapping: Bool = false) -> [SuperKeyMapping] {
+        guard enabled || ownsExistingMapping else { return existing }
+        let others = existing.filter { !isOwnedMapping($0) }
         guard enabled else { return others }
+        guard !hasMappingConflict(in: existing, ownsExistingMapping: ownsExistingMapping)
+        else { return existing }
         var owned = [SuperKeyMapping(source: capsLockUsage, destination: triggerUsage)]
         if includeNoAction, !others.contains(where: { $0.source == noActionUsage }) {
             owned.append(SuperKeyMapping(source: noActionUsage, destination: triggerUsage))
         }
         return owned + others
+    }
+
+    /// Caps Lock can have only one destination. A mapping shaped like ours is
+    /// owned only when the persistent marker says a prior confirmed write made
+    /// it; otherwise activation is refused instead of claiming external state.
+    static func hasMappingConflict(in mappings: [SuperKeyMapping],
+                                   ownsExistingMapping: Bool) -> Bool {
+        mappings.contains {
+            ($0.source == capsLockUsage
+                && ($0.destination != triggerUsage || !ownsExistingMapping))
+                || ($0.source == noActionUsage
+                    && $0.destination == triggerUsage
+                    && !ownsExistingMapping)
+        }
+    }
+
+    static func mappingsMatch(_ lhs: [SuperKeyMapping], _ rhs: [SuperKeyMapping]) -> Bool {
+        lhs.count == rhs.count && lhs.allSatisfy(rhs.contains)
+    }
+
+    /// Returns one safe table only when every matched keyboard has the same
+    /// external mappings. A newly connected keyboard may differ solely by the
+    /// entries this feature already owns; those are removed before comparison
+    /// so repair and cleanup can still converge without copying someone else's
+    /// device-specific mapping onto every keyboard.
+    static func consistentMappings(_ report: String,
+                                   property: String,
+                                   ownsExistingMapping: Bool = false) -> [SuperKeyMapping]? {
+        let tables = mappingTables(report, property: property).map { mappings in
+            ownsExistingMapping ? mappings.filter { !isOwnedMapping($0) } : mappings
+        }
+        guard let first = tables.first,
+              tables.dropFirst().allSatisfy({ mappingsMatch($0, first) }) else { return nil }
+        return first
+    }
+
+    static func mappingTables(_ report: String,
+                              property: String) -> [[SuperKeyMapping]] {
+        var tables: [[SuperKeyMapping]] = []
+        var currentBlock = ""
+        for line in report.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let fields = trimmed.split(whereSeparator: \.isWhitespace)
+            let startsKeyboardBlock = fields.count >= 2 && fields[1] == property
+            if startsKeyboardBlock {
+                if !currentBlock.isEmpty { tables.append(parseMappings(currentBlock)) }
+                currentBlock = line
+            } else if !currentBlock.isEmpty {
+                currentBlock += "\n" + line
+            }
+        }
+        if !currentBlock.isEmpty { tables.append(parseMappings(currentBlock)) }
+        return tables
+    }
+
+    /// `hidutil --matching keyboard` reports one table per keyboard. A merged
+    /// set is insufficient: one mapped keyboard and one empty table must not be
+    /// accepted as a successful global write.
+    static func mappingReportConfirms(_ report: String,
+                                      expected: [SuperKeyMapping]) -> Bool {
+        let tables = mappingTables(report, property: userMappingProperty)
+        return !tables.isEmpty && tables.allSatisfy { mappingsMatch($0, expected) }
+    }
+
+    /// An unconfirmed clear never changes the write-ahead machine-state
+    /// marker, so a failed clear remains eligible for retry.
+    static func mappingMarkerAfterClear(previous: Bool,
+                                        readbackConfirmed: Bool) -> Bool {
+        readbackConfirmed ? false : previous
     }
 
     /// “No Action” has one shared sentinel after Modifier Keys. It is safe to
@@ -100,6 +172,14 @@ enum SuperKeySupport {
                 .map(\.source)
         )
         return disabledSources == [capsLockUsage]
+    }
+
+    /// A Modifier Keys rule runs before UserKeyMapping. Caps Lock may proceed
+    /// only when it has no such rule, or when its sole rule is the supported
+    /// no-action sentinel that can be recovered without affecting another key.
+    static func modifierMappingsAllowSuperKey(_ mappings: [SuperKeyMapping]) -> Bool {
+        !mappings.contains { $0.source == capsLockUsage }
+            || canMapNoAction(from: mappings)
     }
 
     /// The mapping table as the command line takes it.
@@ -125,6 +205,11 @@ enum SuperKeySupport {
         return result
     }
 
+    private static func isOwnedMapping(_ mapping: SuperKeyMapping) -> Bool {
+        (mapping.source == capsLockUsage && mapping.destination == triggerUsage)
+            || (mapping.source == noActionUsage && mapping.destination == triggerUsage)
+    }
+
     private static func number(after field: String, in body: String) -> UInt64? {
         guard let range = body.range(of: field) else { return nil }
         let rest = body[range.upperBound...].drop {
@@ -136,13 +221,36 @@ enum SuperKeySupport {
         return UInt64(bitPattern: value)
     }
 
+    static func soloEffect(action: SuperKeySoloAction,
+                           longHold: Bool,
+                           repeated: Bool) -> SuperKeySoloAction {
+        switch action {
+        case .none:
+            return .none
+        case .escape:
+            return repeated ? .none : .escape
+        case .capsLock:
+            return repeated ? .none : .capsLock
+        case .inputSource:
+            return longHold ? .capsLock : .inputSource
+        }
+    }
+
+    static func nextInputSourceID(currentID: String?, enabledIDs: [String]) -> String? {
+        guard enabledIDs.count > 1 else { return nil }
+        guard let currentID, let index = enabledIDs.firstIndex(of: currentID) else {
+            return enabledIDs.first
+        }
+        return enabledIDs[(index + 1) % enabledIDs.count]
+    }
+
     // MARK: - What each event means
 
     /// A key event, reduced to the only distinctions the decision needs.
     enum Event: Equatable {
         /// The key the super key arrives as, pressed (or repeating while held).
-        case triggerDown(isRepeat: Bool)
-        case triggerUp
+        case triggerDown(isRepeat: Bool, hasPrimaryModifiers: Bool, timestamp: UInt64)
+        case triggerUp(timestamp: UInt64)
         /// Any other key going down or up.
         case otherKey
         /// A real Caps Lock, which means that keyboard is not mapped yet.
@@ -159,39 +267,61 @@ enum SuperKeySupport {
         /// The event carries on untouched.
         case pass
         /// The key was tapped with nothing else, so its solo action runs.
-        case soloTap
+        case soloTap(repeated: Bool)
+        /// The key was held on its own long enough for its hold action.
+        case soloHold(repeated: Bool)
         /// A raw Caps Lock is kept out while its keyboard mapping is repaired.
         case interceptAndRemap
     }
 
-    /// Holding the key is the whole feature, so the state is just whether it is
-    /// down and whether anything else has happened since it went down.
+    /// Holding the key is the whole feature, so the state tracks whether it is
+    /// down, whether anything else has happened and when it went down.
     struct State: Equatable {
+        static let soloHoldThresholdNanoseconds: UInt64 = 500_000_000
+
         private(set) var isHeld = false
         private(set) var isAlone = false
+        private var triggerDownTimestamp: UInt64?
+        private var didRepeat = false
 
         mutating func decide(_ event: Event) -> Decision {
             switch event {
-            case .triggerDown(let isRepeat):
-                // A key that repeats is being held, not tapped.
-                if isRepeat {
-                    isAlone = false
-                } else if !isHeld {
-                    isAlone = true
+            case .triggerDown(let isRepeat, let hasPrimaryModifiers, let timestamp):
+                guard isHeld || !isRepeat else { return .swallow }
+                if !isHeld {
+                    isAlone = !hasPrimaryModifiers
+                    triggerDownTimestamp = hasPrimaryModifiers ? nil : timestamp
+                    didRepeat = false
+                } else if isRepeat {
+                    didRepeat = true
                 }
                 isHeld = true
                 return .swallow
-            case .triggerUp:
+            case .triggerUp(let timestamp):
                 let wasAlone = isHeld && isAlone
+                let wasLong = wasAlone && triggerDownTimestamp.map {
+                    timestamp >= $0
+                        && timestamp - $0 >= Self.soloHoldThresholdNanoseconds
+                } == true
+                let repeated = didRepeat
                 isHeld = false
                 isAlone = false
-                return wasAlone ? .soloTap : .swallow
+                triggerDownTimestamp = nil
+                didRepeat = false
+                if wasLong { return .soloHold(repeated: repeated) }
+                return wasAlone ? .soloTap(repeated: repeated) : .swallow
             case .otherKey:
                 guard isHeld else { return .pass }
                 isAlone = false
+                triggerDownTimestamp = nil
+                didRepeat = false
                 return .addModifiers
             case .otherModifier:
-                if isHeld { isAlone = false }
+                if isHeld {
+                    isAlone = false
+                    triggerDownTimestamp = nil
+                    didRepeat = false
+                }
                 return .pass
             case .capsLock:
                 return .interceptAndRemap
@@ -203,6 +333,8 @@ enum SuperKeySupport {
         mutating func reset() {
             isHeld = false
             isAlone = false
+            triggerDownTimestamp = nil
+            didRepeat = false
         }
     }
 }

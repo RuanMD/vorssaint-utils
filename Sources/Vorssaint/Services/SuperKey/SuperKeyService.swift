@@ -3,6 +3,7 @@
 
 import AppKit
 import ApplicationServices
+import Carbon.HIToolbox
 import Combine
 import CoreGraphics
 import IOKit
@@ -59,6 +60,9 @@ final class SuperKeyService: ObservableObject {
     /// When the last mapping went in, so a keyboard that arrives without one
     /// is repaired once and not on every keystroke.
     private var lastMappingAt: TimeInterval = 0
+    /// A stop requested while an apply is queued must enqueue a clear behind
+    /// it, even though the persistent marker is not written until readback.
+    private var pendingMappingEnableCount = 0
     private let mappingRepairInterval: TimeInterval = 3
     /// Lets go of a press whose release never arrived. Without it the chosen
     /// modifiers would ride every keystroke from then on, with no way back but
@@ -249,12 +253,7 @@ final class SuperKeyService: ObservableObject {
             tap === startedTap && !shouldStopTapThread
         }
         guard active else { return }
-        applyMapping(true)
-        // Caps Lock left on would have no way back once the key stops locking.
-        setCapsLock(false)
-        observeWake()
-        isRunning = true
-        Self.isEngaged = true
+        confirmMapping(for: startedTap, publishingRunState: true)
     }
 
     /// The mapping is cleared even when this service never applied it: an
@@ -262,7 +261,10 @@ final class SuperKeyService: ObservableObject {
     /// every path that ends without a live tap takes it out, so Caps Lock is
     /// never left as a key that does nothing.
     private func clearLeftoverMapping(synchronously: Bool = false) {
-        if UserDefaults.standard.bool(forKey: DefaultsKey.superKeyMappingApplied) {
+        let mappingMayBeApplied = UserDefaults.standard.bool(
+            forKey: DefaultsKey.superKeyMappingApplied
+        ) || stateLock.withLock { pendingMappingEnableCount > 0 }
+        if mappingMayBeApplied {
             applyMapping(false, synchronously: synchronously)
         }
     }
@@ -277,44 +279,44 @@ final class SuperKeyService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             guard let self,
-                  self.lifecycleLock.withLock({ self.tap != nil && !self.shouldStopTapThread })
+                  let activeTap = self.lifecycleLock.withLock({
+                      self.shouldStopTapThread ? nil : self.tap
+                  })
             else { return }
-            self.applyMapping(true)
+            self.confirmMapping(for: activeTap, publishingRunState: false)
         }
     }
 
     // MARK: - The key mapping
 
-    private func applyMapping(_ enabled: Bool, synchronously: Bool = false) {
+    private func applyMapping(_ enabled: Bool,
+                              synchronously: Bool = false,
+                              completion: ((Bool) -> Void)? = nil) {
         stateLock.withLock {
             lastMappingAt = ProcessInfo.processInfo.systemUptime
+            if enabled { pendingMappingEnableCount += 1 }
         }
-        UserDefaults.standard.set(enabled, forKey: DefaultsKey.superKeyMappingApplied)
-        let work = { [hidutilPath, keyboardMatch] in
-            let includeNoAction: Bool
-            if enabled {
-                let modifierReport = Shell.run(
-                    hidutilPath,
-                    ["property", "--matching", keyboardMatch,
-                     "--get", "HIDKeyboardModifierMappingPairs"]
-                )
-                includeNoAction = SuperKeySupport.canMapNoAction(
-                    from: SuperKeySupport.parseMappings(modifierReport.output)
-                )
-            } else {
-                includeNoAction = false
-            }
-            let report = Shell.run(hidutilPath,
-                                   ["property", "--matching", keyboardMatch, "--get", "UserKeyMapping"])
-            let existing = SuperKeySupport.parseMappings(report.output)
-            let wanted = SuperKeySupport.mappings(
-                enablingSuperKey: enabled,
-                existing: existing,
-                includeNoAction: includeNoAction
+        let work = { [weak self] in
+            guard let self else { return }
+            let defaults = UserDefaults.standard
+            let previousMarker = defaults.bool(forKey: DefaultsKey.superKeyMappingApplied)
+            let confirmed = self.performMapping(
+                enabled,
+                ownsExistingMapping: previousMarker
             )
-            Shell.run(hidutilPath,
-                      ["property", "--matching", keyboardMatch,
-                       "--set", SuperKeySupport.mappingArgument(wanted)])
+            if !enabled {
+                let marker = SuperKeySupport.mappingMarkerAfterClear(
+                    previous: previousMarker,
+                    readbackConfirmed: confirmed
+                )
+                defaults.set(marker, forKey: DefaultsKey.superKeyMappingApplied)
+            }
+            if enabled {
+                self.stateLock.withLock { self.pendingMappingEnableCount -= 1 }
+            }
+            if let completion {
+                DispatchQueue.main.async { completion(confirmed) }
+            }
         }
         if synchronously {
             mappingQueue.sync(execute: work)
@@ -323,18 +325,104 @@ final class SuperKeyService: ObservableObject {
         }
     }
 
+    private func performMapping(_ enabled: Bool, ownsExistingMapping: Bool) -> Bool {
+        let includeNoAction: Bool
+        if enabled {
+            let modifierReport = Shell.run(
+                hidutilPath,
+                ["property", "--matching", keyboardMatch,
+                 "--get", SuperKeySupport.modifierMappingProperty]
+            )
+            guard modifierReport.status == 0 else { return false }
+            guard let modifierMappings = SuperKeySupport.consistentMappings(
+                modifierReport.output,
+                property: SuperKeySupport.modifierMappingProperty
+            ) else { return false }
+            guard SuperKeySupport.modifierMappingsAllowSuperKey(modifierMappings)
+            else { return false }
+            includeNoAction = SuperKeySupport.canMapNoAction(from: modifierMappings)
+        } else {
+            includeNoAction = false
+        }
+        let report = Shell.run(
+            hidutilPath,
+            ["property", "--matching", keyboardMatch,
+             "--get", SuperKeySupport.userMappingProperty]
+        )
+        guard report.status == 0 else { return false }
+        guard let existing = SuperKeySupport.consistentMappings(
+            report.output,
+            property: SuperKeySupport.userMappingProperty,
+            ownsExistingMapping: ownsExistingMapping
+        ) else { return false }
+        guard !enabled || !SuperKeySupport.hasMappingConflict(
+            in: existing,
+            ownsExistingMapping: ownsExistingMapping
+        )
+        else { return false }
+        let wanted = SuperKeySupport.mappings(
+            enablingSuperKey: enabled,
+            existing: existing,
+            includeNoAction: includeNoAction,
+            ownsExistingMapping: ownsExistingMapping
+        )
+        if !enabled, !ownsExistingMapping,
+           SuperKeySupport.mappingsMatch(existing, wanted) { return true }
+        if enabled {
+            // Recovery is write-ahead only after every external-mapping check
+            // passed. A crash after the command starts must leave the next
+            // launch authorized to remove a possibly partial application.
+            UserDefaults.standard.set(true, forKey: DefaultsKey.superKeyMappingApplied)
+        }
+        let write = Shell.run(
+            hidutilPath,
+            ["property", "--matching", keyboardMatch,
+             "--set", SuperKeySupport.mappingArgument(wanted)]
+        )
+        guard write.status == 0 else { return false }
+        let readback = Shell.run(
+            hidutilPath,
+            ["property", "--matching", keyboardMatch,
+             "--get", SuperKeySupport.userMappingProperty]
+        )
+        guard readback.status == 0 else { return false }
+        return SuperKeySupport.mappingReportConfirms(readback.output, expected: wanted)
+    }
+
+    private func confirmMapping(for expectedTap: CFMachPort, publishingRunState: Bool) {
+        applyMapping(true) { [weak self] confirmed in
+            guard let self else { return }
+            let active = self.lifecycleLock.withLock {
+                self.tap === expectedTap && !self.shouldStopTapThread
+            }
+            guard active else { return }
+            guard confirmed else {
+                if publishingRunState { self.stop() }
+                return
+            }
+            guard publishingRunState else { return }
+            // Caps Lock left on would have no way back once the key stops locking.
+            self.setCapsLock(false)
+            self.observeWake()
+            self.isRunning = true
+            Self.isEngaged = true
+        }
+    }
+
     /// A keyboard that arrives after the mapping was applied still locks; the
     /// first press on it is the signal to map it too. Repaired at most once
     /// every few seconds, so a keyboard that refuses the mapping cannot turn
     /// typing into a stream of commands.
     private func repairMappingIfStale() {
-        lifecycleLock.withLock {
-            guard tap != nil, !shouldStopTapThread else { return }
-            let now = ProcessInfo.processInfo.systemUptime
-            let shouldRepair = stateLock.withLock {
-                now - lastMappingAt >= mappingRepairInterval
-            }
-            if shouldRepair { applyMapping(true) }
+        guard let activeTap = lifecycleLock.withLock({
+            shouldStopTapThread ? nil : tap
+        }) else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        let shouldRepair = stateLock.withLock {
+            now - lastMappingAt >= mappingRepairInterval
+        }
+        if shouldRepair {
+            confirmMapping(for: activeTap, publishingRunState: false)
         }
     }
 
@@ -384,8 +472,11 @@ final class SuperKeyService: ObservableObject {
             let modifierFlags = stateLock.withLock { eventModifiers.cgFlags }
             event.flags = event.flags.union(modifierFlags)
             return Unmanaged.passUnretained(event)
-        case .soloTap:
-            DispatchQueue.main.async { [weak self] in self?.performSoloAction() }
+        case .soloTap(repeated: let repeated):
+            performSoloAction(longHold: false, repeated: repeated)
+            return nil
+        case .soloHold(repeated: let repeated):
+            performSoloAction(longHold: true, repeated: repeated)
             return nil
         case .interceptAndRemap:
             repairMappingIfStale()
@@ -443,31 +534,104 @@ final class SuperKeyService: ObservableObject {
         }
         guard keyCode == SuperKeySupport.triggerKeyCode else { return .otherKey }
         if type == .keyDown {
-            return .triggerDown(isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0)
+            return .triggerDown(
+                isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
+                hasPrimaryModifiers: !GlobalShortcutModifiers(cgFlags: event.flags).isEmpty,
+                timestamp: UInt64(event.timestamp)
+            )
         }
-        return .triggerUp
+        return .triggerUp(timestamp: UInt64(event.timestamp))
     }
 
     // MARK: - Tapped on its own
 
-    private func performSoloAction() {
+    private func performSoloAction(longHold: Bool, repeated: Bool) {
         let action = stateLock.withLock { soloAction }
-        switch action {
+        switch SuperKeySupport.soloEffect(action: action,
+                                          longHold: longHold,
+                                          repeated: repeated) {
         case .none:
             return
         case .escape:
-            postEscape()
+            runOnMainIfNeeded { _ = Self.postKey(CGKeyCode(kVK_Escape)) }
         case .capsLock:
-            setCapsLock(!capsLockIsOn())
+            runOnMainIfNeeded { self.setCapsLock(!self.capsLockIsOn()) }
+        case .inputSource:
+            // Must finish before this tap returns: the next keystroke is already
+            // in flight, and hopping to main (or waiting on Accessibility) left
+            // that character in the old source.
+            Self.selectNextInputSource()
         }
     }
 
-    private func postEscape() {
+    private func runOnMainIfNeeded(_ work: @escaping () -> Void) {
+        if Thread.isMainThread {
+            work()
+        } else {
+            DispatchQueue.main.async(execute: work)
+        }
+    }
+
+    private static func postKey(_ keyCode: CGKeyCode) -> Bool {
         let source = CGEventSource(stateID: .hidSystemState)
-        guard let down = CGEvent(keyboardEventSource: source, virtualKey: 53, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: 53, keyDown: false) else { return }
+        guard let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
+        else { return false }
         down.post(tap: .cgSessionEventTap)
         up.post(tap: .cgSessionEventTap)
+        return true
+    }
+
+    /// Cycle enabled keyboard sources through TIS before the tap lets the next
+    /// key through. An earlier path asked another app for marked text (up to
+    /// 200 ms) and then slept 100 ms so Control-Space could commit IME
+    /// composition; that wait ran on every tap, including ones with nothing to
+    /// commit. Selecting the next source directly lets the input method commit
+    /// or cancel on its own, the same way the Input menu does.
+    private static func selectNextInputSource() {
+        let apply = {
+            let sources = selectableInputSources()
+            let ids = sources.compactMap { inputSourceString($0, property: kTISPropertyInputSourceID) }
+            guard let current = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else { return }
+            let currentID = inputSourceString(current, property: kTISPropertyInputSourceID)
+            guard let nextID = SuperKeySupport.nextInputSourceID(currentID: currentID,
+                                                                 enabledIDs: ids),
+                  let next = sources.first(where: {
+                      inputSourceString($0, property: kTISPropertyInputSourceID) == nextID
+                  })
+            else { return }
+            _ = TISSelectInputSource(next)
+        }
+        // TIS talks to the text-input server from the main thread. sync (not
+        // async) keeps the switch ahead of the next keystroke this tap is
+        // about to let through.
+        if Thread.isMainThread {
+            apply()
+        } else {
+            DispatchQueue.main.sync(execute: apply)
+        }
+    }
+
+    private static func selectableInputSources() -> [TISInputSource] {
+        guard let list = TISCreateInputSourceList(nil, false) else { return [] }
+        let values = list.takeRetainedValue() as NSArray
+        return (values as! [TISInputSource]).filter {
+            inputSourceString($0, property: kTISPropertyInputSourceCategory)
+                == kTISCategoryKeyboardInputSource as String
+                && inputSourceBool($0, property: kTISPropertyInputSourceIsSelectCapable)
+        }
+    }
+
+    private static func inputSourceString(_ source: TISInputSource,
+                                          property: CFString) -> String? {
+        guard let pointer = TISGetInputSourceProperty(source, property) else { return nil }
+        return Unmanaged<CFString>.fromOpaque(pointer).takeUnretainedValue() as String
+    }
+
+    private static func inputSourceBool(_ source: TISInputSource,
+                                        property: CFString) -> Bool {
+        guard let pointer = TISGetInputSourceProperty(source, property) else { return false }
+        return CFBooleanGetValue(Unmanaged<CFBoolean>.fromOpaque(pointer).takeUnretainedValue())
     }
 
     // MARK: - Caps Lock itself

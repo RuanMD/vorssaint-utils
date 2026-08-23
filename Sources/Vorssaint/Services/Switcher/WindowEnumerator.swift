@@ -30,10 +30,13 @@ enum WindowEnumerator {
     /// bounded AX batches.
     private static let maximumConcurrentQueries = 24
 
-    static func listWindows() -> [SwitcherItem] {
+    static func listWindows(groupByApp: Bool = UserDefaults.standard.bool(forKey: DefaultsKey.switcherMergeTabs),
+                            preservingGroupedWindows: Bool = false) -> [SwitcherItem] {
         listWindows(
             appRules: SwitcherAppRule.rules(
                 storedValue: UserDefaults.standard.dictionary(forKey: DefaultsKey.switcherAppRules)),
+            groupByApp: groupByApp,
+            preservingGroupedWindows: preservingGroupedWindows,
             marksHiddenSpaces: true
         )
     }
@@ -41,10 +44,13 @@ enum WindowEnumerator {
     /// The Command Bar shares the window walk, not the Switcher's visibility
     /// preferences. An app hidden from ⌘Tab must remain searchable there.
     static func listWindowsForCommandBar() -> [SwitcherItem] {
-        listWindows(appRules: [:], marksHiddenSpaces: false)
+        listWindows(appRules: [:], groupByApp: false,
+                    preservingGroupedWindows: false, marksHiddenSpaces: false)
     }
 
     private static func listWindows(appRules: [String: SwitcherAppRule],
+                                    groupByApp: Bool,
+                                    preservingGroupedWindows: Bool,
                                     marksHiddenSpaces: Bool) -> [SwitcherItem] {
         let windowlessApps = SwitcherWindowlessApps.mode(
             storedValue: UserDefaults.standard.string(forKey: DefaultsKey.switcherWindowlessApps))
@@ -53,7 +59,8 @@ enum WindowEnumerator {
                            maximumCount: maximumCount,
                            windowlessApps: windowlessApps,
                            appRules: appRules,
-                           groupByApp: UserDefaults.standard.bool(forKey: DefaultsKey.switcherMergeTabs),
+                           groupByApp: groupByApp,
+                           preservingGroupedWindows: preservingGroupedWindows,
                            currentSpaceOnly: currentSpaceOnly,
                            marksHiddenSpaces: marksHiddenSpaces && !currentSpaceOnly)
     }
@@ -74,6 +81,7 @@ enum WindowEnumerator {
                     windowlessApps: .off,
                     appRules: [:],
                     groupByApp: false,
+                    preservingGroupedWindows: false,
                     currentSpaceOnly: false,
                     marksHiddenSpaces: false)
     }
@@ -83,6 +91,7 @@ enum WindowEnumerator {
                                     windowlessApps: SwitcherWindowlessApps,
                                     appRules: [String: SwitcherAppRule],
                                     groupByApp: Bool,
+                                    preservingGroupedWindows: Bool,
                                     currentSpaceOnly: Bool,
                                     marksHiddenSpaces: Bool) -> [SwitcherItem] {
         let raw = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] ?? []
@@ -301,27 +310,37 @@ enum WindowEnumerator {
                              ownPID: pid_t(ownPid),
                              withheldPIDs: withheldPIDs,
                              appRules: appRules)
-        if marksHiddenSpaces {
-            windows = windows.map { window in
-                guard let windowID = window.windowID else { return window }
-                return window.withHiddenSpaceState(isOnHiddenSpace(windowID))
-            }
-        }
+        let groupedBackingWindows = groupByApp && preservingGroupedWindows ? windows : []
         if groupByApp {
             windows = groupWindowsByApp(windows)
         }
         let ordered = orderByUse(windows, frontToBack: frontToBack)
-        guard ordered.count > maximumCount else { return ordered }
-        var trimmed = Array(ordered.prefix(maximumCount))
-        // Asking for the desktop app alone names one entry, so that entry must
-        // not vanish just because the list happens to be full. Asking for every
-        // windowless app is a bulk choice instead, and there the cap keeps
-        // cutting the least recently used tail exactly as it does for windows.
-        if windowlessApps == .finder,
-           let desktopEntry = ordered.dropFirst(maximumCount).first(where: { $0.windowID == nil }) {
-            trimmed.append(desktopEntry)
+        var result = ordered
+        if ordered.count > maximumCount {
+            result = Array(ordered.prefix(maximumCount))
+            // Asking for the desktop app alone names one entry, so that entry must
+            // not vanish just because the list happens to be full. Asking for every
+            // windowless app is a bulk choice instead, and there the cap keeps
+            // cutting the least recently used tail exactly as it does for windows.
+            if windowlessApps == .finder,
+               let desktopEntry = ordered.dropFirst(maximumCount).first(where: { $0.windowID == nil }) {
+                result.append(desktopEntry)
+            }
         }
-        return trimmed
+        if groupByApp, preservingGroupedWindows {
+            result = SwitcherSupport.expandGroupedWindows(
+                orderedWindows: orderByUse(groupedBackingWindows, frontToBack: frontToBack),
+                representatives: result)
+        }
+        // Space lookups are comparatively expensive. Resolve badges only for
+        // the entries whose apps survived grouping and the visible cap.
+        if marksHiddenSpaces {
+            result = result.map { window in
+                guard let windowID = window.windowID else { return window }
+                return window.withHiddenSpaceState(isOnHiddenSpace(windowID))
+            }
+        }
+        return result
     }
 
     /// WindowServer can keep stale, titled surfaces around after some apps close

@@ -31,12 +31,7 @@ final class RecorderTakeStore: @unchecked Sendable {
     // MARK: - Location
 
     private var root: URL? {
-        guard let base = manager.urls(for: .applicationSupportDirectory,
-                                      in: .userDomainMask).first,
-              let bundleID = Bundle.main.bundleIdentifier
-        else { return nil }
-        return base
-            .appendingPathComponent(bundleID, isDirectory: true)
+        PrivateFileStore.containerURL?
             .appendingPathComponent("Recordings", isDirectory: true)
     }
 
@@ -58,8 +53,7 @@ final class RecorderTakeStore: @unchecked Sendable {
         let id = UUID()
         let folder = root.appendingPathComponent(RecorderSupport.takeFolderName(id: id),
                                                  isDirectory: true)
-        guard (try? manager.createDirectory(at: folder, withIntermediateDirectories: true)) != nil
-        else { return nil }
+        guard PrivateFileStore.createDirectory(at: folder) else { return nil }
         return Take(id: id, folder: folder)
     }
 
@@ -82,7 +76,9 @@ final class RecorderTakeStore: @unchecked Sendable {
             forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]),
               values.isRegularFile == true,
               values.isSymbolicLink != true,
-              (values.fileSize ?? 0) > 0
+              let fileSize = values.fileSize,
+              fileSize > 0,
+              Self.canImport(fileSize: Int64(fileSize), availableBytes: freeBytes(at: take.folder))
         else { return false }
 
         do {
@@ -92,6 +88,16 @@ final class RecorderTakeStore: @unchecked Sendable {
             try? manager.removeItem(at: take.videoURL)
             return false
         }
+    }
+
+    static func canImport(fileSize: Int64, availableBytes: Int64) -> Bool {
+        guard fileSize > 0, availableBytes >= fileSize else { return false }
+        return availableBytes - fileSize >= RecorderSupport.minimumFreeBytesToContinue
+    }
+
+    private func freeBytes(at url: URL) -> Int64 {
+        let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return values?.volumeAvailableCapacityForImportantUsage ?? 0
     }
 
     /// Sharing never accepts a raw caller-supplied URL. The staged master must

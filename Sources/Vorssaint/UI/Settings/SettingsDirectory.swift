@@ -64,6 +64,7 @@ enum SettingsDirectory {
                 SettingsDirectoryItem(page: .mouse, title: s.tabMouse, icon: "computermouse",
                                       keywords: [s.invertMouseScroll, s.invertVerticalScroll,
                                                  s.invertHorizontalScroll, s.middleClickTapPicker,
+                                                 s.focusFollowsMouseName, s.focusFollowsMouseDelay,
                                                  s.smoothScrollName, s.mouseNavigationEnable,
                                                  FeatureStrings.mouseButtons(language).pageTitle,
                                                  FeatureStrings.mouseButtons(language).sideWheelLeftName,
@@ -128,6 +129,10 @@ enum SettingsDirectory {
                                                  FeatureStrings.whatsAppDownloads(language).fileTypes]),
                 SettingsDirectoryItem(page: .homebrew, title: s.homebrewName, icon: "shippingbox"),
                 SettingsDirectoryItem(page: .uninstaller, title: s.uninstallerName, icon: "trash"),
+                SettingsDirectoryItem(page: .killProcess,
+                                      title: FeatureStrings.killProcess(language).pageTitle,
+                                      icon: "xmark.octagon",
+                                      keywords: ["force quit", "process", "cpu", "memory", "kill"]),
             ]),
             (categories.utilities, [
                 SettingsDirectoryItem(page: .commandBar,
@@ -174,9 +179,12 @@ enum SettingsDirectory {
                                       keywords: [s.hotkeyToggle]),
                 SettingsDirectoryItem(page: .advanced, title: s.tabAdvanced, icon: "wrench.and.screwdriver"),
                 SettingsDirectoryItem(page: .about, title: s.tabAbout, icon: "info.circle",
-                                      keywords: [s.reviewIntro]),
+                                      keywords: [s.reviewIntro, s.reviewHighlights]),
                 SettingsDirectoryItem(page: .releaseNotes, title: s.tabReleaseNotes, icon: "sparkles"),
-                SettingsDirectoryItem(page: .support, title: s.tabSupport, icon: "heart.fill"),
+                SettingsDirectoryItem(page: .support, title: s.tabSupport, icon: "heart.fill",
+                                      keywords: [s.donateButton, s.supportIntroStarButton,
+                                                 s.discordIntroJoinButton,
+                                                 s.communityIntroFollowButton]),
             ]),
         ]
     }

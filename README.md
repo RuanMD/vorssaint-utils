@@ -19,7 +19,7 @@
   <a href="#private-by-default">Privacy</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="mailto:hello@vorssaint.com">Contact</a> ·
-  <a href="https://github.com/sponsors/vorssaint">Sponsor</a>
+  <a href="https://buymeacoffee.com/vorssaint">Buy Me a Coffee</a>
 </p>
 
 <p align="center">
@@ -31,8 +31,20 @@
 </p>
 
 <p align="center">
-  For partnerships, sponsorships, or anything worth building together,
-  <a href="mailto:hello@vorssaint.com"><strong>hello@vorssaint.com</strong></a>
+  <a href="https://discord.gg/M6BwWH4BJp">
+    <img src="docs/assets/readme/discord-symbol.svg" width="72" alt="Discord">
+  </a>
+</p>
+
+<p align="center">
+  For partnerships or anything private, email
+  <a href="mailto:hello@vorssaint.com"><strong>hello@vorssaint.com</strong></a>.
+</p>
+
+<p align="center">
+  <a href="https://trendshift.io/repositories/53716?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-53716" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/53716/daily?language=Swift" alt="vorssaint/vorssaint-utils | Trendshift daily ranking" width="250" height="55"></a>
+  &nbsp;&nbsp;
+  <a href="https://trendshift.io/repositories/53716?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-53716" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/53716/weekly?language=Swift" alt="vorssaint/vorssaint-utils | Trendshift weekly ranking" width="250" height="55"></a>
 </p>
 
 <div align="center">
@@ -70,11 +82,11 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 - **Per app output.** Send your music to the speakers and a call to your headset at the same time.
 - **Output switcher.** Cycle between chosen outputs with one shortcut, and drop the volume automatically when headphones disconnect.
 - **Microphone tools.** Pin your favorite input so the Mac stops guessing, and mute every microphone at once with a click or shortcut, whichever one an app is using.
-- **Music app blocker.** Stops the Music app from bursting in when headphones connect.
+- **Music app blocker.** Stops the Music app from bursting in when headphones connect. You can still open it yourself.
 
 ### Know what your Mac is doing
 
-- **System monitor.** CPU, GPU, memory and temperatures with history graphs, including a choice between total memory in use and memory held by apps, plus battery health, time remaining, cycle count, power draw, an optional Fan Control beta for temporary maximum cooling with automatic return, the apps burning energy right now and a shortcut to the Mac's full process inspector.
+- **System monitor.** CPU, GPU, memory, swap use and temperatures with history graphs, including a choice between total memory in use and memory held by apps, plus battery health, time remaining, cycle count, power draw, an optional Fan Control beta with continuous manual speeds, custom temperature curves and live RPM, the apps burning energy right now and a shortcut to the Mac's full process inspector.
 - **Menu bar readouts.** Keep the readings you care about in the bar itself, with values or compact usage bars, including optional battery time remaining and fan speed, combined or as separate items.
 - **Network.** Live rates, session totals and a built in speed test.
 - **Alerts.** Optional notifications for sustained CPU load, high temperature, memory pressure, low disk space and low battery.
@@ -92,8 +104,8 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 ### Windows and the Dock
 
 - **App switcher.** A richer take on pressing ⌘Tab, with adjustable live window thumbnails, minimized windows included, and more than one window per app. Simple mode keeps every window and its title without previews or screen capture, with optional grouping to one entry per app. Optionally press S to keep search open after releasing the switcher shortcut, or hide the shortcut hints below the large icon row. Press the window shortcut directly to move between windows of the app in front. Set per-app rules to include windowless apps, keep them window-only or hide them. Choose apps where Vorssaint pauses both switcher and Dock thumbnail capture while they are in front.
-- **Window layout.** Snap the active window to halves, thirds, sixths, corners or center, maximize it with or without a margin, or move it to the next or previous display or desktop, each with its own optional shortcut. Restore steps back through recent placements. Turn on edge snapping in Window Layout, then drag a title bar to any screen edge or corner for a live preview. Hold chosen modifiers and drag anywhere to move it, then add Shift to resize. A mouse can also resize with the right button.
-- **Dock Preview.** Hover a Dock icon to see adjustable window thumbnails with clear titles, then click the one you want.
+- **Window layout.** Snap the active window to halves, thirds, sixths, corners or center, maximize it with or without a margin, or move it to the next or previous display, each with its own optional shortcut. Restore steps back through recent placements. Turn on edge snapping in Window Layout, then drag a title bar to any screen edge or corner for a live preview. Hold chosen modifiers and drag anywhere to move it, then add Shift to resize. A mouse can also resize with the right button.
+- **Dock Preview.** Hover a Dock icon to see adjustable window thumbnails with clear titles, click the one you want or drag it to move and snap the window.
 - **Dock clicks.** Click the Dock icon of the active app to minimize its windows, hide the app, or cycle through its windows.
 - **Maximize windows.** The green button fills the screen without creating another Space, and puts the window back on the next click.
 - **Quit on close.** Apps you choose quit when their last window closes.
@@ -106,6 +118,9 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 
 - **Text snippets.** Type a short trigger anywhere and it becomes your text, expanded instantly or after a space, with clipboard variables plus date and time in any format you like. A searchable quick menu, organized into folders, types any snippet right at your cursor.
 - **Smooth scrolling.** Gives a mouse wheel the glide of a trackpad.
+- **Focus follows mouse.** Install it from Features to bring the window under the
+  pointer to the front after an adjustable pause. It waits while you drag or hold a
+  modifier key.
 - **Scroll direction.** Invert vertical and horizontal wheel movement separately without
   touching the trackpad's natural scrolling.
 - **Side buttons.** The mouse Back and Forward buttons start meaning it, in Finder, browsers and compatible apps.
@@ -113,7 +128,7 @@ The rest bends the same way: panel sections reorder and hide, the compact layout
 - **Middle click.** A three finger press becomes a real middle click.
 - **Apps to leave alone.** Every feature above can name apps from anywhere on your Mac that drive themselves with the mouse, like 3D and design tools, and it steps aside in those.
 - **Key debounce.** Filters the double letters a worn keyboard invents.
-- **Super key.** Hold Caps Lock and it counts as the modifier combination you choose, so one key can drive your shortcuts. A tap on its own can still switch capitals, press Escape, or do nothing.
+- **Super key.** Hold Caps Lock and it counts as the modifier combination you choose, so one key can drive your shortcuts. A tap on its own can switch input sources, switch capitals, press Escape, or do nothing.
 - **Keyboard shortcuts.** Edit every installed feature's global shortcut from one categorized page, see what is active and use the shorter Super key combination when available.
 
 ### Clipboard, files and links
