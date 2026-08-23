@@ -179,11 +179,6 @@ struct WindowLayoutSettings: View {
                         .foregroundStyle(resultColor)
                 }
             }
-
-            Section(text.spaces) {
-                actionRow(.previousSpace)
-                actionRow(.nextSpace)
-            }
         }
         .formStyle(.grouped)
         .onAppear { refreshSystemTilingState() }
@@ -250,8 +245,6 @@ struct WindowLayoutSettings: View {
         case .center: return "scope"
         case .previousDisplay: return "arrow.left.to.line"
         case .nextDisplay: return "arrow.right.to.line"
-        case .previousSpace: return "arrow.left.square"
-        case .nextSpace: return "arrow.right.square"
         case .restore: return "arrow.uturn.backward"
         }
     }
