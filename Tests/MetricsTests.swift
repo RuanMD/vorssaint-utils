@@ -2779,8 +2779,6 @@ struct MetricsTests {
             DefaultsKey.windowLayoutShortcutBottomRightSixth,
             DefaultsKey.windowLayoutShortcutPreviousDisplay,
             DefaultsKey.windowLayoutShortcutMarginMaximize,
-            DefaultsKey.windowLayoutShortcutPreviousSpace,
-            DefaultsKey.windowLayoutShortcutNextSpace,
         ]
         expect(unassignedLayoutShortcutKeys.allSatisfy {
                    registeredDefaults[$0] as? String == WindowLayoutAction.clearedShortcutStorageValue
