@@ -19,7 +19,11 @@ final class MenuBarDividerItem: NSObject {
     var onRightClick: (() -> Void)?
 
     var windowID: CGWindowID? {
-        statusItem.button?.window.map { CGWindowID($0.windowNumber) }
+        // windowNumber can be non-positive for a window without a window
+        // device; CGWindowID's unsigned conversion would trap on it.
+        statusItem.button?.window.flatMap {
+            $0.windowNumber > 0 ? CGWindowID($0.windowNumber) : nil
+        }
     }
 
     var frame: CGRect? { statusItem.button?.window?.frame }

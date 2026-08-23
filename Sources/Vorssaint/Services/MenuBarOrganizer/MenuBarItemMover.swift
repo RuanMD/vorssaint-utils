@@ -81,7 +81,14 @@ final class MenuBarItemMover {
             ownerBundleIdentifier: item.ownerBundleIdentifier,
             sourcePID: item.sourcePID)
         post(down, targetPID: targetPID)
-        try await Task.sleep(for: .milliseconds(35))
+        do {
+            try await Task.sleep(for: .milliseconds(35))
+        } catch {
+            // The button is already down in the target process; a cancelled
+            // click must still release it.
+            post(up, targetPID: targetPID)
+            throw error
+        }
         post(up, targetPID: targetPID)
     }
 
@@ -122,19 +129,27 @@ final class MenuBarItemMover {
 
         CGWarpMouseCursorPosition(start)
         post(down, targetPID: targetPID)
-        try await Task.sleep(for: .milliseconds(18))
-        for step in 1...10 {
-            let fraction = CGFloat(step) / 10
-            let point = CGPoint(x: start.x + (end.x - start.x) * fraction,
-                                y: start.y + (end.y - start.y) * fraction)
-            guard let drag = CGEvent(mouseEventSource: source,
-                                     mouseType: .leftMouseDragged,
-                                     mouseCursorPosition: point,
-                                     mouseButton: .left)
-            else { throw MenuBarItemMoveError.eventCreationFailed }
-            drag.flags = .maskCommand
-            post(drag, targetPID: targetPID)
-            try await Task.sleep(for: .milliseconds(8))
+        do {
+            try await Task.sleep(for: .milliseconds(18))
+            for step in 1...10 {
+                let fraction = CGFloat(step) / 10
+                let point = CGPoint(x: start.x + (end.x - start.x) * fraction,
+                                    y: start.y + (end.y - start.y) * fraction)
+                guard let drag = CGEvent(mouseEventSource: source,
+                                         mouseType: .leftMouseDragged,
+                                         mouseCursorPosition: point,
+                                         mouseButton: .left)
+                else { throw MenuBarItemMoveError.eventCreationFailed }
+                drag.flags = .maskCommand
+                post(drag, targetPID: targetPID)
+                try await Task.sleep(for: .milliseconds(8))
+            }
+        } catch {
+            // The Command-drag is mid-flight in the target process; a thrown
+            // step must still release the button or the user's next real
+            // click keeps dragging the status item.
+            post(up, targetPID: targetPID)
+            throw error
         }
         post(up, targetPID: targetPID)
     }

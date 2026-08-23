@@ -554,7 +554,13 @@ final class MenuBarOrganizerService: ObservableObject {
         }
         let workspace = NSWorkspace.shared.notificationCenter
         observe(workspace, NSWorkspace.didLaunchApplicationNotification) { [weak self] in
-            self?.refresh()
+            guard let self else { return }
+            conflictingManagers = MenuBarManagerDetection.runningManagers()
+            guard conflictingManagers.isEmpty else {
+                stop(preservingDiagnostics: true)
+                return
+            }
+            refresh()
         }
         observe(workspace, NSWorkspace.didTerminateApplicationNotification) { [weak self] in
             self?.conflictingManagers = MenuBarManagerDetection.runningManagers()
