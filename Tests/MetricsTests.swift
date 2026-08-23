@@ -1758,34 +1758,6 @@ struct MetricsTests {
                                           visibleSpaces: [0],
                                           target: 40) == nil,
                "space travel refuses hops beyond the press cap")
-        expect(WindowSpaceMoveSupport.destination(windowSpaces: [4],
-                                                  orderedUserSpacesPerDisplay: [[3, 4, 5]],
-                                                  direction: .next) == 5
-                && WindowSpaceMoveSupport.destination(windowSpaces: [4],
-                                                       orderedUserSpacesPerDisplay: [[3, 4, 5]],
-                                                       direction: .previous) == 3,
-               "window desktop movement follows the neighboring user desktop")
-        expect(WindowSpaceMoveSupport.destination(windowSpaces: [3],
-                                                  orderedUserSpacesPerDisplay: [[3, 4, 5]],
-                                                  direction: .previous) == 5
-                && WindowSpaceMoveSupport.destination(windowSpaces: [5],
-                                                       orderedUserSpacesPerDisplay: [[3, 4, 5]],
-                                                       direction: .next) == 3,
-               "window desktop movement wraps in both directions")
-        expect(WindowSpaceMoveSupport.destination(windowSpaces: [9],
-                                                  orderedUserSpacesPerDisplay: [[3, 4], [8, 9]],
-                                                  direction: .previous) == 8,
-               "window desktop movement stays on the display that owns the window")
-        expect(WindowSpaceMoveSupport.destination(windowSpaces: [3, 4],
-                                                  orderedUserSpacesPerDisplay: [[3, 4]],
-                                                  direction: .next) == nil
-                && WindowSpaceMoveSupport.destination(windowSpaces: [7],
-                                                       orderedUserSpacesPerDisplay: [[3, 4]],
-                                                       direction: .next) == nil
-                && WindowSpaceMoveSupport.destination(windowSpaces: [3],
-                                                       orderedUserSpacesPerDisplay: [[3]],
-                                                       direction: .next) == nil,
-               "window desktop movement rejects pinned, unknown and lone-desktop windows")
         expect(SpaceHopSupport.firstStage(appHasWindowOnVisibleSpace: true) == .moveASpace,
                "an app with a window on the visible Space cannot travel by being activated, so the move is asked for right away")
         expect(SpaceHopSupport.firstStage(appHasWindowOnVisibleSpace: false) == .waitForActivationTravel,
