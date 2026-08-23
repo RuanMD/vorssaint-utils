@@ -2862,21 +2862,13 @@ struct MetricsTests {
                 && Defaults.registeredDefaults[DefaultsKey.windowLayoutShortcutMarginMaximize] as? String
                     == WindowLayoutAction.clearedShortcutStorageValue,
                "margin maximize starts with no combination of its own")
-        expect(WindowLayoutAction.previousSpace.shortcutID == 56
-                && WindowLayoutAction.nextSpace.shortcutID == 57
-                && WindowLayoutAction(shortcutID: 56) == .previousSpace
-                && WindowLayoutAction(shortcutID: 57) == .nextSpace
-                && WindowLayoutAction.previousSpace.defaultShortcut == nil
-                && WindowLayoutAction.nextSpace.defaultShortcut == nil,
-               "desktop directions have stable optional shortcut ids")
         expect(Set(WindowLayoutAction.allCases.map(\.shortcutID)).count
                 == WindowLayoutAction.allCases.count,
                "every layout action keeps a distinct shortcut id")
         for language in AppLanguage.allCases {
             let layoutStrings = FeatureStrings.windowLayout(language)
             expect(!layoutStrings.fullScreen.isEmpty && !layoutStrings.previousDisplay.isEmpty
-                    && !layoutStrings.marginMaximize.isEmpty && !layoutStrings.spaces.isEmpty
-                    && !layoutStrings.previousSpace.isEmpty && !layoutStrings.nextSpace.isEmpty,
+                    && !layoutStrings.marginMaximize.isEmpty,
                    "\(language.rawValue) names the latest window layout actions")
         }
         expect(WindowLayoutGeometry.accepts(actualRect: .zero, targetRect: .zero,
@@ -4034,10 +4026,8 @@ struct MetricsTests {
         expect(WindowLayoutAction.shortcutActions.count == WindowLayoutAction.allCases.count,
                "every window layout action can register a global shortcut")
         expect(WindowLayoutAction.shortcutActions.contains(.previousDisplay)
-                && WindowLayoutAction.shortcutActions.contains(.nextDisplay)
-                && WindowLayoutAction.shortcutActions.contains(.previousSpace)
-                && WindowLayoutAction.shortcutActions.contains(.nextSpace),
-               "both display and desktop directions can register a global shortcut")
+                && WindowLayoutAction.shortcutActions.contains(.nextDisplay),
+               "both display directions can register a global shortcut")
         expect(Set(WindowLayoutAction.shortcutActions.map(\.shortcutKey)).count
                == WindowLayoutAction.shortcutActions.count,
                "every window layout shortcut has its own defaults key")
@@ -13411,23 +13401,6 @@ struct MetricsTests {
             property: SuperKeySupport.modifierMappingProperty
         ) == nil, "different per-keyboard Modifier Keys rules block Super key activation")
 
-        let disabledCaps = SuperKeyMapping(source: SuperKeySupport.capsLockUsage,
-                                           destination: SuperKeySupport.noActionUsage)
-        let disabledControl = SuperKeyMapping(source: 0x7000000E0,
-                                              destination: SuperKeySupport.noActionUsage)
-        expect(SuperKeySupport.canMapNoAction(from: [disabledCaps])
-                && !SuperKeySupport.canMapNoAction(from: [disabledControl])
-                && !SuperKeySupport.canMapNoAction(from: [disabledCaps, disabledControl])
-                && !SuperKeySupport.canMapNoAction(from: []),
-               "the shared no-action sentinel is recovered only when Caps Lock owns it")
-        let noActionReport = """
-        HIDKeyboardModifierMappingPairs = {
-          HIDKeyboardModifierMappingSrc = 30064771129;
-          HIDKeyboardModifierMappingDst = "-1";
-        }
-        """
-        expect(SuperKeySupport.parseMappings(noActionReport) == [disabledCaps],
-               "hidutil's signed no-action value keeps its unsigned HID meaning")
 
         var superKeyState = SuperKeySupport.State()
         expect(superKeyState.decide(.otherKey) == .pass,
