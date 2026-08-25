@@ -24,7 +24,7 @@ enum AppFeature: String, CaseIterable {
     // Sound
     case mixer, soundOutputSwitcher, micMute, musicBlock
     // Energy and display
-    case keepAwake, brightness, extraBrightness
+    case keepAwake, brightness, extraBrightness, bluetoothSleep
     // Menu bar
     case menuBarOrganizer
     // Tools
@@ -98,7 +98,7 @@ extension AppFeature {
             return .clipboardFiles
         case .mixer, .soundOutputSwitcher, .micMute, .musicBlock:
             return .sound
-        case .keepAwake, .brightness, .extraBrightness:
+        case .keepAwake, .brightness, .extraBrightness, .bluetoothSleep:
             return .energyDisplay
         case .menuBarOrganizer:
             return .menuBar
@@ -143,7 +143,8 @@ extension AppFeature {
         case .keepAwake: return "moon.zzz.fill"
         case .brightness: return "display.2"
         case .extraBrightness: return "sun.max.fill"
-        case .menuBarOrganizer: return "menubar.rectangle"
+    case .menuBarOrganizer: return "menubar.rectangle"
+    case .bluetoothSleep: return "wave.3.right.circle"
         case .quickLauncher: return "wand.and.rays"
         case .quickToggles: return "togglepower"
         case .colorPicker: return "eyedropper"
@@ -231,7 +232,8 @@ extension AppFeature {
         case .musicBlock: return [DefaultsKey.musicBlockEnabled]
         case .brightness: return [DefaultsKey.brightnessControlEnabled]
         case .extraBrightness: return [DefaultsKey.extraBrightnessEnabled]
-        case .menuBarOrganizer: return [DefaultsKey.menuBarOrganizerEnabled]
+    case .menuBarOrganizer: return [DefaultsKey.menuBarOrganizerEnabled]
+    case .bluetoothSleep: return [DefaultsKey.bluetoothSleepEnabled]
         case .windowLayout, .diskImageInstaller, .mixer, .micMute, .keepAwake,
              .quickLauncher, .quickToggles, .colorPicker, .screenOCR, .cleaningMode, .mediaTools,
              .cleaner, .uninstaller, .homebrew, .appUpdates, .screenshot, .cameraPreview, .scratchpad,
@@ -276,11 +278,11 @@ extension AppFeature {
         case .homebrew: return [.automationTerminal, .appManagement]
         case .appUpdates: return [.notifications, .appManagement]
         case .diskImageInstaller: return [.appManagement]
-        case .mixer: return [.audioCapture]
+        case .mixer: return [.audioCapture, .accessibility]
         case .monitorCPU, .monitorMemory, .monitorDisk, .monitorPower: return [.notifications]
         case .clipboardHistory, .shelf, .urlCleaner,
              .soundOutputSwitcher, .musicBlock,
-             .extraBrightness, .quickLauncher, .colorPicker, .micMute, .mediaTools,
+             .extraBrightness, .bluetoothSleep, .quickLauncher, .colorPicker, .micMute, .mediaTools,
              .scratchpad, .monitorGPU, .monitorNetwork, .fanControl, .killProcess:
             return []
         }
@@ -336,6 +338,8 @@ extension AppFeature {
                         stringFor(DefaultsKey.radialMenuMouseButton)) != .off
             case (.keepAwake, .accessibility):
                 return boolFor(DefaultsKey.keepAwakeMouseJiggleEnabled)
+            case (.mixer, .accessibility):
+                return boolFor(DefaultsKey.preciseVolumeRollerEnabled)
             case (.brightness, .accessibility):
                 return boolFor(DefaultsKey.brightnessKeysEnabled)
                     || boolFor(DefaultsKey.brightnessOSDEnabled)
@@ -347,6 +351,7 @@ extension AppFeature {
                 return boolFor(DefaultsKey.monitorAlertDisk)
             case (.monitorPower, .notifications):
                 return boolFor(DefaultsKey.monitorAlertBattery)
+                    || boolFor(DefaultsKey.monitorAlertBatteryTemperature)
             case (.appUpdates, .notifications):
                 return AppUpdatesSupport.CheckFrequency
                     .sanitized(stringFor(DefaultsKey.appUpdatesCheckFrequency)) != .off
@@ -374,6 +379,7 @@ extension AppFeature {
     static let monitorAlertPairs: [(key: String, feature: AppFeature)] = [
         (DefaultsKey.monitorAlertCPU, .monitorCPU),
         (DefaultsKey.monitorAlertCPUTemperature, .monitorCPU),
+        (DefaultsKey.monitorAlertBatteryTemperature, .monitorPower),
         (DefaultsKey.monitorAlertMemory, .monitorMemory),
         (DefaultsKey.monitorAlertDisk, .monitorDisk),
         (DefaultsKey.monitorAlertBattery, .monitorPower),

@@ -1196,7 +1196,7 @@ enum CommandBarCatalog {
                 id: "link.\(link.id.uuidString)",
                 title: link.name,
                 subtitle: link.kind == .script
-                    ? bar.scriptSearchHint
+                    ? (link.runsWithoutArgument ? bar.scriptBareSearchHint : bar.scriptSearchHint)
                     : (link.takesArgument ? bar.linkSearchHint : bar.kindLink),
                 keywords: bar.kindLink,
                 icon: .symbol(link.kind.symbolName),
@@ -1263,7 +1263,9 @@ enum CommandBarCatalog {
         let service = CommandBarService.shared
         let typed = service.queryWhenRun.trimmingCharacters(in: .whitespaces)
         let argument = CommandBarLinks.trailingArgument(query: typed, name: link.name) ?? ""
-        if argument.isEmpty {
+        // A script that needs something to work on asks for it rather than
+        // running on nothing; one marked as needing nothing just runs.
+        if argument.isEmpty, !link.runsWithoutArgument {
             service.prefill(link.name + " ")
             return
         }
@@ -1324,7 +1326,7 @@ enum CommandBarCatalog {
             run: { _ in useInSearch(text) }))
 
         if AppFeature.urlCleaner.isAvailable,
-           let cleaned = URLCleanerService.shared.clean(text), cleaned != text {
+           let cleaned = URLCleanerService.shared.clean(text), cleaned.url != text {
             entries.append(CommandBarEntry(
                 id: "selection.cleanLink",
                 title: bar.actionCleanURL,
@@ -1332,8 +1334,11 @@ enum CommandBarCatalog {
                 keywords: L10n.shared.s.urlCleanerName,
                 icon: .symbol("link"),
                 run: { _ in
-                    URLCleanerService.shared.copy(cleaned)
-                    QuickToolHUD.show(icon: "link", message: L10n.shared.s.urlCleanerCleaned)
+                    URLCleanerService.shared.copy(cleaned.url)
+                    QuickToolHUD.show(icon: "link", message: cleaned.removed.isEmpty
+                        ? L10n.shared.s.urlCleanerCleaned
+                        : String(format: L10n.shared.s.urlCleanerRemovedFormat,
+                                 cleaned.removed.joined(separator: ", ")))
                 }))
         }
 
@@ -1536,16 +1541,21 @@ enum CommandBarCatalog {
             QuickToolHUD.show(icon: "link", message: s.urlCleanerNoURL)
             return
         }
-        guard let cleaned = URLCleanerService.shared.clean(raw) else {
+        let cleaned = URLCleanerService.shared.clean(raw)
+        switch URLCleaning.outcome(for: cleaned, input: raw) {
+        case .notAURL:
             QuickToolHUD.show(icon: "link", message: s.urlCleanerNoURL)
-            return
-        }
-        guard cleaned != raw else {
+        case .unchanged:
             QuickToolHUD.show(icon: "checkmark.circle", message: s.urlCleanerNoChange)
-            return
+        case .rewritten:
+            cleaned.map { URLCleanerService.shared.copy($0.url) }
+            QuickToolHUD.show(icon: "link", message: s.urlCleanerCleaned)
+        case .removed(let names):
+            cleaned.map { URLCleanerService.shared.copy($0.url) }
+            QuickToolHUD.show(icon: "link",
+                              message: String(format: s.urlCleanerRemovedFormat,
+                                              names.joined(separator: ", ")))
         }
-        URLCleanerService.shared.copy(cleaned)
-        QuickToolHUD.show(icon: "link", message: s.urlCleanerCleaned)
     }
 
     /// Brightness lands on the display under the pointer, the screen where

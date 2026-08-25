@@ -29,6 +29,78 @@ enum SpaceWindowBridge {
         return unsafeBitCast(symbol, to: Function.self)()
     }()
 
+    // MARK: - Menu bar windows
+
+    private typealias WindowCountFunction = @convention(c) (
+        ConnectionID, Int32, UnsafeMutablePointer<Int32>
+    ) -> CGError
+    private static let windowCount: WindowCountFunction? = {
+        guard let symbol = symbol("CGSGetWindowCount") else { return nil }
+        return unsafeBitCast(symbol, to: WindowCountFunction.self)
+    }()
+
+    private typealias MenuBarWindowListFunction = @convention(c) (
+        ConnectionID, Int32, Int32, UnsafeMutablePointer<CGWindowID>, UnsafeMutablePointer<Int32>
+    ) -> CGError
+    private static let menuBarWindowList: MenuBarWindowListFunction? = {
+        guard let symbol = symbol("CGSGetProcessMenuBarWindowList") else { return nil }
+        return unsafeBitCast(symbol, to: MenuBarWindowListFunction.self)
+    }()
+
+    private typealias WindowFrameFunction = @convention(c) (
+        ConnectionID, CGWindowID, UnsafeMutablePointer<CGRect>
+    ) -> CGError
+    private static let windowFrame: WindowFrameFunction? = {
+        guard let symbol = symbol("CGSGetScreenRectForWindow") else { return nil }
+        return unsafeBitCast(symbol, to: WindowFrameFunction.self)
+    }()
+
+    private typealias WindowLevelFunction = @convention(c) (
+        ConnectionID, CGWindowID, UnsafeMutablePointer<CGWindowLevel>
+    ) -> CGError
+    private static let windowLevel: WindowLevelFunction? = {
+        guard let symbol = symbol("CGSGetWindowLevel") else { return nil }
+        return unsafeBitCast(symbol, to: WindowLevelFunction.self)
+    }()
+
+    static var canListMenuBarWindows: Bool {
+        connection != 0 && windowCount != nil && menuBarWindowList != nil
+    }
+
+    static var canResolveWindowFrames: Bool {
+        connection != 0 && windowFrame != nil
+    }
+
+    static func menuBarWindowIDs() -> [CGWindowID]? {
+        guard connection != 0, let windowCount, let menuBarWindowList else { return nil }
+        var count: Int32 = 0
+        guard windowCount(connection, 0, &count) == .success, count > 0 else { return nil }
+        var ids = [CGWindowID](repeating: 0, count: Int(count))
+        var actualCount = count
+        guard menuBarWindowList(connection, 0, count, &ids, &actualCount) == .success,
+              actualCount >= 0,
+              actualCount <= count
+        else { return nil }
+        return Array(ids.prefix(Int(actualCount)))
+    }
+
+    static func frame(of windowID: CGWindowID) -> CGRect? {
+        guard connection != 0, let windowFrame else { return nil }
+        var frame = CGRect.zero
+        guard windowFrame(connection, windowID, &frame) == .success,
+              frame.width > 0,
+              frame.height > 0
+        else { return nil }
+        return frame
+    }
+
+    static func level(of windowID: CGWindowID) -> CGWindowLevel? {
+        guard connection != 0, let windowLevel else { return nil }
+        var level: CGWindowLevel = 0
+        guard windowLevel(connection, windowID, &level) == .success else { return nil }
+        return level
+    }
+
     private typealias GetWindowTagsFunction =
         @convention(c) (ConnectionID, CGWindowID, UnsafeMutablePointer<UInt32>, Int) -> CGError
     private static let getWindowTags: GetWindowTagsFunction? = {
@@ -44,6 +116,15 @@ enum SpaceWindowBridge {
         guard let symbol = symbol("CGSCopySpacesForWindows") else { return nil }
         return unsafeBitCast(symbol, to: CopySpacesFunction.self)
     }()
+
+    /// Whether `spaces(of:)` can actually answer in this session. Callers use
+    /// it to tell "this surface belongs to no Space" (the leftover signature)
+    /// apart from "the Space queries are unavailable here", so a macOS that
+    /// drops the private symbol keeps the pre-existing behavior instead of
+    /// misreading every window as a leftover (issue #807).
+    static var canResolveSpaces: Bool {
+        connection != 0 && copySpacesForWindows != nil
+    }
 
     /// Every Space (user desktops and fullscreen Spaces alike) containing the
     /// window. Empty for leftover surfaces, and when the query is unavailable.
@@ -113,6 +194,41 @@ enum SpaceWindowBridge {
         }
         guard !displays.isEmpty else { return nil }
         return Topology(displays: displays)
+    }
+
+    private typealias MoveWindowsToSpaceFunction =
+        @convention(c) (ConnectionID, CFArray, UInt64) -> Void
+    private static let moveWindowsToManagedSpace: MoveWindowsToSpaceFunction? = {
+        guard let symbol = symbol("CGSMoveWindowsToManagedSpace") else { return nil }
+        return unsafeBitCast(symbol, to: MoveWindowsToSpaceFunction.self)
+    }()
+
+    /// The Space showing on the display under `pointer`, an AppKit screen
+    /// point. Nil when the Space queries are unavailable, so callers can carry
+    /// on without moving anything rather than guessing at a destination.
+    static func visibleSpace(near pointer: CGPoint) -> UInt64? {
+        guard let topology = topology() else { return nil }
+        let screen = NSScreen.screens.first { $0.frame.contains(pointer) } ?? NSScreen.main
+        if let number = (screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?
+            .uint32Value,
+           let display = topology.displays.first(where: { $0.displayID == number }) {
+            return display.currentSpace
+        }
+        return topology.displays.first?.currentSpace
+    }
+
+    /// Brings one window onto the Space the pointer's display is showing. A
+    /// window dropped from another desktop otherwise takes the position it was
+    /// given and stays where nobody can see it.
+    @discardableResult
+    static func moveToVisibleSpace(_ windowID: CGWindowID, near pointer: CGPoint) -> Bool {
+        guard connection != 0,
+              let moveWindowsToManagedSpace,
+              let destination = visibleSpace(near: pointer)
+        else { return false }
+        guard !spaces(of: windowID).contains(destination) else { return true }
+        moveWindowsToManagedSpace(connection, [NSNumber(value: windowID)] as CFArray, destination)
+        return true
     }
 
     /// Whether the window sits on at least one Space and none of them is
