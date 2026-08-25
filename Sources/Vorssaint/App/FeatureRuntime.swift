@@ -89,6 +89,7 @@ final class FeatureRuntime: ObservableObject {
         where feature.isAvailable != selected.contains(feature) {
             let joins = selected.contains(feature) && feature.isSupportedOnCurrentSystem
             UserDefaults.standard.set(joins, forKey: feature.availabilityKey)
+            guard feature.isSupportedOnCurrentSystem else { continue }
             if joins { loadedThisSession.insert(feature) }
             Self.bindings[feature]?()
         }

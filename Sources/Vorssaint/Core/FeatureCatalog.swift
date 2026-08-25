@@ -143,8 +143,8 @@ extension AppFeature {
         case .keepAwake: return "moon.zzz.fill"
         case .brightness: return "display.2"
         case .extraBrightness: return "sun.max.fill"
-    case .menuBarOrganizer: return "menubar.rectangle"
-    case .bluetoothSleep: return "wave.3.right.circle"
+        case .menuBarOrganizer: return "menubar.rectangle"
+        case .bluetoothSleep: return "wave.3.right.circle"
         case .quickLauncher: return "wand.and.rays"
         case .quickToggles: return "togglepower"
         case .colorPicker: return "eyedropper"
@@ -232,8 +232,8 @@ extension AppFeature {
         case .musicBlock: return [DefaultsKey.musicBlockEnabled]
         case .brightness: return [DefaultsKey.brightnessControlEnabled]
         case .extraBrightness: return [DefaultsKey.extraBrightnessEnabled]
-    case .menuBarOrganizer: return [DefaultsKey.menuBarOrganizerEnabled]
-    case .bluetoothSleep: return [DefaultsKey.bluetoothSleepEnabled]
+        case .menuBarOrganizer: return [DefaultsKey.menuBarOrganizerEnabled]
+        case .bluetoothSleep: return [DefaultsKey.bluetoothSleepEnabled]
         case .windowLayout, .diskImageInstaller, .mixer, .micMute, .keepAwake,
              .quickLauncher, .quickToggles, .colorPicker, .screenOCR, .cleaningMode, .mediaTools,
              .cleaner, .uninstaller, .homebrew, .appUpdates, .screenshot, .cameraPreview, .scratchpad,
