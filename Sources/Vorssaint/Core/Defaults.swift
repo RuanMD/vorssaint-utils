@@ -451,7 +451,7 @@ enum DefaultsKey {
     static let panelUtilityCommandBar = "panelUtilityCommandBar"
     // Selection Actions: a floating action bar offered on text selection.
     static let selectionActionsEnabled = "selectionActionsEnabled"
-    static let selectionActionsDisabledActions = "selectionActionsDisabledActions" // comma-joined SelectionAction ids switched off
+    static let selectionActionsEnabledActions = "selectionActionsEnabledActions" // comma-joined SelectionAction ids switched on
     static let selectionActionsDisplayStyle = "selectionActionsDisplayStyle" // icon | word
     static let selectionActionsOrder = "selectionActionsOrder" // comma-joined SelectionAction ids, drag order
     static let selectionActionsMaxVisible = "selectionActionsMaxVisible" // actions shown before the rest collapse under a chevron
@@ -1144,7 +1144,7 @@ enum Defaults {
         DefaultsKey.commandBarPositionOffset: "",
         DefaultsKey.panelUtilityCommandBar: true,
         DefaultsKey.selectionActionsEnabled: false,
-        DefaultsKey.selectionActionsDisabledActions: SelectionActionCatalog.defaultDisabledStorageValue,
+        DefaultsKey.selectionActionsEnabledActions: SelectionActionCatalog.defaultEnabledStorageValue,
         DefaultsKey.selectionActionsDisplayStyle: "icon",
         DefaultsKey.selectionActionsOrder: "",
         DefaultsKey.selectionActionsMaxVisible: 4,

@@ -78,7 +78,12 @@ enum SelectionActionCatalog {
         .copy, .cut, .paste,
     ]
 
-    static func disabledActions(from raw: String) -> Set<SelectionAction> {
+    /// Persisted as the *enabled* set, not the disabled one: a future update
+    /// that adds a new `SelectionAction` case must have that case come up
+    /// off for anyone who already customized their toggles, not silently on
+    /// because it's absent from an old "disabled" string written before the
+    /// case existed.
+    static func enabledActions(from raw: String) -> Set<SelectionAction> {
         Set(raw.split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .compactMap(SelectionAction.init(rawValue:)))
@@ -89,27 +94,26 @@ enum SelectionActionCatalog {
         actions.map(\.rawValue).sorted().joined(separator: ",")
     }
 
-    /// The default value for `DefaultsKey.selectionActionsDisabledActions`:
-    /// every action that isn't in `defaultEnabled`.
-    static var defaultDisabledStorageValue: String {
-        storageValue(for: Set(SelectionAction.allCases).subtracting(defaultEnabled))
+    /// The default value for `DefaultsKey.selectionActionsEnabledActions`.
+    static var defaultEnabledStorageValue: String {
+        storageValue(for: defaultEnabled)
     }
 
-    static func isEnabled(_ action: SelectionAction, disabledRaw: String) -> Bool {
-        !disabledActions(from: disabledRaw).contains(action)
+    static func isEnabled(_ action: SelectionAction, enabledRaw: String) -> Bool {
+        enabledActions(from: enabledRaw).contains(action)
     }
 
     /// The actions to offer for a selection right now: enabled in Settings,
     /// applicable to this particular text/context, in the person's order.
     static func availableActions(for text: String,
                                  isEditable: Bool,
-                                 disabledRaw: String,
+                                 enabledRaw: String,
                                  orderRaw: String) -> [SelectionAction] {
         let order = Defaults.sanitizedPanelItemOrder(orderRaw,
                                                       defaultOrder: SelectionAction.allCases.map(\.rawValue))
             .compactMap(SelectionAction.init(rawValue:))
         return order.filter {
-            isEnabled($0, disabledRaw: disabledRaw) && $0.appliesTo(text: text, isEditable: isEditable)
+            isEnabled($0, enabledRaw: enabledRaw) && $0.appliesTo(text: text, isEditable: isEditable)
         }
     }
 }

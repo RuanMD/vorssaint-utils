@@ -164,16 +164,18 @@ final class SelectionActionsService: ObservableObject {
 
     private func performRead(expected: Int, targetPID: pid_t?, clickLocation: CGPoint?,
                              isLocal: Bool, allowsEmptySelection: Bool) {
-        // Excluded-app/domain checks are about *other* apps and websites;
-        // a local read is always us, which is never a meaningful exclusion
-        // target, and the exclusion check itself would otherwise resolve to
-        // whatever app was frontmost before Scratchpad's nonactivating
-        // panel took focus — the wrong app entirely.
-        guard isLocal || !isFrontmostAppExcluded() else {
-            DispatchQueue.main.async { [weak self] in self?.dismiss() }
-            return
-        }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            // Excluded-app/domain checks are about *other* apps and
+            // websites; a local read is always us, which is never a
+            // meaningful exclusion target, and the exclusion check itself
+            // would otherwise resolve to whatever app was frontmost before
+            // Scratchpad's nonactivating panel took focus — the wrong app
+            // entirely. Run off the main thread: the domain half of this
+            // check walks Accessibility, which the app-bundle half doesn't.
+            guard isLocal || !(self?.isFrontmostAppExcluded() ?? true) else {
+                DispatchQueue.main.async { [weak self] in self?.dismiss() }
+                return
+            }
             SelectionReader.read(pid: targetPID) { snapshot in
                 DispatchQueue.main.async {
                     self?.handleRead(snapshot, expected: expected, clickLocation: clickLocation,
@@ -184,9 +186,11 @@ final class SelectionActionsService: ObservableObject {
     }
 
     /// The app and, for a handful of known browsers, the website the person
-    /// is looking at right now — checked before Accessibility is ever
-    /// touched, so an excluded app costs nothing beyond reading its bundle
-    /// ID.
+    /// is looking at right now. The app-bundle check costs nothing beyond
+    /// reading its bundle ID; the domain check walks Accessibility
+    /// (`BrowserURLReader.currentHost`), each hop with its own timeout —
+    /// why `performRead` runs this whole check off the main thread rather
+    /// than treating it as cheap across the board.
     private func isFrontmostAppExcluded() -> Bool {
         guard let front = SelectionReader.focusedApplication() else { return false }
         if SelectionActionsExcludedApps.shared.isExcluded(front.bundleIdentifier) { return true }
@@ -233,11 +237,11 @@ final class SelectionActionsService: ObservableObject {
             return
         }
         let defaults = UserDefaults.standard
-        let disabledRaw = defaults.string(forKey: DefaultsKey.selectionActionsDisabledActions) ?? ""
+        let enabledRaw = defaults.string(forKey: DefaultsKey.selectionActionsEnabledActions) ?? ""
         let orderRaw = defaults.string(forKey: DefaultsKey.selectionActionsOrder) ?? ""
         let actions = SelectionActionCatalog.availableActions(for: snapshot.text,
                                                                isEditable: snapshot.isEditable,
-                                                               disabledRaw: disabledRaw,
+                                                               enabledRaw: enabledRaw,
                                                                orderRaw: orderRaw)
         guard !actions.isEmpty else {
             dismiss()

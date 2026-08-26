@@ -10,7 +10,7 @@ struct SelectionActionsSettings: View {
     @ObservedObject private var service = SelectionActionsService.shared
     @AppStorage(DefaultsKey.selectionActionsEnabled) private var enabled = false
     @AppStorage(DefaultsKey.selectionActionsShortcutEnabled) private var shortcutEnabled = true
-    @AppStorage(DefaultsKey.selectionActionsDisabledActions) private var disabledActionsRaw = ""
+    @AppStorage(DefaultsKey.selectionActionsEnabledActions) private var enabledActionsRaw = ""
     @AppStorage(DefaultsKey.selectionActionsDisplayStyle) private var displayStyleRaw = "icon"
     @AppStorage(DefaultsKey.selectionActionsMaxVisible) private var maxVisible = 4
     /// Read only so this view redraws when the drag order changes; the order
@@ -107,7 +107,7 @@ struct SelectionActionsSettings: View {
                                              order: orderBinding,
                                              dragging: $draggingAction) {
                             SelectionActionRow(action: action, strings: text,
-                                              disabledActionsRaw: $disabledActionsRaw)
+                                              enabledActionsRaw: $enabledActionsRaw)
                         }
                         if action != orderedActions.last {
                             Divider()
@@ -141,7 +141,7 @@ struct SelectionActionsSettings: View {
 private struct SelectionActionRow: View {
     let action: SelectionAction
     let strings: SelectionActionsStrings
-    @Binding var disabledActionsRaw: String
+    @Binding var enabledActionsRaw: String
     @State private var showingSettings = false
 
     var body: some View {
@@ -179,11 +179,11 @@ private struct SelectionActionRow: View {
 
     private var enabledBinding: Binding<Bool> {
         Binding {
-            SelectionActionCatalog.isEnabled(action, disabledRaw: disabledActionsRaw)
+            SelectionActionCatalog.isEnabled(action, enabledRaw: enabledActionsRaw)
         } set: { isOn in
-            var current = SelectionActionCatalog.disabledActions(from: disabledActionsRaw)
-            if isOn { current.remove(action) } else { current.insert(action) }
-            disabledActionsRaw = SelectionActionCatalog.storageValue(for: current)
+            var current = SelectionActionCatalog.enabledActions(from: enabledActionsRaw)
+            if isOn { current.insert(action) } else { current.remove(action) }
+            enabledActionsRaw = SelectionActionCatalog.storageValue(for: current)
         }
     }
 
