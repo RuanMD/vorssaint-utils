@@ -64,10 +64,18 @@ final class SelectionActionsService: ObservableObject {
 
     /// Reads whatever is selected right now and shows the bar for it,
     /// bypassing the mouse-gesture gate — the keyboard shortcut's whole
-    /// point is to work without one.
+    /// point is to work without one. Unlike a mouse gesture, the global
+    /// hotkey fires with no event of ours to check `isLocal` against, so it
+    /// asks a different question with the same answer: is one of our own
+    /// windows key right now? A `.nonactivatingPanel` like the Scratchpad
+    /// can be key without this app ever becoming frontmost, which is exactly
+    /// the situation `isLocal` exists to detect — `NSApp.keyWindow` catches
+    /// it the same way a local mouse monitor does, without needing to know
+    /// about any specific panel.
     func summon() {
-        performRead(expected: nextGeneration(), targetPID: nil, clickLocation: nil,
-                   isLocal: false, allowsEmptySelection: true)
+        let isLocal = NSApp.keyWindow != nil
+        performRead(expected: nextGeneration(), targetPID: isLocal ? getpid() : nil, clickLocation: nil,
+                   isLocal: isLocal, allowsEmptySelection: true)
     }
 
     private func startMonitor() {
@@ -173,7 +181,16 @@ final class SelectionActionsService: ObservableObject {
             // entirely. Run off the main thread: the domain half of this
             // check walks Accessibility, which the app-bundle half doesn't.
             guard isLocal || !(self?.isFrontmostAppExcluded() ?? true) else {
-                DispatchQueue.main.async { [weak self] in self?.dismiss() }
+                DispatchQueue.main.async { [weak self] in
+                    // Every other terminal path runs through handleRead,
+                    // which discards a read that finished after a newer one
+                    // started. This early exit skipped that check, so a slow
+                    // excluded-app read (the domain half walks Accessibility
+                    // for up to ~1s) could dismiss a bar a faster, newer read
+                    // already opened.
+                    guard expected == self?.generation else { return }
+                    self?.dismiss()
+                }
                 return
             }
             SelectionReader.read(pid: targetPID) { snapshot in
@@ -190,10 +207,18 @@ final class SelectionActionsService: ObservableObject {
     /// reading its bundle ID; the domain check walks Accessibility
     /// (`BrowserURLReader.currentHost`), each hop with its own timeout —
     /// why `performRead` runs this whole check off the main thread rather
-    /// than treating it as cheap across the board.
+    /// than treating it as cheap across the board. Reads `UserDefaults`
+    /// directly rather than through `SelectionActionsExcludedApps.shared`:
+    /// that class's `@Published apps` is written on the main thread by the
+    /// settings page (`add`/`remove` → `reload()`), so reading it from here
+    /// would be a live `Array` race with a settings edit landing mid-read,
+    /// not just a stale value. `SelectionActionsExcludedApps.shared` still
+    /// backs the settings UI, which is the only thing that needs `@Published`.
     private func isFrontmostAppExcluded() -> Bool {
         guard let front = SelectionReader.focusedApplication() else { return false }
-        if SelectionActionsExcludedApps.shared.isExcluded(front.bundleIdentifier) { return true }
+        let excludedApps = Defaults.sanitizedBundleIdentifierList(
+            UserDefaults.standard.stringArray(forKey: DefaultsKey.selectionActionsExcludedApps) ?? [])
+        if let bundleID = front.bundleIdentifier, excludedApps.contains(bundleID) { return true }
         let domainsRaw = UserDefaults.standard.string(forKey: DefaultsKey.selectionActionsExcludedDomains) ?? ""
         guard !domainsRaw.isEmpty else { return false }
         let domains = SelectionActionsExcludedDomains.decode(domainsRaw)
