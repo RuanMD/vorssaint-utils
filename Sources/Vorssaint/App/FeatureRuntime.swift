@@ -52,19 +52,36 @@ final class FeatureRuntime: ObservableObject {
         }.count
     }
 
-    var supportedCount: Int {
-        AppFeature.allCases.filter(\.isSupportedOnCurrentSystem).count
+    /// How many features this Mac can end up with. Counting against the whole
+    /// catalog instead would leave the hub's install-all button forever one
+    /// short on unsupported hardware or macOS versions. Hardware support does
+    /// not revoke an existing install, while an unsafe OS version remains
+    /// excluded because its carried-over preference is deliberately inert.
+    var installableCount: Int {
+        AppFeature.allCases.filter {
+            $0.isSupportedOnCurrentSystem && ($0.isHardwareSupported || $0.isAvailable)
+        }.count
+    }
+
+    /// The one gate every install passes, whichever surface asks: the hub
+    /// row, the hub's install-all button, a preset and the first-run picker
+    /// all decide here. A feature the Mac cannot run never installs, so a
+    /// disabled row cannot be walked around from the button above it.
+    ///
+    /// Uninstalls are never refused and existing preferences are never
+    /// revoked automatically: hardware checks can be wrong, while an unsafe
+    /// OS version must still keep its service dormant.
+    private func mayFlip(_ feature: AppFeature, to available: Bool) -> Bool {
+        guard feature.isAvailable != available else { return false }
+        return !available
+            || (feature.isSupportedOnCurrentSystem && feature.isHardwareSupported)
     }
 
     /// Flipping availability runs the feature's binding immediately: off
     /// tears every resource down on the spot, on restores whatever enabled
     /// state the feature had (its own keys are never touched).
     func setAvailable(_ feature: AppFeature, _ available: Bool) {
-        guard feature.isAvailable != available else { return }
-        // Never instantiate a binding that cannot run on this macOS version.
-        // Uninstalling remains allowed so an availability key carried over
-        // from an older system can still be cleared.
-        if available, !feature.isSupportedOnCurrentSystem { return }
+        guard mayFlip(feature, to: available) else { return }
         UserDefaults.standard.set(available, forKey: feature.availabilityKey)
         guard feature.isSupportedOnCurrentSystem else {
             revision += 1
@@ -91,8 +108,8 @@ final class FeatureRuntime: ObservableObject {
             UserDefaults.standard.set(true, forKey: key)
         }
         for feature in AppFeature.allCases
-        where feature.isAvailable != selected.contains(feature) {
-            let joins = selected.contains(feature) && feature.isSupportedOnCurrentSystem
+        where mayFlip(feature, to: selected.contains(feature)) {
+            let joins = selected.contains(feature)
             UserDefaults.standard.set(joins, forKey: feature.availabilityKey)
             guard feature.isSupportedOnCurrentSystem else { continue }
             if joins { loadedThisSession.insert(feature) }
@@ -100,8 +117,11 @@ final class FeatureRuntime: ObservableObject {
         }
         // Features that stayed installed still need a sync: their enable
         // keys may have just flipped on. Syncs are idempotent, so a repeat
-        // for the ones handled above costs nothing.
-        for feature in selected where feature.isSupportedOnCurrentSystem {
+        // for the ones handled above costs nothing. A selected feature the
+        // gate refused is not installed, so it is skipped like any other
+        // unavailable one and its service never comes to life.
+        for feature in selected
+        where feature.isAvailable && feature.isSupportedOnCurrentSystem {
             Self.bindings[feature]?()
         }
         revision += 1
@@ -111,16 +131,12 @@ final class FeatureRuntime: ObservableObject {
     /// bump, every changed feature's binding run.
     func setAllAvailable(_ available: Bool) {
         var changed = false
-        for feature in AppFeature.allCases
-        where feature.isAvailable != available {
+        for feature in AppFeature.allCases where mayFlip(feature, to: available) {
+            UserDefaults.standard.set(available, forKey: feature.availabilityKey)
             guard feature.isSupportedOnCurrentSystem else {
-                if !available {
-                    UserDefaults.standard.set(false, forKey: feature.availabilityKey)
-                    changed = true
-                }
+                changed = true
                 continue
             }
-            UserDefaults.standard.set(available, forKey: feature.availabilityKey)
             if available { loadedThisSession.insert(feature) }
             Self.bindings[feature]?()
             changed = true
@@ -262,5 +278,35 @@ final class FeatureRuntime: ObservableObject {
     private static func syncMonitor() {
         SystemMonitor.shared.planDidChange()
         MonitorAlertService.shared.syncWithPreferences()
+    }
+}
+
+/// Hardware a feature needs and this Mac may not have. One switch answers
+/// both questions, so a feature can never be unsupported without a reason to
+/// show for it, and a feature added here can never grey a row silently.
+/// It lives beside the runtime rather than in the catalog because the answer
+/// comes from a service, and the catalog stays a pure description.
+extension AppFeature {
+    /// Why this Mac cannot run the feature, ready to show. `nil` when it can,
+    /// or when the feature depends on no hardware at all.
+    var hardwareUnsupportedReason: String? {
+        switch self {
+        case .fanControl:
+            return FanControlHardware.hasControllableFan
+                ? nil : FeatureStrings.fanControl(L10n.shared.language).noFans
+        default:
+            return nil
+        }
+    }
+
+    var isHardwareSupported: Bool { hardwareUnsupportedReason == nil }
+
+    /// Why a feature list must refuse to install this feature, ready to show
+    /// as a tooltip. `nil` once it is installed: the check reads hardware and
+    /// can be wrong, so it is never allowed to strand an existing install
+    /// behind a greyed row. Both the hub and the first-run picker read this,
+    /// so neither can drift from the gate in `FeatureRuntime`.
+    var installBlockedReason: String? {
+        isAvailable ? nil : hardwareUnsupportedReason
     }
 }

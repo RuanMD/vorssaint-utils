@@ -34,14 +34,14 @@ struct FeatureHubSettings: View {
                 if tab == .features {
                     HStack(spacing: 8) {
                         Text(String(format: hub.activeCountFormat,
-                                    features.availableCount, features.supportedCount))
+                                    features.availableCount, features.installableCount))
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                         Spacer(minLength: 8)
                         Button(hub.installAllButton) {
                             FeatureRuntime.shared.setAllAvailable(true)
                         }
-                        .disabled(features.availableCount == features.supportedCount)
+                        .disabled(features.availableCount == features.installableCount)
                         Button(hub.uninstallAllButton) {
                             FeatureRuntime.shared.setAllAvailable(false)
                         }
@@ -233,8 +233,15 @@ private struct FeatureHubRow: View {
         return FeatureStrings.menuBarOrganizer(l10n.language).unsupportedSystem
     }
 
+    /// Covers both the hard macOS compatibility gate and hardware that is
+    /// absent on this Mac. Existing hardware-limited installs remain
+    /// uninstallable; an OS-incompatible organizer also stays non-navigable.
+    private var unsupportedReason: String? {
+        unsupportedCaption ?? feature.installBlockedReason
+    }
+
     private var accessibilityDescription: String {
-        [feature.hubDescription(hub), unsupportedCaption]
+        [feature.hubDescription(hub), unsupportedReason]
             .compactMap { $0 }
             .joined(separator: ". ")
     }
@@ -272,6 +279,8 @@ private struct FeatureHubRow: View {
                 rowContent(showsChevron: false)
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(accessibilityTitle). \(accessibilityDescription)")
+                    .opacity(unsupportedReason == nil ? 1 : 0.4)
+                    .saturation(unsupportedReason == nil ? 1 : 0)
             }
             if working {
                 ProgressView()
@@ -281,6 +290,18 @@ private struct FeatureHubRow: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .accessibilityLabel("\(hub.uninstallButton) \(accessibilityTitle)")
+            } else if let reason = unsupportedReason {
+                // .help() never fires on a disabled control, so the tooltip
+                // has to sit on this wrapper. Flattening it loses the only
+                // place the reason is shown.
+                HStack(spacing: 0) {
+                    Button(hub.installButton) { flip(to: true) }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(true)
+                        .accessibilityLabel("\(hub.installButton) \(accessibilityTitle). \(reason)")
+                }
+                .help(reason)
             } else {
                 Button(hub.installButton) { flip(to: true) }
                     .buttonStyle(.borderedProminent)
