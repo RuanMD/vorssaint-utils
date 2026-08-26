@@ -51,13 +51,13 @@ enum SelectionReader {
         // element, never the system-wide one, so a hung app cannot poison
         // every later Accessibility call for the rest of the session.
         let app = AXUIElementCreateApplication(targetPID)
-        AXUIElementSetMessagingTimeout(app, 0.35)
-        guard let focused = copyElement(app, kAXFocusedUIElementAttribute) else { completion(nil); return }
+        AXUIElementSetMessagingTimeout(app, AXCopy.messagingTimeout)
+        guard let focused = AXCopy.element(app, kAXFocusedUIElementAttribute) else { completion(nil); return }
         let isEditable = isSettable(focused, kAXValueAttribute as String)
         let bounds = boundsInScreen(for: focused)
         let elementFrame = elementFrameInScreen(for: focused)
 
-        if let text = copyString(focused, kAXSelectedTextAttribute) {
+        if let text = AXCopy.string(focused, kAXSelectedTextAttribute) {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmed.isEmpty, trimmed.count <= maximumLength {
                 completion(SelectionSnapshot(text: trimmed, boundsInScreen: bounds,
@@ -118,7 +118,7 @@ enum SelectionReader {
     ]
 
     private static func looksLikeTextRole(_ element: AXUIElement) -> Bool {
-        guard let role = copyString(element, kAXRoleAttribute) else { return false }
+        guard let role = AXCopy.string(element, kAXRoleAttribute) else { return false }
         return textRoles.contains(role)
     }
 
@@ -227,28 +227,9 @@ enum SelectionReader {
             && settable.boolValue
     }
 
-    private static func copyElement(_ element: AXUIElement, _ attribute: String) -> AXUIElement? {
-        guard let raw = copyValue(element, attribute),
-              CFGetTypeID(raw) == AXUIElementGetTypeID() else { return nil }
-        return (raw as! AXUIElement)
-    }
-
-    private static func copyString(_ element: AXUIElement, _ attribute: String) -> String? {
-        guard let raw = copyValue(element, attribute),
-              CFGetTypeID(raw) == CFStringGetTypeID() else { return nil }
-        return raw as? String
-    }
-
     private static func copyAXValue(_ element: AXUIElement, _ attribute: String) -> AXValue? {
-        guard let raw = copyValue(element, attribute),
+        guard let raw = AXCopy.value(element, attribute),
               CFGetTypeID(raw) == AXValueGetTypeID() else { return nil }
         return (raw as! AXValue)
-    }
-
-    private static func copyValue(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success
-        else { return nil }
-        return value
     }
 }
