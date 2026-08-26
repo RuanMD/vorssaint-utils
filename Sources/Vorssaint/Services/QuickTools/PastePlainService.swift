@@ -133,7 +133,7 @@ final class PastePlainService: ObservableObject {
                 // so the target app never receives a paste command.
                 self.hotkey.unregister()
             }
-            SyntheticPasteSupport.postCmdV {
+            SyntheticPasteSupport.postCmdVAssumingCleanModifiers {
                 if mustReleaseHotkey {
                     self.syncWithPreferences()
                 }

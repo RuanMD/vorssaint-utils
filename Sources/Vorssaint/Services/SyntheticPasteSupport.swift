@@ -29,12 +29,16 @@ enum SyntheticPasteSupport {
         }
     }
 
-    /// Posts the raw ⌘V key-down/key-up pair. A no-op (with a beep, matching
-    /// every other synthetic-paste call site in the app) while secure event
-    /// input is active - typing into a password field disables synthetic
-    /// keyboard events system-wide, so posting anyway would silently do
-    /// nothing instead of telling the person why.
-    static func postCmdV(completion: @escaping () -> Void) {
+    /// Posts the raw ⌘V key-down/key-up pair. Assumes the caller has already
+    /// waited for a clean keyboard (see `waitForCleanModifiers`) - this does
+    /// not wait itself, unlike some of this enum's other members, so the name
+    /// says so rather than leaving two same-looking calls with opposite
+    /// contracts. A no-op (with a beep, matching every other synthetic-paste
+    /// call site in the app) while secure event input is active - typing into
+    /// a password field disables synthetic keyboard events system-wide, so
+    /// posting anyway would silently do nothing instead of telling the person
+    /// why.
+    static func postCmdVAssumingCleanModifiers(completion: @escaping () -> Void) {
         guard !IsSecureEventInputEnabled() else {
             NSSound.beep()
             completion()
@@ -68,38 +72,6 @@ enum SyntheticPasteSupport {
         }
     }
 
-    /// Posts a synthetic Delete/Backspace, which removes an active selection
-    /// in essentially every text field — native, web, and browser chrome
-    /// alike. Used instead of `replaceSelection(with: "")` for Cut/Delete:
-    /// pasting an empty string turned out to be unreliable in some fields
-    /// (Notes, a browser's own address bar) where a real Delete keystroke
-    /// works everywhere. Guarded against secure event input for the same
-    /// reason as `postCmdV`.
-    static func deleteSelection(completion: (() -> Void)? = nil) {
-        waitForCleanModifiers {
-            guard !IsSecureEventInputEnabled() else {
-                NSSound.beep()
-                completion?()
-                return
-            }
-            guard let keyDown = CGEvent(keyboardEventSource: nil,
-                                        virtualKey: CGKeyCode(kVK_Delete),
-                                        keyDown: true),
-                  let keyUp = CGEvent(keyboardEventSource: nil,
-                                      virtualKey: CGKeyCode(kVK_Delete),
-                                      keyDown: false)
-            else {
-                completion?()
-                return
-            }
-            keyDown.post(tap: .cghidEventTap)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) {
-                keyUp.post(tap: .cghidEventTap)
-                completion?()
-            }
-        }
-    }
-
     static func snapshot(of pasteboard: NSPasteboard) -> [NSPasteboardItem] {
         (pasteboard.pasteboardItems ?? []).map { item in
             let copy = NSPasteboardItem()
@@ -110,47 +82,5 @@ enum SyntheticPasteSupport {
             }
             return copy
         }
-    }
-
-    /// Writes `text` to the general pasteboard, pastes it over the frontmost
-    /// app's current selection once the keyboard reads clean, then restores
-    /// whatever was on the pasteboard before — unless something else changed
-    /// the pasteboard in the meantime, in which case the newer content wins
-    /// and the snapshot is dropped silently.
-    ///
-    /// Every actual pasteboard touch runs through `GeneralPasteboardAccess`,
-    /// the same serial lane Clipboard History and the URL cleaner use —
-    /// touching `NSPasteboard.general` directly from here raced their
-    /// background reads of its type cache and crashed the app.
-    static func replaceSelection(with text: String,
-                                 restoreDelay: TimeInterval = 0.5,
-                                 completion: (() -> Void)? = nil) {
-        let pasteboard = NSPasteboard.general
-        GeneralPasteboardAccess.shared.async({ () -> ([NSPasteboardItem], Int) in
-            let snapshotBefore = snapshot(of: pasteboard)
-            pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
-            return (snapshotBefore, pasteboard.changeCount)
-        }, then: { (snapshotBefore, changeCount) in
-            ClipboardHistoryService.shared.ignoreNextChange(upTo: changeCount)
-            waitForCleanModifiers {
-                postCmdV {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
-                        GeneralPasteboardAccess.shared.async({ () -> Int? in
-                            guard pasteboard.changeCount == changeCount, !snapshotBefore.isEmpty
-                            else { return nil }
-                            pasteboard.clearContents()
-                            pasteboard.writeObjects(snapshotBefore)
-                            return pasteboard.changeCount
-                        }, then: { restoredChangeCount in
-                            if let restoredChangeCount {
-                                ClipboardHistoryService.shared.ignoreNextChange(upTo: restoredChangeCount)
-                            }
-                            completion?()
-                        })
-                    }
-                }
-            }
-        })
     }
 }
