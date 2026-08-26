@@ -163,10 +163,15 @@ enum SelectionActionCatalog {
         guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         else { return false }
         let range = NSRange(trimmed.startIndex..., in: trimmed)
-        guard let match = detector.firstMatch(in: trimmed, range: range), match.range == range else {
+        // NSDataDetector's .link type also matches a bare email address and
+        // returns a mailto: URL for it — excluded here so Open Link doesn't
+        // appear next to Open Mail for the same text.
+        guard let match = detector.firstMatch(in: trimmed, range: range), match.range == range,
+              let url = match.url, url.scheme != "mailto"
+        else {
             return false
         }
-        return match.url != nil
+        return true
     }
 
     static func looksLikeEmail(_ text: String) -> Bool {

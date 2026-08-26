@@ -1155,7 +1155,7 @@ enum Defaults {
         DefaultsKey.selectionActionsMaxVisible: 8,
         DefaultsKey.selectionActionsAIService: "chatgpt",
         DefaultsKey.selectionActionsAITemporaryChat: false,
-        DefaultsKey.selectionActionsCurrencyTarget: Locale.current.currency?.identifier ?? "USD",
+        DefaultsKey.selectionActionsCurrencyTarget: CurrencyDetector.defaultTargetCode,
         DefaultsKey.selectionActionsTerminalConfirm: true,
         DefaultsKey.selectionActionsTerminalTarget: "tab",
         DefaultsKey.selectionActionsExcludedApps: [String](),
