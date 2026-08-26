@@ -247,7 +247,7 @@ final class SelectionActionsService: ObservableObject {
             dismiss()
             return
         }
-        let maxVisible = defaults.object(forKey: DefaultsKey.selectionActionsMaxVisible) as? Int ?? 8
+        let maxVisible = defaults.integer(forKey: DefaultsKey.selectionActionsMaxVisible)
         present(snapshot: snapshot, actions: actions, maxVisible: maxVisible)
     }
 

@@ -83,4 +83,79 @@ enum SyntheticPasteSupport {
             return copy
         }
     }
+
+    /// Posts a synthetic Delete/Backspace, which removes an active selection
+    /// in essentially every text field — native, web, and browser chrome
+    /// alike. Used instead of `replaceSelection(with: "")` for Cut/Delete:
+    /// pasting an empty string turned out to be unreliable in some fields
+    /// (Notes, a browser's own address bar) where a real Delete keystroke
+    /// works everywhere. Waits for a clean keyboard itself, unlike
+    /// `postCmdVAssumingCleanModifiers` - callers here have no earlier step
+    /// that already waited, so the function owns it.
+    static func deleteSelection(completion: (() -> Void)? = nil) {
+        waitForCleanModifiers {
+            guard !IsSecureEventInputEnabled() else {
+                NSSound.beep()
+                completion?()
+                return
+            }
+            guard let keyDown = CGEvent(keyboardEventSource: nil,
+                                        virtualKey: CGKeyCode(kVK_Delete),
+                                        keyDown: true),
+                  let keyUp = CGEvent(keyboardEventSource: nil,
+                                      virtualKey: CGKeyCode(kVK_Delete),
+                                      keyDown: false)
+            else {
+                completion?()
+                return
+            }
+            keyDown.post(tap: .cghidEventTap)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) {
+                keyUp.post(tap: .cghidEventTap)
+                completion?()
+            }
+        }
+    }
+
+    /// Writes `text` to the general pasteboard, pastes it over the frontmost
+    /// app's current selection once the keyboard reads clean, then restores
+    /// whatever was on the pasteboard before — unless something else changed
+    /// the pasteboard in the meantime, in which case the newer content wins
+    /// and the snapshot is dropped silently.
+    ///
+    /// Every actual pasteboard touch runs through `GeneralPasteboardAccess`,
+    /// the same serial lane Clipboard History and the URL cleaner use —
+    /// touching `NSPasteboard.general` directly from here raced their
+    /// background reads of its type cache and crashed the app.
+    static func replaceSelection(with text: String,
+                                 restoreDelay: TimeInterval = 0.5,
+                                 completion: (() -> Void)? = nil) {
+        let pasteboard = NSPasteboard.general
+        GeneralPasteboardAccess.shared.async({ () -> ([NSPasteboardItem], Int) in
+            let snapshotBefore = snapshot(of: pasteboard)
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+            return (snapshotBefore, pasteboard.changeCount)
+        }, then: { (snapshotBefore, changeCount) in
+            ClipboardHistoryService.shared.ignoreNextChange(upTo: changeCount)
+            waitForCleanModifiers {
+                postCmdVAssumingCleanModifiers {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) {
+                        GeneralPasteboardAccess.shared.async({ () -> Int? in
+                            guard pasteboard.changeCount == changeCount, !snapshotBefore.isEmpty
+                            else { return nil }
+                            pasteboard.clearContents()
+                            pasteboard.writeObjects(snapshotBefore)
+                            return pasteboard.changeCount
+                        }, then: { restoredChangeCount in
+                            if let restoredChangeCount {
+                                ClipboardHistoryService.shared.ignoreNextChange(upTo: restoredChangeCount)
+                            }
+                            completion?()
+                        })
+                    }
+                }
+            }
+        })
+    }
 }
