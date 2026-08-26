@@ -61,10 +61,15 @@ final class FeatureRuntime: ObservableObject {
     /// state the feature had (its own keys are never touched).
     func setAvailable(_ feature: AppFeature, _ available: Bool) {
         guard feature.isAvailable != available else { return }
-        // Turning a feature back off is always allowed; installing one that
-        // cannot run on this macOS version would crash on launch.
+        // Never instantiate a binding that cannot run on this macOS version.
+        // Uninstalling remains allowed so an availability key carried over
+        // from an older system can still be cleared.
         if available, !feature.isSupportedOnCurrentSystem { return }
         UserDefaults.standard.set(available, forKey: feature.availabilityKey)
+        guard feature.isSupportedOnCurrentSystem else {
+            revision += 1
+            return
+        }
         if available { loadedThisSession.insert(feature) }
         Self.bindings[feature]?()
         revision += 1
@@ -107,8 +112,14 @@ final class FeatureRuntime: ObservableObject {
     func setAllAvailable(_ available: Bool) {
         var changed = false
         for feature in AppFeature.allCases
-        where feature.isAvailable != available
-            && (available ? feature.isSupportedOnCurrentSystem : true) {
+        where feature.isAvailable != available {
+            guard feature.isSupportedOnCurrentSystem else {
+                if !available {
+                    UserDefaults.standard.set(false, forKey: feature.availabilityKey)
+                    changed = true
+                }
+                continue
+            }
             UserDefaults.standard.set(available, forKey: feature.availabilityKey)
             if available { loadedThisSession.insert(feature) }
             Self.bindings[feature]?()

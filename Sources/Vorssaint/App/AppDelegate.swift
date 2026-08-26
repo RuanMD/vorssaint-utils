@@ -234,7 +234,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         SmoothScrollService.shared.suspend()
         MouseNavigationService.shared.suspend()
         DockPreviewService.shared.stop()
-        if AppFeature.menuBarOrganizer.isAvailable {
+        if AppFeature.menuBarOrganizer.isAvailable,
+           AppFeature.menuBarOrganizer.isSupportedOnCurrentSystem {
             MenuBarOrganizerService.shared.stop()
         }
         SoundOutputSwitcher.shared.stop()
