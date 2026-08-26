@@ -17,8 +17,10 @@ struct DetectedCurrency: Equatable {
 enum CurrencyDetector {
     /// Every value here must be a `knownCodes` member — a symbol whose
     /// currency Convert Currency can't actually convert would detect fine
-    /// and then silently do nothing when pressed.
-    private static let symbolToCode: [String: String] = [
+    /// and then silently do nothing when pressed. Enforced in
+    /// `MetricsTests`, not just this comment: internal so the test can see
+    /// it.
+    static let symbolToCode: [String: String] = [
         "$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY", "₹": "INR",
         "₩": "KRW", "₺": "TRY",
         "R$": "BRL", "C$": "CAD", "A$": "AUD",

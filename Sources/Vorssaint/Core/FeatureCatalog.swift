@@ -349,6 +349,10 @@ extension AppFeature {
                 return cleanerNotifies || whatsAppNotifies
             case (.screenRecorder, .microphone):
                 return boolFor(DefaultsKey.recorderMicrophone)
+            case (.selectionActions, .automationTerminal):
+                return SelectionActionCatalog.isEnabled(
+                    .runInTerminal,
+                    enabledRaw: stringFor(DefaultsKey.selectionActionsEnabledActions) ?? "")
             default:
                 return true
             }

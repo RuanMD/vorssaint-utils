@@ -10483,13 +10483,26 @@ struct MetricsTests {
         expect(CurrencyDetector.detect(in: "$100")?.currencyCode == "USD"
                 && CurrencyDetector.detect(in: "$100")?.amount == 100,
                "a leading currency symbol is detected with its amount")
-        expect(CurrencyDetector.detect(in: "1,250.50 EUR")?.currencyCode == "EUR"
-                && CurrencyDetector.detect(in: "1,250.50 EUR")?.amount == 1250.50,
-               "a trailing ISO code with thousands separators is detected")
+        // Built from the current locale's own separators rather than
+        // hardcoded as "1,250.50": parseAmount is locale-dependent by
+        // design now (that's the fix for decimal-comma locales), so a
+        // literal en-US-style string here would pass on this machine and
+        // CI's locale and fail wherever "," is the decimal separator.
+        let localizedThousands = { () -> String in
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            formatter.locale = .current
+            return formatter.string(from: 1250.50) ?? "1250.5"
+        }()
+        expect(CurrencyDetector.detect(in: "\(localizedThousands) EUR")?.currencyCode == "EUR"
+                && CurrencyDetector.detect(in: "\(localizedThousands) EUR")?.amount == 1250.50,
+               "a trailing ISO code with the locale's own separators is detected")
         expect(CurrencyDetector.detect(in: "THE 100") == nil,
                "a three-letter word next to a number is not mistaken for an unknown currency code")
         expect(CurrencyDetector.detect(in: "hello world") == nil,
                "text with no amount detects nothing")
+        expect(Set(CurrencyDetector.symbolToCode.values).isSubset(of: CurrencyDetector.knownCodes),
+               "every currency reachable by symbol must also be a currency Convert Currency can convert to")
 
         // MARK: Hardware-gated installs
 
@@ -11053,6 +11066,13 @@ struct MetricsTests {
         expect(AppFeature.quickToggles.permissions == [.automationFinder],
                "the quick toggles need no permission beyond the Trash's Finder ask")
         expect(activeSet(.automationTerminal) == [.homebrew], "homebrew drives the Terminal")
+        expect(activeSet(.automationTerminal, on: [DefaultsKey.selectionActionsEnabled]) == [.homebrew],
+               "Selection Actions being on does not by itself use Terminal automation")
+        expect(activeSet(.automationTerminal,
+                         on: [DefaultsKey.selectionActionsEnabled],
+                         strings: [DefaultsKey.selectionActionsEnabledActions: "runInTerminal"])
+                == [.homebrew, .selectionActions],
+               "Run in Terminal only uses Terminal automation once that action is switched on")
         expect(activeSet(.appManagement) == [.homebrew, .appUpdates, .diskImageInstaller],
                "package, update and disk-image installs declare App Management access")
         expect(AppFeature.homebrew.permissions == [.automationTerminal, .appManagement],
