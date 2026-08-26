@@ -10483,20 +10483,18 @@ struct MetricsTests {
         expect(CurrencyDetector.detect(in: "$100")?.currencyCode == "USD"
                 && CurrencyDetector.detect(in: "$100")?.amount == 100,
                "a leading currency symbol is detected with its amount")
-        // Built from the current locale's own separators rather than
-        // hardcoded as "1,250.50": parseAmount is locale-dependent by
-        // design now (that's the fix for decimal-comma locales), so a
-        // literal en-US-style string here would pass on this machine and
-        // CI's locale and fail wherever "," is the decimal separator.
-        let localizedThousands = { () -> String in
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.locale = .current
-            return formatter.string(from: 1250.50) ?? "1250.5"
-        }()
-        expect(CurrencyDetector.detect(in: "\(localizedThousands) EUR")?.currencyCode == "EUR"
-                && CurrencyDetector.detect(in: "\(localizedThousands) EUR")?.amount == 1250.50,
-               "a trailing ISO code with the locale's own separators is detected")
+        // Literal, not built from Locale.current: parseAmount reads the
+        // convention the TEXT carries, not this Mac's - a round trip through
+        // this machine's own formatter would only prove the same-convention
+        // case, not the cross-convention one Convert Currency exists for.
+        // Both of these must parse the same way regardless of which locale
+        // runs the test.
+        expect(CurrencyDetector.detect(in: "$1,234.56")?.currencyCode == "USD"
+                && CurrencyDetector.detect(in: "$1,234.56")?.amount == 1234.56,
+               "an en-convention amount (comma grouping, period decimal) parses the same under any running locale")
+        expect(CurrencyDetector.detect(in: "19,50 EUR")?.currencyCode == "EUR"
+                && CurrencyDetector.detect(in: "19,50 EUR")?.amount == 19.50,
+               "a de-convention amount (comma decimal, no grouping) parses the same under any running locale")
         expect(CurrencyDetector.detect(in: "THE 100") == nil,
                "a three-letter word next to a number is not mistaken for an unknown currency code")
         expect(CurrencyDetector.detect(in: "hello world") == nil,

@@ -82,17 +82,15 @@ enum CurrencyDetector {
         return nil
     }
 
-    /// Locale-aware: in de/fr/es/it/pt-BR — all shipped languages — a comma
-    /// is the decimal separator, not a thousands grouping mark. Parsing
-    /// "1,50" as 150 rather than 1.5 would convert the wrong amount and
-    /// replace the selection with it (`convertCurrency.isTransform == true`),
-    /// which is exactly the wrong-source-currency failure this file exists
-    /// to avoid.
+    /// Convention-agnostic, not locale-bound: the selected text carries
+    /// *its own writer's* decimal convention, not necessarily this Mac's -
+    /// Convert Currency exists specifically for a price written the other
+    /// way. `NumberFormatter(locale: .current)` can only apply one
+    /// convention and gets the cross-convention case wrong (silently, by up
+    /// to 1000x, in one direction). `CommandBarMath.number` instead infers
+    /// the separators' roles from the text's own pattern.
     private static func parseAmount(_ raw: String) -> Double? {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = .current
-        return formatter.number(from: raw)?.doubleValue
+        CommandBarMath.number(from: raw)
     }
 
     private static func firstMatch(pattern: String, in text: String) -> (String, String)? {

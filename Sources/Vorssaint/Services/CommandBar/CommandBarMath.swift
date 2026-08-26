@@ -52,6 +52,22 @@ enum CommandBarMath {
         return Result(formatted: formatted, value: value)
     }
 
+    /// A single number, written in whatever decimal convention its own text
+    /// carries rather than this Mac's - `readNumber` decides that from the
+    /// pattern (last separator when both appear is the decimal point; a lone
+    /// separator is grouping only if exactly three digits follow it), not
+    /// from `locale`. `locale` only supplies the two candidate separator
+    /// characters to look for.
+    static func number(from raw: String, locale: Locale = .current) -> Double? {
+        var characters = Array(raw)
+        var index = 0
+        guard let value = readNumber(&characters, &index,
+                                     decimalSeparator: locale.decimalSeparator?.first ?? ".",
+                                     groupingSeparator: locale.groupingSeparator?.first ?? ",")
+        else { return nil }
+        return index == characters.count ? value : nil
+    }
+
     /// Rounds away floating point noise (0.1 + 0.2 must read as 0.3) and
     /// writes the number with the separators of this Mac.
     static func format(_ value: Double, locale: Locale = .current) -> String? {
