@@ -455,6 +455,11 @@ enum DefaultsKey {
     static let selectionActionsDisplayStyle = "selectionActionsDisplayStyle" // icon | word
     static let selectionActionsOrder = "selectionActionsOrder" // comma-joined SelectionAction ids, drag order
     static let selectionActionsMaxVisible = "selectionActionsMaxVisible" // actions shown before the rest collapse under a chevron
+    static let selectionActionsAIService = "selectionActionsAIService" // chatgpt | claude
+    static let selectionActionsAITemporaryChat = "selectionActionsAITemporaryChat"
+    static let selectionActionsCurrencyTarget = "selectionActionsCurrencyTarget" // ISO 4217 code Convert Currency converts to
+    static let selectionActionsTerminalConfirm = "selectionActionsTerminalConfirm" // ask before Run in Terminal executes
+    static let selectionActionsTerminalTarget = "selectionActionsTerminalTarget" // tab | window
     static let selectionActionsExcludedApps = "selectionActionsExcludedApps" // bundle ids the bar never shows for
     static let selectionActionsExcludedDomains = "selectionActionsExcludedDomains" // one website per line, never shows on these
     static let selectionActionsShortcut = "selectionActionsShortcut"
@@ -1147,7 +1152,12 @@ enum Defaults {
         DefaultsKey.selectionActionsEnabledActions: SelectionActionCatalog.defaultEnabledStorageValue,
         DefaultsKey.selectionActionsDisplayStyle: "icon",
         DefaultsKey.selectionActionsOrder: "",
-        DefaultsKey.selectionActionsMaxVisible: 4,
+        DefaultsKey.selectionActionsMaxVisible: 8,
+        DefaultsKey.selectionActionsAIService: "chatgpt",
+        DefaultsKey.selectionActionsAITemporaryChat: false,
+        DefaultsKey.selectionActionsCurrencyTarget: Locale.current.currency?.identifier ?? "USD",
+        DefaultsKey.selectionActionsTerminalConfirm: true,
+        DefaultsKey.selectionActionsTerminalTarget: "tab",
         DefaultsKey.selectionActionsExcludedApps: [String](),
         DefaultsKey.selectionActionsExcludedDomains: "",
         DefaultsKey.selectionActionsShortcutEnabled: true,

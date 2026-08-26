@@ -240,7 +240,7 @@ extension AppFeature {
             return [.accessibility]
         case .finderCutPaste: return [.accessibility, .automationFinder]
         case .finderRename: return [.accessibility]
-        case .selectionActions: return [.accessibility]
+        case .selectionActions: return [.accessibility, .automationTerminal]
         // Only emptying the Trash asks the Finder; every other quick toggle
         // (dark mode included) works without a permission.
         case .quickToggles: return [.automationFinder]

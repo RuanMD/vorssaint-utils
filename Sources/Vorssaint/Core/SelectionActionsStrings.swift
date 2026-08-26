@@ -30,15 +30,42 @@ struct SelectionActionsStrings {
     let excludedDomainsAddButton: String
     let excludedDomainsRemoveButton: String
 
+    let aiServiceLabel: String
+    let aiServiceChatGPT: String
+    let aiServiceClaude: String
+    let aiTemporaryChatLabel: String
+    let terminalConfirmLabel: String
+    let terminalConfirmTitle: String
+    let terminalConfirmRun: String
+    let terminalConfirmCancel: String
+    let terminalTargetLabel: String
+    let terminalTargetTab: String
+    let terminalTargetWindow: String
+    let currencyTargetLabel: String
+
     let copyTitle: String
     let cutTitle: String
     let pasteTitle: String
     let deleteTitle: String
+    let searchWebTitle: String
+    let openLinkTitle: String
+    let openMailTitle: String
+    let translateTitle: String
+    let sendToAITitle: String
+    let runInTerminalTitle: String
+    let convertCurrencyTitle: String
 
     let copyDescription: String
     let cutDescription: String
     let pasteDescription: String
     let deleteDescription: String
+    let searchWebDescription: String
+    let openLinkDescription: String
+    let openMailDescription: String
+    let translateDescription: String
+    let sendToAIDescription: String
+    let runInTerminalDescription: String
+    let convertCurrencyDescription: String
 
     func title(for action: SelectionAction) -> String {
         switch action {
@@ -46,6 +73,13 @@ struct SelectionActionsStrings {
         case .cut: return cutTitle
         case .paste: return pasteTitle
         case .delete: return deleteTitle
+        case .searchWeb: return searchWebTitle
+        case .openLink: return openLinkTitle
+        case .openMail: return openMailTitle
+        case .translate: return translateTitle
+        case .sendToAI: return sendToAITitle
+        case .runInTerminal: return runInTerminalTitle
+        case .convertCurrency: return convertCurrencyTitle
         }
     }
 
@@ -55,6 +89,13 @@ struct SelectionActionsStrings {
         case .cut: return cutDescription
         case .paste: return pasteDescription
         case .delete: return deleteDescription
+        case .searchWeb: return searchWebDescription
+        case .openLink: return openLinkDescription
+        case .openMail: return openMailDescription
+        case .translate: return translateDescription
+        case .sendToAI: return sendToAIDescription
+        case .runInTerminal: return runInTerminalDescription
+        case .convertCurrency: return convertCurrencyDescription
         }
     }
 }
@@ -105,14 +146,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "example.com",
         excludedDomainsAddButton: "Add",
         excludedDomainsRemoveButton: "Remove",
+        aiServiceLabel: "Service",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "Temporary Chat",
+        terminalConfirmLabel: "Ask before running",
+        terminalConfirmTitle: "Run this in Terminal?",
+        terminalConfirmRun: "Run",
+        terminalConfirmCancel: "Cancel",
+        terminalTargetLabel: "Run in",
+        terminalTargetTab: "Tab",
+        terminalTargetWindow: "Window",
+        currencyTargetLabel: "Convert to",
         copyTitle: "Copy",
         cutTitle: "Cut",
         pasteTitle: "Paste",
         deleteTitle: "Delete",
+        searchWebTitle: "Search Web",
+        openLinkTitle: "Open Link",
+        openMailTitle: "Open in Mail",
+        translateTitle: "Translate",
+        sendToAITitle: "Send to AI",
+        runInTerminalTitle: "Run in Terminal",
+        convertCurrencyTitle: "Convert Currency",
         copyDescription: "Copies the selection to the clipboard.",
         cutDescription: "Copies the selection, then removes it.",
         pasteDescription: "Replaces the selection with what's on the clipboard.",
-        deleteDescription: "Removes the selection without copying it."
+        deleteDescription: "Removes the selection without copying it.",
+        searchWebDescription: "Searches the web for the selection.",
+        openLinkDescription: "Opens the selection as a web link.",
+        openMailDescription: "Opens the selection as an email address.",
+        translateDescription: "Opens Google Translate with the selection.",
+        sendToAIDescription: "Opens ChatGPT or Claude with the selection as the prompt.",
+        runInTerminalDescription: "Runs the selection as a shell command.",
+        convertCurrencyDescription: "Converts a money amount to your currency."
     )
 
     static let ptBR = SelectionActionsStrings(
@@ -140,14 +207,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "exemplo.com",
         excludedDomainsAddButton: "Adicionar",
         excludedDomainsRemoveButton: "Remover",
+        aiServiceLabel: "Serviço",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "Chat Temporário",
+        terminalConfirmLabel: "Perguntar antes de executar",
+        terminalConfirmTitle: "Executar isto no Terminal?",
+        terminalConfirmRun: "Executar",
+        terminalConfirmCancel: "Cancelar",
+        terminalTargetLabel: "Executar em",
+        terminalTargetTab: "Aba",
+        terminalTargetWindow: "Janela",
+        currencyTargetLabel: "Converter para",
         copyTitle: "Copiar",
         cutTitle: "Recortar",
         pasteTitle: "Colar",
         deleteTitle: "Excluir",
+        searchWebTitle: "Pesquisar na Web",
+        openLinkTitle: "Abrir Link",
+        openMailTitle: "Abrir no Mail",
+        translateTitle: "Traduzir",
+        sendToAITitle: "Enviar para IA",
+        runInTerminalTitle: "Executar no Terminal",
+        convertCurrencyTitle: "Converter Moeda",
         copyDescription: "Copia a seleção para a área de transferência.",
         cutDescription: "Copia a seleção e a remove em seguida.",
         pasteDescription: "Substitui a seleção pelo conteúdo da área de transferência.",
-        deleteDescription: "Remove a seleção sem copiá-la."
+        deleteDescription: "Remove a seleção sem copiá-la.",
+        searchWebDescription: "Pesquisa a seleção na web.",
+        openLinkDescription: "Abre a seleção como um link da web.",
+        openMailDescription: "Abre a seleção como um endereço de e-mail.",
+        translateDescription: "Abre o Google Tradutor com a seleção.",
+        sendToAIDescription: "Abre o ChatGPT ou o Claude com a seleção como prompt.",
+        runInTerminalDescription: "Executa a seleção como um comando do shell.",
+        convertCurrencyDescription: "Converte um valor monetário para sua moeda."
     )
 
     static let tr = SelectionActionsStrings(
@@ -175,14 +268,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "ornek.com",
         excludedDomainsAddButton: "Ekle",
         excludedDomainsRemoveButton: "Kaldır",
+        aiServiceLabel: "Servis",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "Geçici Sohbet",
+        terminalConfirmLabel: "Çalıştırmadan önce sor",
+        terminalConfirmTitle: "Bu Terminal'de çalıştırılsın mı?",
+        terminalConfirmRun: "Çalıştır",
+        terminalConfirmCancel: "İptal",
+        terminalTargetLabel: "Şurada çalıştır",
+        terminalTargetTab: "Sekme",
+        terminalTargetWindow: "Pencere",
+        currencyTargetLabel: "Şuna çevir",
         copyTitle: "Kopyala",
         cutTitle: "Kes",
         pasteTitle: "Yapıştır",
         deleteTitle: "Sil",
+        searchWebTitle: "Web'de Ara",
+        openLinkTitle: "Bağlantıyı Aç",
+        openMailTitle: "Mail'de Aç",
+        translateTitle: "Çevir",
+        sendToAITitle: "Yapay Zekaya Gönder",
+        runInTerminalTitle: "Terminal'de Çalıştır",
+        convertCurrencyTitle: "Para Birimi Çevir",
         copyDescription: "Seçimi panoya kopyalar.",
         cutDescription: "Seçimi kopyalar, sonra kaldırır.",
         pasteDescription: "Seçimi panodaki içerikle değiştirir.",
-        deleteDescription: "Seçimi kopyalamadan kaldırır."
+        deleteDescription: "Seçimi kopyalamadan kaldırır.",
+        searchWebDescription: "Seçimi web'de arar.",
+        openLinkDescription: "Seçimi bir web bağlantısı olarak açar.",
+        openMailDescription: "Seçimi bir e-posta adresi olarak açar.",
+        translateDescription: "Seçimle Google Çeviri'yi açar.",
+        sendToAIDescription: "Seçimi istem olarak ChatGPT veya Claude'da açar.",
+        runInTerminalDescription: "Seçimi bir kabuk komutu olarak çalıştırır.",
+        convertCurrencyDescription: "Bir para tutarını kendi para biriminize çevirir."
     )
 
     static let ru = SelectionActionsStrings(
@@ -210,14 +329,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "example.com",
         excludedDomainsAddButton: "Добавить",
         excludedDomainsRemoveButton: "Удалить",
+        aiServiceLabel: "Сервис",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "Временный чат",
+        terminalConfirmLabel: "Спрашивать перед запуском",
+        terminalConfirmTitle: "Выполнить это в Терминале?",
+        terminalConfirmRun: "Выполнить",
+        terminalConfirmCancel: "Отмена",
+        terminalTargetLabel: "Выполнить в",
+        terminalTargetTab: "Вкладке",
+        terminalTargetWindow: "Окне",
+        currencyTargetLabel: "Конвертировать в",
         copyTitle: "Копировать",
         cutTitle: "Вырезать",
         pasteTitle: "Вставить",
         deleteTitle: "Удалить",
+        searchWebTitle: "Искать в интернете",
+        openLinkTitle: "Открыть ссылку",
+        openMailTitle: "Открыть в Почте",
+        translateTitle: "Перевести",
+        sendToAITitle: "Отправить в ИИ",
+        runInTerminalTitle: "Выполнить в Терминале",
+        convertCurrencyTitle: "Конвертировать валюту",
         copyDescription: "Копирует выделение в буфер обмена.",
         cutDescription: "Копирует выделение, затем удаляет его.",
         pasteDescription: "Заменяет выделение содержимым буфера обмена.",
-        deleteDescription: "Удаляет выделение без копирования."
+        deleteDescription: "Удаляет выделение без копирования.",
+        searchWebDescription: "Ищет выделенный текст в интернете.",
+        openLinkDescription: "Открывает выделение как веб-ссылку.",
+        openMailDescription: "Открывает выделение как адрес электронной почты.",
+        translateDescription: "Открывает Google Переводчик с выделенным текстом.",
+        sendToAIDescription: "Открывает ChatGPT или Claude с выделением в качестве запроса.",
+        runInTerminalDescription: "Выполняет выделение как команду оболочки.",
+        convertCurrencyDescription: "Конвертирует денежную сумму в вашу валюту."
     )
 
     static let es = SelectionActionsStrings(
@@ -245,14 +390,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "ejemplo.com",
         excludedDomainsAddButton: "Añadir",
         excludedDomainsRemoveButton: "Eliminar",
+        aiServiceLabel: "Servicio",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "Chat Temporal",
+        terminalConfirmLabel: "Preguntar antes de ejecutar",
+        terminalConfirmTitle: "¿Ejecutar esto en Terminal?",
+        terminalConfirmRun: "Ejecutar",
+        terminalConfirmCancel: "Cancelar",
+        terminalTargetLabel: "Ejecutar en",
+        terminalTargetTab: "Pestaña",
+        terminalTargetWindow: "Ventana",
+        currencyTargetLabel: "Convertir a",
         copyTitle: "Copiar",
         cutTitle: "Cortar",
         pasteTitle: "Pegar",
         deleteTitle: "Eliminar",
+        searchWebTitle: "Buscar en la Web",
+        openLinkTitle: "Abrir Enlace",
+        openMailTitle: "Abrir en Mail",
+        translateTitle: "Traducir",
+        sendToAITitle: "Enviar a la IA",
+        runInTerminalTitle: "Ejecutar en Terminal",
+        convertCurrencyTitle: "Convertir Moneda",
         copyDescription: "Copia la selección al portapapeles.",
         cutDescription: "Copia la selección y luego la elimina.",
         pasteDescription: "Reemplaza la selección con el contenido del portapapeles.",
-        deleteDescription: "Elimina la selección sin copiarla."
+        deleteDescription: "Elimina la selección sin copiarla.",
+        searchWebDescription: "Busca la selección en la web.",
+        openLinkDescription: "Abre la selección como un enlace web.",
+        openMailDescription: "Abre la selección como una dirección de correo.",
+        translateDescription: "Abre Google Traductor con la selección.",
+        sendToAIDescription: "Abre ChatGPT o Claude con la selección como instrucción.",
+        runInTerminalDescription: "Ejecuta la selección como un comando de shell.",
+        convertCurrencyDescription: "Convierte un importe de dinero a tu moneda."
     )
 
     static let de = SelectionActionsStrings(
@@ -280,14 +451,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "beispiel.de",
         excludedDomainsAddButton: "Hinzufügen",
         excludedDomainsRemoveButton: "Entfernen",
+        aiServiceLabel: "Dienst",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "Temporärer Chat",
+        terminalConfirmLabel: "Vor dem Ausführen nachfragen",
+        terminalConfirmTitle: "Dies im Terminal ausführen?",
+        terminalConfirmRun: "Ausführen",
+        terminalConfirmCancel: "Abbrechen",
+        terminalTargetLabel: "Ausführen in",
+        terminalTargetTab: "Tab",
+        terminalTargetWindow: "Fenster",
+        currencyTargetLabel: "Umrechnen in",
         copyTitle: "Kopieren",
         cutTitle: "Ausschneiden",
         pasteTitle: "Einfügen",
         deleteTitle: "Löschen",
+        searchWebTitle: "Im Web suchen",
+        openLinkTitle: "Link öffnen",
+        openMailTitle: "In Mail öffnen",
+        translateTitle: "Übersetzen",
+        sendToAITitle: "An KI senden",
+        runInTerminalTitle: "Im Terminal ausführen",
+        convertCurrencyTitle: "Währung umrechnen",
         copyDescription: "Kopiert die Auswahl in die Zwischenablage.",
         cutDescription: "Kopiert die Auswahl und entfernt sie dann.",
         pasteDescription: "Ersetzt die Auswahl durch den Inhalt der Zwischenablage.",
-        deleteDescription: "Entfernt die Auswahl, ohne sie zu kopieren."
+        deleteDescription: "Entfernt die Auswahl, ohne sie zu kopieren.",
+        searchWebDescription: "Sucht im Web nach der Auswahl.",
+        openLinkDescription: "Öffnet die Auswahl als Weblink.",
+        openMailDescription: "Öffnet die Auswahl als E-Mail-Adresse.",
+        translateDescription: "Öffnet Google Übersetzer mit der Auswahl.",
+        sendToAIDescription: "Öffnet ChatGPT oder Claude mit der Auswahl als Prompt.",
+        runInTerminalDescription: "Führt die Auswahl als Shell-Befehl aus.",
+        convertCurrencyDescription: "Rechnet einen Geldbetrag in deine Währung um."
     )
 
     static let fr = SelectionActionsStrings(
@@ -315,14 +512,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "exemple.com",
         excludedDomainsAddButton: "Ajouter",
         excludedDomainsRemoveButton: "Supprimer",
+        aiServiceLabel: "Service",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "Discussion Temporaire",
+        terminalConfirmLabel: "Demander avant d'exécuter",
+        terminalConfirmTitle: "Exécuter ceci dans Terminal ?",
+        terminalConfirmRun: "Exécuter",
+        terminalConfirmCancel: "Annuler",
+        terminalTargetLabel: "Exécuter dans",
+        terminalTargetTab: "Onglet",
+        terminalTargetWindow: "Fenêtre",
+        currencyTargetLabel: "Convertir en",
         copyTitle: "Copier",
         cutTitle: "Couper",
         pasteTitle: "Coller",
         deleteTitle: "Supprimer",
+        searchWebTitle: "Rechercher sur le Web",
+        openLinkTitle: "Ouvrir le lien",
+        openMailTitle: "Ouvrir dans Mail",
+        translateTitle: "Traduire",
+        sendToAITitle: "Envoyer à l'IA",
+        runInTerminalTitle: "Exécuter dans Terminal",
+        convertCurrencyTitle: "Convertir la devise",
         copyDescription: "Copie la sélection dans le presse-papiers.",
         cutDescription: "Copie la sélection, puis la supprime.",
         pasteDescription: "Remplace la sélection par le contenu du presse-papiers.",
-        deleteDescription: "Supprime la sélection sans la copier."
+        deleteDescription: "Supprime la sélection sans la copier.",
+        searchWebDescription: "Recherche la sélection sur le web.",
+        openLinkDescription: "Ouvre la sélection comme un lien web.",
+        openMailDescription: "Ouvre la sélection comme une adresse e-mail.",
+        translateDescription: "Ouvre Google Traduction avec la sélection.",
+        sendToAIDescription: "Ouvre ChatGPT ou Claude avec la sélection comme invite.",
+        runInTerminalDescription: "Exécute la sélection comme une commande shell.",
+        convertCurrencyDescription: "Convertit un montant dans votre devise."
     )
 
     static let it = SelectionActionsStrings(
@@ -350,14 +573,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "esempio.com",
         excludedDomainsAddButton: "Aggiungi",
         excludedDomainsRemoveButton: "Rimuovi",
+        aiServiceLabel: "Servizio",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "Chat Temporanea",
+        terminalConfirmLabel: "Chiedi prima di eseguire",
+        terminalConfirmTitle: "Eseguire questo nel Terminale?",
+        terminalConfirmRun: "Esegui",
+        terminalConfirmCancel: "Annulla",
+        terminalTargetLabel: "Esegui in",
+        terminalTargetTab: "Scheda",
+        terminalTargetWindow: "Finestra",
+        currencyTargetLabel: "Converti in",
         copyTitle: "Copia",
         cutTitle: "Taglia",
         pasteTitle: "Incolla",
         deleteTitle: "Elimina",
+        searchWebTitle: "Cerca sul Web",
+        openLinkTitle: "Apri Link",
+        openMailTitle: "Apri in Mail",
+        translateTitle: "Traduci",
+        sendToAITitle: "Invia all'IA",
+        runInTerminalTitle: "Esegui nel Terminale",
+        convertCurrencyTitle: "Converti Valuta",
         copyDescription: "Copia la selezione negli appunti.",
         cutDescription: "Copia la selezione, poi la rimuove.",
         pasteDescription: "Sostituisce la selezione con il contenuto degli appunti.",
-        deleteDescription: "Rimuove la selezione senza copiarla."
+        deleteDescription: "Rimuove la selezione senza copiarla.",
+        searchWebDescription: "Cerca la selezione sul web.",
+        openLinkDescription: "Apre la selezione come link web.",
+        openMailDescription: "Apre la selezione come indirizzo email.",
+        translateDescription: "Apre Google Traduttore con la selezione.",
+        sendToAIDescription: "Apre ChatGPT o Claude con la selezione come prompt.",
+        runInTerminalDescription: "Esegue la selezione come comando della shell.",
+        convertCurrencyDescription: "Converte un importo di denaro nella tua valuta."
     )
 
     static let ja = SelectionActionsStrings(
@@ -385,14 +634,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "example.com",
         excludedDomainsAddButton: "追加",
         excludedDomainsRemoveButton: "削除",
+        aiServiceLabel: "サービス",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "一時的なチャット",
+        terminalConfirmLabel: "実行前に確認する",
+        terminalConfirmTitle: "ターミナルで実行しますか?",
+        terminalConfirmRun: "実行",
+        terminalConfirmCancel: "キャンセル",
+        terminalTargetLabel: "実行先",
+        terminalTargetTab: "タブ",
+        terminalTargetWindow: "ウインドウ",
+        currencyTargetLabel: "変換先",
         copyTitle: "コピー",
         cutTitle: "カット",
         pasteTitle: "ペースト",
         deleteTitle: "削除",
+        searchWebTitle: "Webを検索",
+        openLinkTitle: "リンクを開く",
+        openMailTitle: "メールで開く",
+        translateTitle: "翻訳",
+        sendToAITitle: "AIに送信",
+        runInTerminalTitle: "ターミナルで実行",
+        convertCurrencyTitle: "通貨換算",
         copyDescription: "選択範囲をクリップボードにコピーします。",
         cutDescription: "選択範囲をコピーしてから削除します。",
         pasteDescription: "選択範囲をクリップボードの内容で置き換えます。",
-        deleteDescription: "選択範囲をコピーせずに削除します。"
+        deleteDescription: "選択範囲をコピーせずに削除します。",
+        searchWebDescription: "選択範囲をWebで検索します。",
+        openLinkDescription: "選択範囲をWebリンクとして開きます。",
+        openMailDescription: "選択範囲をメールアドレスとして開きます。",
+        translateDescription: "選択範囲でGoogle翻訳を開きます。",
+        sendToAIDescription: "選択範囲をプロンプトとしてChatGPTまたはClaudeを開きます。",
+        runInTerminalDescription: "選択範囲をシェルコマンドとして実行します。",
+        convertCurrencyDescription: "金額をお使いの通貨に換算します。"
     )
 
     static let ko = SelectionActionsStrings(
@@ -420,14 +695,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "example.com",
         excludedDomainsAddButton: "추가",
         excludedDomainsRemoveButton: "제거",
+        aiServiceLabel: "서비스",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "임시 채팅",
+        terminalConfirmLabel: "실행 전 확인",
+        terminalConfirmTitle: "터미널에서 이것을 실행할까요?",
+        terminalConfirmRun: "실행",
+        terminalConfirmCancel: "취소",
+        terminalTargetLabel: "실행 위치",
+        terminalTargetTab: "탭",
+        terminalTargetWindow: "창",
+        currencyTargetLabel: "변환할 통화",
         copyTitle: "복사",
         cutTitle: "잘라내기",
         pasteTitle: "붙여넣기",
         deleteTitle: "삭제",
+        searchWebTitle: "웹 검색",
+        openLinkTitle: "링크 열기",
+        openMailTitle: "메일에서 열기",
+        translateTitle: "번역",
+        sendToAITitle: "AI로 보내기",
+        runInTerminalTitle: "터미널에서 실행",
+        convertCurrencyTitle: "통화 변환",
         copyDescription: "선택 항목을 클립보드에 복사합니다.",
         cutDescription: "선택 항목을 복사한 후 제거합니다.",
         pasteDescription: "선택 항목을 클립보드 내용으로 바꿉니다.",
-        deleteDescription: "선택 항목을 복사하지 않고 제거합니다."
+        deleteDescription: "선택 항목을 복사하지 않고 제거합니다.",
+        searchWebDescription: "선택 항목을 웹에서 검색합니다.",
+        openLinkDescription: "선택 항목을 웹 링크로 엽니다.",
+        openMailDescription: "선택 항목을 이메일 주소로 엽니다.",
+        translateDescription: "선택 항목으로 구글 번역을 엽니다.",
+        sendToAIDescription: "선택 항목을 프롬프트로 하여 ChatGPT 또는 Claude를 엽니다.",
+        runInTerminalDescription: "선택 항목을 셸 명령으로 실행합니다.",
+        convertCurrencyDescription: "금액을 사용자의 통화로 변환합니다."
     )
 
     static let zhHans = SelectionActionsStrings(
@@ -455,14 +756,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "example.com",
         excludedDomainsAddButton: "添加",
         excludedDomainsRemoveButton: "移除",
+        aiServiceLabel: "服务",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "临时聊天",
+        terminalConfirmLabel: "运行前询问",
+        terminalConfirmTitle: "要在终端中运行吗？",
+        terminalConfirmRun: "运行",
+        terminalConfirmCancel: "取消",
+        terminalTargetLabel: "运行位置",
+        terminalTargetTab: "标签页",
+        terminalTargetWindow: "窗口",
+        currencyTargetLabel: "转换为",
         copyTitle: "拷贝",
         cutTitle: "剪切",
         pasteTitle: "粘贴",
         deleteTitle: "删除",
+        searchWebTitle: "网页搜索",
+        openLinkTitle: "打开链接",
+        openMailTitle: "在邮件中打开",
+        translateTitle: "翻译",
+        sendToAITitle: "发送给 AI",
+        runInTerminalTitle: "在终端中运行",
+        convertCurrencyTitle: "货币转换",
         copyDescription: "将所选内容复制到剪贴板。",
         cutDescription: "先复制所选内容，再将其移除。",
         pasteDescription: "用剪贴板内容替换所选内容。",
-        deleteDescription: "移除所选内容但不复制。"
+        deleteDescription: "移除所选内容但不复制。",
+        searchWebDescription: "在网页中搜索所选内容。",
+        openLinkDescription: "将所选内容作为网页链接打开。",
+        openMailDescription: "将所选内容作为电子邮件地址打开。",
+        translateDescription: "用所选内容打开谷歌翻译。",
+        sendToAIDescription: "将所选内容作为提示词打开 ChatGPT 或 Claude。",
+        runInTerminalDescription: "将所选内容作为 shell 命令运行。",
+        convertCurrencyDescription: "将金额转换为您的货币。"
     )
 
     static let zhTW = SelectionActionsStrings(
@@ -490,14 +817,40 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "example.com",
         excludedDomainsAddButton: "新增",
         excludedDomainsRemoveButton: "移除",
+        aiServiceLabel: "服務",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "臨時聊天",
+        terminalConfirmLabel: "執行前先詢問",
+        terminalConfirmTitle: "要在終端機中執行嗎？",
+        terminalConfirmRun: "執行",
+        terminalConfirmCancel: "取消",
+        terminalTargetLabel: "執行於",
+        terminalTargetTab: "分頁",
+        terminalTargetWindow: "視窗",
+        currencyTargetLabel: "轉換為",
         copyTitle: "拷貝",
         cutTitle: "剪下",
         pasteTitle: "貼上",
         deleteTitle: "刪除",
+        searchWebTitle: "網頁搜尋",
+        openLinkTitle: "打開連結",
+        openMailTitle: "在郵件中打開",
+        translateTitle: "翻譯",
+        sendToAITitle: "傳送給 AI",
+        runInTerminalTitle: "在終端機中執行",
+        convertCurrencyTitle: "貨幣轉換",
         copyDescription: "將所選內容複製到剪貼簿。",
         cutDescription: "先複製所選內容，再將其移除。",
         pasteDescription: "用剪貼簿內容取代所選內容。",
-        deleteDescription: "移除所選內容但不複製。"
+        deleteDescription: "移除所選內容但不複製。",
+        searchWebDescription: "在網頁中搜尋所選內容。",
+        openLinkDescription: "將所選內容作為網頁連結打開。",
+        openMailDescription: "將所選內容作為電子郵件地址打開。",
+        translateDescription: "用所選內容打開 Google 翻譯。",
+        sendToAIDescription: "將所選內容作為提示詞打開 ChatGPT 或 Claude。",
+        runInTerminalDescription: "將所選內容作為 shell 指令執行。",
+        convertCurrencyDescription: "將金額轉換為您的貨幣。"
     )
 
     static let zhHK = SelectionActionsStrings(
@@ -525,13 +878,39 @@ extension SelectionActionsStrings {
         excludedDomainsPlaceholder: "example.com",
         excludedDomainsAddButton: "新增",
         excludedDomainsRemoveButton: "移除",
+        aiServiceLabel: "服務",
+        aiServiceChatGPT: "ChatGPT",
+        aiServiceClaude: "Claude",
+        aiTemporaryChatLabel: "臨時聊天",
+        terminalConfirmLabel: "執行前先詢問",
+        terminalConfirmTitle: "要在終端機中執行嗎？",
+        terminalConfirmRun: "執行",
+        terminalConfirmCancel: "取消",
+        terminalTargetLabel: "執行於",
+        terminalTargetTab: "分頁",
+        terminalTargetWindow: "視窗",
+        currencyTargetLabel: "轉換為",
         copyTitle: "拷貝",
         cutTitle: "剪下",
         pasteTitle: "貼上",
         deleteTitle: "刪除",
+        searchWebTitle: "網頁搜尋",
+        openLinkTitle: "打開連結",
+        openMailTitle: "在郵件中打開",
+        translateTitle: "翻譯",
+        sendToAITitle: "傳送給 AI",
+        runInTerminalTitle: "在終端機中執行",
+        convertCurrencyTitle: "貨幣轉換",
         copyDescription: "將所選內容複製到剪貼簿。",
         cutDescription: "先複製所選內容，再將其移除。",
         pasteDescription: "用剪貼簿內容取代所選內容。",
-        deleteDescription: "移除所選內容但不複製。"
+        deleteDescription: "移除所選內容但不複製。",
+        searchWebDescription: "在網頁中搜尋所選內容。",
+        openLinkDescription: "將所選內容作為網頁連結打開。",
+        openMailDescription: "將所選內容作為電子郵件地址打開。",
+        translateDescription: "用所選內容打開 Google 翻譯。",
+        sendToAIDescription: "將所選內容作為提示詞打開 ChatGPT 或 Claude。",
+        runInTerminalDescription: "將所選內容作為 shell 指令執行。",
+        convertCurrencyDescription: "將金額轉換為您的貨幣。"
     )
 }

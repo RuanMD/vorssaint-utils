@@ -12,7 +12,7 @@ struct SelectionActionsSettings: View {
     @AppStorage(DefaultsKey.selectionActionsShortcutEnabled) private var shortcutEnabled = true
     @AppStorage(DefaultsKey.selectionActionsEnabledActions) private var enabledActionsRaw = ""
     @AppStorage(DefaultsKey.selectionActionsDisplayStyle) private var displayStyleRaw = "icon"
-    @AppStorage(DefaultsKey.selectionActionsMaxVisible) private var maxVisible = 4
+    @AppStorage(DefaultsKey.selectionActionsMaxVisible) private var maxVisible = 8
     /// Read only so this view redraws when the drag order changes; the order
     /// itself is read and written through `PanelLayout`.
     @AppStorage(DefaultsKey.selectionActionsOrder) private var orderRaw = ""
@@ -190,7 +190,96 @@ private struct SelectionActionRow: View {
     @ViewBuilder
     private var settingsPopover: some View {
         switch action {
+        case .sendToAI: SendToAISettingsPanel(strings: strings)
+        case .runInTerminal: RunInTerminalSettingsPanel(strings: strings)
+        case .convertCurrency: ConvertCurrencySettingsPanel(strings: strings)
         default: EmptyView()
         }
+    }
+}
+
+private struct SendToAISettingsPanel: View {
+    let strings: SelectionActionsStrings
+    @AppStorage(DefaultsKey.selectionActionsAIService) private var serviceRaw = "chatgpt"
+    @AppStorage(DefaultsKey.selectionActionsAITemporaryChat) private var temporaryChat = false
+
+    private var service: SelectionActionsAIService { SelectionActionsAIService.sanitized(serviceRaw) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(strings.aiServiceLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Picker("", selection: serviceBinding) {
+                Text(strings.aiServiceChatGPT).tag(SelectionActionsAIService.chatgpt)
+                Text(strings.aiServiceClaude).tag(SelectionActionsAIService.claude)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            if service == .chatgpt {
+                Toggle(strings.aiTemporaryChatLabel, isOn: $temporaryChat)
+            }
+        }
+        .padding(14)
+        .frame(width: 230)
+    }
+
+    private var serviceBinding: Binding<SelectionActionsAIService> {
+        Binding {
+            service
+        } set: { serviceRaw = $0.rawValue }
+    }
+}
+
+private struct RunInTerminalSettingsPanel: View {
+    let strings: SelectionActionsStrings
+    @AppStorage(DefaultsKey.selectionActionsTerminalConfirm) private var confirm = true
+    @AppStorage(DefaultsKey.selectionActionsTerminalTarget) private var targetRaw = "tab"
+
+    private var target: SelectionActionsTerminalTarget { SelectionActionsTerminalTarget.sanitized(targetRaw) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle(strings.terminalConfirmLabel, isOn: $confirm)
+            Divider()
+            Text(strings.terminalTargetLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Picker("", selection: targetBinding) {
+                Text(strings.terminalTargetTab).tag(SelectionActionsTerminalTarget.tab)
+                Text(strings.terminalTargetWindow).tag(SelectionActionsTerminalTarget.window)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+        }
+        .padding(14)
+        .frame(width: 220)
+    }
+
+    private var targetBinding: Binding<SelectionActionsTerminalTarget> {
+        Binding {
+            target
+        } set: { targetRaw = $0.rawValue }
+    }
+}
+
+private struct ConvertCurrencySettingsPanel: View {
+    let strings: SelectionActionsStrings
+    @AppStorage(DefaultsKey.selectionActionsCurrencyTarget) private var target = "USD"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(strings.currencyTargetLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Picker("", selection: $target) {
+                ForEach(CurrencyDetector.sortedKnownCodes, id: \.self) { code in
+                    Text(code).tag(code)
+                }
+            }
+            .labelsHidden()
+        }
+        .padding(14)
+        .frame(width: 180)
     }
 }

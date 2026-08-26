@@ -183,6 +183,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/Defaults.swift \
         Sources/Vorssaint/Core/PanelOrderItem.swift \
         Sources/Vorssaint/Core/SelectionActionCatalog.swift \
+        Sources/Vorssaint/Core/CurrencyDetector.swift \
         Sources/Vorssaint/Core/FeatureCatalog.swift \
         Sources/Vorssaint/Core/FeaturePresets.swift \
         Sources/Vorssaint/Core/FeatureHubStrings.swift \

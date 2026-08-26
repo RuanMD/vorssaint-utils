@@ -14,6 +14,13 @@ enum SelectionAction: String, CaseIterable, Identifiable, PanelOrderItem {
     case cut
     case paste
     case delete
+    case searchWeb
+    case openLink
+    case openMail
+    case translate
+    case sendToAI
+    case runInTerminal
+    case convertCurrency
 
     var id: String { rawValue }
 
@@ -23,6 +30,13 @@ enum SelectionAction: String, CaseIterable, Identifiable, PanelOrderItem {
         case .cut: return "scissors"
         case .paste: return "clipboard"
         case .delete: return "delete.left"
+        case .searchWeb: return "magnifyingglass"
+        case .openLink: return "link"
+        case .openMail: return "envelope"
+        case .translate: return "translate"
+        case .sendToAI: return "sparkles"
+        case .runInTerminal: return "greaterthanorequalto"
+        case .convertCurrency: return "dollarsign.arrow.circlepath"
         }
     }
 
@@ -30,9 +44,9 @@ enum SelectionAction: String, CaseIterable, Identifiable, PanelOrderItem {
     /// rather than just reading it.
     var isTransform: Bool {
         switch self {
-        case .cut, .paste, .delete:
+        case .cut, .paste, .delete, .convertCurrency:
             return true
-        case .copy:
+        case .copy, .searchWeb, .openLink, .openMail, .translate, .sendToAI, .runInTerminal:
             return false
         }
     }
@@ -41,7 +55,10 @@ enum SelectionAction: String, CaseIterable, Identifiable, PanelOrderItem {
     /// switch always means on/off; the gear (when present) only ever holds
     /// the action's own configuration.
     var hasSettings: Bool {
-        false
+        switch self {
+        case .sendToAI, .runInTerminal, .convertCurrency: return true
+        default: return false
+        }
     }
 
     /// Whether this action makes sense for the given selection right now.
@@ -56,6 +73,9 @@ enum SelectionAction: String, CaseIterable, Identifiable, PanelOrderItem {
         switch self {
         case .paste:
             return NSPasteboard.general.string(forType: .string) != nil
+        case .openLink: return SelectionActionCatalog.looksLikeLink(text)
+        case .openMail: return SelectionActionCatalog.looksLikeEmail(text)
+        case .convertCurrency: return CurrencyDetector.detect(in: text) != nil
         default: return true
         }
     }
@@ -71,11 +91,31 @@ enum SelectionActionsDisplayStyle: String {
     }
 }
 
+/// Which service "Send to AI" opens.
+enum SelectionActionsAIService: String {
+    case chatgpt
+    case claude
+
+    static func sanitized(_ raw: String?) -> SelectionActionsAIService {
+        SelectionActionsAIService(rawValue: raw ?? "") ?? .chatgpt
+    }
+}
+
+/// Where "Run in Terminal" runs the command.
+enum SelectionActionsTerminalTarget: String {
+    case tab
+    case window
+
+    static func sanitized(_ raw: String?) -> SelectionActionsTerminalTarget {
+        SelectionActionsTerminalTarget(rawValue: raw ?? "") ?? .tab
+    }
+}
+
 enum SelectionActionCatalog {
     /// The everyday actions a fresh install starts with; everything else is
     /// one switch away in Settings rather than cluttering the bar by default.
     static let defaultEnabled: Set<SelectionAction> = [
-        .copy, .cut, .paste,
+        .copy, .cut, .paste, .searchWeb, .openLink, .openMail, .translate,
     ]
 
     /// Persisted as the *enabled* set, not the disabled one: a future update
@@ -115,5 +155,29 @@ enum SelectionActionCatalog {
         return order.filter {
             isEnabled($0, enabledRaw: enabledRaw) && $0.appliesTo(text: text, isEditable: isEditable)
         }
+    }
+
+    static func looksLikeLink(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains(where: \.isNewline) else { return false }
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        else { return false }
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        guard let match = detector.firstMatch(in: trimmed, range: range), match.range == range else {
+            return false
+        }
+        return match.url != nil
+    }
+
+    static func looksLikeEmail(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains(where: \.isNewline) else { return false }
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        else { return false }
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        guard let match = detector.firstMatch(in: trimmed, range: range), match.range == range,
+              let url = match.url, url.scheme == "mailto"
+        else { return false }
+        return true
     }
 }

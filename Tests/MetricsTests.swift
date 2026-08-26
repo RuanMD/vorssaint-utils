@@ -10478,6 +10478,19 @@ struct MetricsTests {
                 && !AppFeature.monitorPower.isBeta,
                "fan control is an on-demand beta with no broad permission")
 
+        // MARK: Selection Actions
+
+        expect(CurrencyDetector.detect(in: "$100")?.currencyCode == "USD"
+                && CurrencyDetector.detect(in: "$100")?.amount == 100,
+               "a leading currency symbol is detected with its amount")
+        expect(CurrencyDetector.detect(in: "1,250.50 EUR")?.currencyCode == "EUR"
+                && CurrencyDetector.detect(in: "1,250.50 EUR")?.amount == 1250.50,
+               "a trailing ISO code with thousands separators is detected")
+        expect(CurrencyDetector.detect(in: "THE 100") == nil,
+               "a three-letter word next to a number is not mistaken for an unknown currency code")
+        expect(CurrencyDetector.detect(in: "hello world") == nil,
+               "text with no amount detects nothing")
+
         // MARK: Hardware-gated installs
 
         // Availability is only ever written by the runtime that gates it, so
