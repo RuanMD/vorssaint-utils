@@ -57,13 +57,22 @@ enum CommandBarMath {
     /// pattern (last separator when both appear is the decimal point; a lone
     /// separator is grouping only if exactly three digits follow it), not
     /// from `locale`. `locale` only supplies the two candidate separator
-    /// characters to look for.
+    /// characters to look for - use this overload for text typed by the
+    /// user on this machine. For text whose separator alphabet is fixed by
+    /// something other than this Mac's locale (e.g. a regex that only ever
+    /// emits `.`/`,`), pass those separators directly instead.
     static func number(from raw: String, locale: Locale = .current) -> Double? {
+        number(from: raw,
+               decimalSeparator: locale.decimalSeparator?.first ?? ".",
+               groupingSeparator: locale.groupingSeparator?.first ?? ",")
+    }
+
+    static func number(from raw: String, decimalSeparator: Character, groupingSeparator: Character) -> Double? {
         var characters = Array(raw)
         var index = 0
         guard let value = readNumber(&characters, &index,
-                                     decimalSeparator: locale.decimalSeparator?.first ?? ".",
-                                     groupingSeparator: locale.groupingSeparator?.first ?? ",")
+                                     decimalSeparator: decimalSeparator,
+                                     groupingSeparator: groupingSeparator)
         else { return nil }
         return index == characters.count ? value : nil
     }

@@ -88,9 +88,13 @@ enum CurrencyDetector {
     /// way. `NumberFormatter(locale: .current)` can only apply one
     /// convention and gets the cross-convention case wrong (silently, by up
     /// to 1000x, in one direction). `CommandBarMath.number` instead infers
-    /// the separators' roles from the text's own pattern.
+    /// the separators' roles from the text's own pattern - not from
+    /// `Locale.current`, which is a mismatched source: the regex above
+    /// only ever captures digits plus literal `.`/`,`, so those two
+    /// characters (never the Mac's own locale separators) are what
+    /// `raw` can actually contain.
     private static func parseAmount(_ raw: String) -> Double? {
-        CommandBarMath.number(from: raw)
+        CommandBarMath.number(from: raw, decimalSeparator: ".", groupingSeparator: ",")
     }
 
     private static func firstMatch(pattern: String, in text: String) -> (String, String)? {
