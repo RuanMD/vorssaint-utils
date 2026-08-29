@@ -94,7 +94,16 @@ enum CurrencyDetector {
     /// characters (never the Mac's own locale separators) are what
     /// `raw` can actually contain.
     private static func parseAmount(_ raw: String) -> Double? {
-        CommandBarMath.number(from: raw, decimalSeparator: ".", groupingSeparator: ",")
+        // Whichever separator appears alone goes in as the grouping one, so
+        // readNumber's three-digits test decides its role instead of a lone
+        // "." defaulting to a decimal point. No currency in `knownCodes` has
+        // three decimal places, so a lone "." with exactly three digits
+        // after it is never a payable fraction here - it's thousands, the
+        // ordinary way de/es/it/pt/tr write a price.
+        let dotAlone = !raw.contains(",")
+        return CommandBarMath.number(from: raw,
+                                     decimalSeparator: dotAlone ? "," : ".",
+                                     groupingSeparator: dotAlone ? "." : ",")
     }
 
     private static func firstMatch(pattern: String, in text: String) -> (String, String)? {

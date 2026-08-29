@@ -10495,6 +10495,18 @@ struct MetricsTests {
         expect(CurrencyDetector.detect(in: "19,50 EUR")?.currencyCode == "EUR"
                 && CurrencyDetector.detect(in: "19,50 EUR")?.amount == 19.50,
                "a de-convention amount (comma decimal, no grouping) parses the same under any running locale")
+        // A lone "." is ambiguous between decimal and thousands-grouping;
+        // readNumber's three-digits test already decides that for a lone
+        // ",", and parseAmount must hand it the same test rather than
+        // defaulting a lone "." straight to a decimal point - otherwise
+        // "1.234"/"1,234" (the same de/es/it/pt/tr thousands amount) parse
+        // to opposite values depending only on which separator was used.
+        expect(CurrencyDetector.detect(in: "1.234 EUR")?.currencyCode == "EUR"
+                && CurrencyDetector.detect(in: "1.234 EUR")?.amount == 1234,
+               "a lone '.' with exactly three digits after it is thousands-grouping, not a decimal point, matching the lone ',' case")
+        expect(CurrencyDetector.detect(in: "1,234 EUR")?.currencyCode == "EUR"
+                && CurrencyDetector.detect(in: "1,234 EUR")?.amount == 1234,
+               "a lone ',' with exactly three digits after it is thousands-grouping - unchanged by the '.' fix, kept here as the pair")
         expect(CurrencyDetector.detect(in: "THE 100") == nil,
                "a three-letter word next to a number is not mistaken for an unknown currency code")
         expect(CurrencyDetector.detect(in: "hello world") == nil,
