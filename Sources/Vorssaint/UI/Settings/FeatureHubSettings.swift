@@ -727,6 +727,7 @@ extension AppFeature {
         case .soundOutputSwitcher: return s.soundOutputSwitcherTitle
         case .micMute: return s.micMuteName
         case .musicBlock: return hub.titleMusicBlock
+        case .dictation: return FeatureStrings.dictation(L10n.shared.language).title
         case .keepAwake: return s.keepAwakeTitle
         case .brightness: return FeatureStrings.brightness(L10n.shared.language).pageTitle
         case .extraBrightness: return s.extraBrightnessName
@@ -790,6 +791,7 @@ extension AppFeature {
         case .soundOutputSwitcher: return hub.descSoundOutputSwitcher
         case .micMute: return hub.descMicMute
         case .musicBlock: return hub.descMusicBlock
+        case .dictation: return FeatureStrings.dictation(L10n.shared.language).hubDescription
         case .keepAwake: return hub.descKeepAwake
         case .brightness: return FeatureStrings.brightness(L10n.shared.language).hubDescription
         case .extraBrightness: return hub.descExtraBrightness
