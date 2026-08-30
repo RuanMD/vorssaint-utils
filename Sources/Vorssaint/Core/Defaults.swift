@@ -544,6 +544,8 @@ enum DefaultsKey {
     // Global voice dictation. Provider credentials live only in Keychain.
     static let dictationEnabled = "dictationEnabled"
     static let dictationShortcut = "dictationShortcut"
+    static let dictationShortcutKind = "dictationShortcutKind"
+    static let dictationModifierShortcut = "dictationModifierShortcut"
     static let dictationProvider = "dictationProvider"
     static let dictationOpenAIModel = "dictationOpenAIModel"
     static let dictationGroqModel = "dictationGroqModel"
@@ -551,6 +553,8 @@ enum DefaultsKey {
     static let dictationLanguage = "dictationLanguage"
     static let dictationSecondaryEnabled = "dictationSecondaryEnabled"
     static let dictationSecondaryShortcut = "dictationSecondaryShortcut"
+    static let dictationSecondaryShortcutKind = "dictationSecondaryShortcutKind"
+    static let dictationSecondaryModifierShortcut = "dictationSecondaryModifierShortcut"
     static let dictationSecondaryMode = "dictationSecondaryMode"
     static let dictationSecondaryLanguage = "dictationSecondaryLanguage"
     static let dictationSecondaryProvider = "dictationSecondaryProvider"
@@ -1205,6 +1209,8 @@ enum Defaults {
         DefaultsKey.panelUtilityScreenRecorder: true,
         DefaultsKey.dictationEnabled: false,
         DefaultsKey.dictationShortcut: GlobalShortcut.dictationDefault.storageValue,
+        DefaultsKey.dictationShortcutKind: DictationShortcutKind.standard.rawValue,
+        DefaultsKey.dictationModifierShortcut: DictationModifierKey.rightCommand.rawValue,
         DefaultsKey.dictationProvider: DictationProvider.openAI.rawValue,
         DefaultsKey.dictationOpenAIModel: DictationProvider.openAI.defaultModel.id,
         DefaultsKey.dictationGroqModel: DictationProvider.groq.defaultModel.id,
@@ -1212,6 +1218,8 @@ enum Defaults {
         DefaultsKey.dictationLanguage: DictationLanguage.automatic.rawValue,
         DefaultsKey.dictationSecondaryEnabled: false,
         DefaultsKey.dictationSecondaryShortcut: GlobalShortcut.dictationSecondaryDefault.storageValue,
+        DefaultsKey.dictationSecondaryShortcutKind: DictationShortcutKind.standard.rawValue,
+        DefaultsKey.dictationSecondaryModifierShortcut: DictationModifierKey.rightOption.rawValue,
         DefaultsKey.dictationSecondaryMode: DictationShortcutMode.toggle.rawValue,
         DefaultsKey.dictationSecondaryLanguage: DictationLanguage.automatic.rawValue,
         DefaultsKey.dictationSecondaryProvider: DictationProvider.groq.rawValue,
