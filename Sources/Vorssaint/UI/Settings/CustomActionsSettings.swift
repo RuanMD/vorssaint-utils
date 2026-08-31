@@ -75,8 +75,9 @@ struct CustomActionsSettings: View {
                             .controlSize(.small)
                             .help(action.enabled ? strings.activeStatus : strings.inactiveStatus)
                             .frame(width: 38, alignment: .trailing)
+                            .frame(width: statusColumnWidth, alignment: .trailing)
                         }
-                        .frame(width: statusColumnWidth, alignment: .trailing)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
                         .tag(action.id)
                         .contextMenu {
