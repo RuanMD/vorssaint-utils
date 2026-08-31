@@ -21328,6 +21328,16 @@ struct MetricsTests {
                "quit protection clamps a too-short double-press interval")
         expect(QuitProtectionSupport.sanitizedDoublePressInterval(3_000) == 1_500,
                "quit protection clamps an overly long double-press interval")
+        expect(QuitProtectionSupport.isWithinDoublePressInterval(
+            firstTimestamp: 1_000_000_000,
+            secondTimestamp: 2_500_000_000,
+            intervalMilliseconds: 1_500
+        ), "a second press on the interval edge confirms")
+        expect(!QuitProtectionSupport.isWithinDoublePressInterval(
+            firstTimestamp: 1_000_000_000,
+            secondTimestamp: 2_500_000_001,
+            intervalMilliseconds: 1_500
+        ), "a second press after the interval starts a new confirmation")
 
         expect(QuitProtectionSupport.scopeAllows(.all, bundleIdentifier: nil, exceptions: []),
                "all-app scope protects even an app without a bundle identifier")

@@ -279,12 +279,18 @@ final class QuitProtectionService: ObservableObject {
                                          mode: QuitProtectionMode,
                                          event: CGEvent,
                                          configuration: QuitProtectionConfiguration) -> Unmanaged<CGEvent>? {
-        if mode == .doublePress, pending?.shortcut == shortcut {
-            postSyntheticPress(from: event)
-            swallowKeyUpFor = shortcut
-            cancelPending()
-            hideHUD()
-            return nil
+        if mode == .doublePress, let pending, pending.shortcut == shortcut {
+            if QuitProtectionSupport.isWithinDoublePressInterval(
+                firstTimestamp: pending.event.timestamp,
+                secondTimestamp: event.timestamp,
+                intervalMilliseconds: configuration.doublePressIntervalMilliseconds
+            ) {
+                postSyntheticPress(from: event)
+                swallowKeyUpFor = shortcut
+                cancelPending()
+                hideHUD()
+                return nil
+            }
         }
 
         beginPending(shortcut: shortcut, mode: mode, event: event)
@@ -315,7 +321,9 @@ final class QuitProtectionService: ObservableObject {
             }
             pendingExpiry = expiry
             DispatchQueue.main.asyncAfter(deadline: .now()
-                + QuitProtectionSupport.sanitizedDoublePressInterval(configuration.doublePressIntervalMilliseconds) / 1_000,
+                + (QuitProtectionSupport.sanitizedDoublePressInterval(
+                    configuration.doublePressIntervalMilliseconds
+                ) + 100) / 1_000,
                                            execute: expiry)
         case .extraModifier:
             let expiry = DispatchWorkItem { [weak self] in

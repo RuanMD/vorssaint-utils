@@ -63,6 +63,19 @@ enum QuitProtectionSupport {
         min(max(value, doublePressIntervalRange.lowerBound), doublePressIntervalRange.upperBound)
     }
 
+    /// CGEvent timestamps are monotonic nanoseconds. Confirmation uses them
+    /// directly so a busy main run loop cannot make a valid second press miss
+    /// its configured interval.
+    static func isWithinDoublePressInterval(firstTimestamp: UInt64,
+                                            secondTimestamp: UInt64,
+                                            intervalMilliseconds: Double) -> Bool {
+        guard secondTimestamp >= firstTimestamp else { return false }
+        let allowedNanoseconds = UInt64(
+            sanitizedDoublePressInterval(intervalMilliseconds) * 1_000_000
+        )
+        return secondTimestamp - firstTimestamp <= allowedNanoseconds
+    }
+
     static func scopeAllows(_ scope: QuitProtectionScope,
                             bundleIdentifier: String?,
                             exceptions: [String]) -> Bool {
