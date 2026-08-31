@@ -102,6 +102,12 @@ enum SettingsDirectory {
                                         (.monitorMemory, [s.monitorMemoryPressureDot]),
                                         (.fanControl, [FeatureStrings.fanControl(language).menuBarTitle]),
                                        ]),
+                SettingsDirectoryItem(page: .menuBarOrganizer,
+                                      title: FeatureStrings.menuBarOrganizer(language).pageTitle,
+                                      icon: "menubar.rectangle",
+                                      keywords: [FeatureStrings.menuBarOrganizer(language).enable,
+                                                 FeatureStrings.menuBarOrganizer(language).hidden,
+                                                 FeatureStrings.menuBarOrganizer(language).secondaryBar]),
             ]),
             (categories.windowsControls, [
                 SettingsDirectoryItem(page: .mouse, title: s.tabMouse, icon: "computermouse",

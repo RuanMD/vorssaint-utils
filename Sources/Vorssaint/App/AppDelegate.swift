@@ -138,7 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                     .dockPreview, .finderCutPaste, .finderRename, .autoQuit, .dockClick,
                     .middleClick, .windowMaximizer, .keyboardDebounce, .windowLayout,
                     .textSnippets, .brightness, .radialMenu, .mouseButtonShortcuts,
-                    .mouseClickDebounce, .superKey, .mixer,
+                    .mouseClickDebounce, .menuBarOrganizer, .superKey, .mixer,
                 ])
             }
             .store(in: &cancellables)
@@ -249,6 +249,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
         MouseNavigationService.shared.suspend()
         DockPreviewService.shared.stop()
+        if AppFeature.menuBarOrganizer.isAvailable,
+           AppFeature.menuBarOrganizer.isSupportedOnCurrentSystem {
+            MenuBarOrganizerService.shared.stop()
+        }
         SoundOutputSwitcher.shared.stop()
         PreciseVolumeRollerService.shared.stop()
         AppVolumeMixer.shared.stopAll()
@@ -1487,25 +1491,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 
-    /// Known menu bar organizers, by bundle id; any of them can be holding
-    /// the icon in its hidden section, which explains it never reappearing
-    /// on this machine. The hint names whichever one is running by its own
-    /// localized app name.
-    private static let menuBarManagerBundlePrefixes = [
-        "com.jordanbaird.Ice",
-        "com.surteesstudios.Bartender",
-        "com.dwarvesv.minimalbar",
-        "com.mortenjust.Dozer",
-    ]
-
     private static func runningMenuBarManagerName() -> String? {
-        for app in NSWorkspace.shared.runningApplications {
-            guard let bundleID = app.bundleIdentifier else { continue }
-            if menuBarManagerBundlePrefixes.contains(where: { bundleID.hasPrefix($0) }) {
-                return app.localizedName
-            }
-        }
-        return nil
+        MenuBarManagerDetection.runningManagers().first?.name
     }
 
     /// Quits and reopens the app. Full Disk Access only applies to a fresh

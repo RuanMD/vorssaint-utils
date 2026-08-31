@@ -191,6 +191,7 @@ enum CommandBarCatalog {
         case .clipboardFiles: return hub.groupClipboardFiles
         case .sound: return hub.groupSound
         case .energyDisplay: return hub.groupEnergyDisplay
+        case .menuBar: return FeatureStrings.menuBarOrganizer(L10n.shared.language).pageTitle
         case .tools: return hub.groupTools
         case .monitor: return hub.groupMonitor
         }
@@ -791,13 +792,17 @@ enum CommandBarCatalog {
             switch item.id {
             case .page(let page):
                 guard !pagesCoveredByActions.contains(page),
-                      FeatureVisibilitySupport.isPageVisible(page, isAvailable: { $0.isAvailable })
+                      FeatureVisibilitySupport.isPageVisible(page, isAvailable: {
+                          $0.isAvailable && $0.isSupportedOnCurrentSystem
+                      })
                 else { return nil }
                 id = "settings.\(page)"
             case .feature(let feature):
-                guard feature.isAvailable,
+                guard feature.isAvailable && feature.isSupportedOnCurrentSystem,
                       FeatureVisibilitySupport.isPageVisible(
-                        item.destination.page, isAvailable: { $0.isAvailable })
+                        item.destination.page, isAvailable: {
+                            $0.isAvailable && $0.isSupportedOnCurrentSystem
+                        })
                 else { return nil }
                 id = "settings.feature.\(feature.rawValue)"
             }

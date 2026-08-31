@@ -21,7 +21,8 @@ final class FeatureRuntime: ObservableObject {
     /// stops working immediately, but its (inert) singleton only leaves
     /// memory on the next launch — this set is what the hub's restart banner
     /// keys off, including the install-then-uninstall-again case.
-    private var loadedThisSession = Set(AppFeature.allCases.filter(\.isAvailable))
+    private var loadedThisSession = Set(
+        AppFeature.allCases.filter { $0.isAvailable && $0.isSupportedOnCurrentSystem })
 
     private init() {}
 
@@ -44,15 +45,21 @@ final class FeatureRuntime: ObservableObject {
 
     func isAvailable(_ feature: AppFeature) -> Bool { feature.isAvailable }
 
-    var availableCount: Int { AppFeature.allCases.filter(\.isAvailable).count }
+    var availableCount: Int {
+        AppFeature.allCases.filter {
+            $0.isAvailable && $0.isSupportedOnCurrentSystem
+        }.count
+    }
 
     /// How many features this Mac can end up with. Counting against the whole
     /// catalog instead would leave the hub's install-all button forever one
-    /// short of its own disabled condition on a Mac missing some hardware.
-    /// An install that predates the check still counts, so the tally can
-    /// never read more installed than installable.
+    /// short on unsupported hardware or macOS versions. Hardware support does
+    /// not revoke an existing install, while an unsafe OS version remains
+    /// excluded because its carried-over preference is deliberately inert.
     var installableCount: Int {
-        AppFeature.allCases.filter { $0.isHardwareSupported || $0.isAvailable }.count
+        AppFeature.allCases.filter {
+            $0.isSupportedOnCurrentSystem && ($0.isHardwareSupported || $0.isAvailable)
+        }.count
     }
 
     /// The one gate every install passes, whichever surface asks: the hub
@@ -60,13 +67,13 @@ final class FeatureRuntime: ObservableObject {
     /// all decide here. A feature the Mac cannot run never installs, so a
     /// disabled row cannot be walked around from the button above it.
     ///
-    /// Uninstalls are never refused and an existing install is never revoked:
-    /// the check reads hardware and can be wrong, and a wrong answer that
-    /// strands someone's settings costs far more than one that leaves a
-    /// feature reporting itself unsupported.
+    /// Uninstalls are never refused and existing preferences are never
+    /// revoked automatically: hardware checks can be wrong, while an unsafe
+    /// OS version must still keep its service dormant.
     private func mayFlip(_ feature: AppFeature, to available: Bool) -> Bool {
         guard feature.isAvailable != available else { return false }
-        return !available || feature.isHardwareSupported
+        return !available
+            || (feature.isSupportedOnCurrentSystem && feature.isHardwareSupported)
     }
 
     /// Flipping availability runs the feature's binding immediately: off
@@ -75,6 +82,10 @@ final class FeatureRuntime: ObservableObject {
     func setAvailable(_ feature: AppFeature, _ available: Bool) {
         guard mayFlip(feature, to: available) else { return }
         UserDefaults.standard.set(available, forKey: feature.availabilityKey)
+        guard feature.isSupportedOnCurrentSystem else {
+            revision += 1
+            return
+        }
         if available { loadedThisSession.insert(feature) }
         Self.bindings[feature]?()
         finishAvailabilityChange()
@@ -99,6 +110,7 @@ final class FeatureRuntime: ObservableObject {
         where mayFlip(feature, to: selected.contains(feature)) {
             let joins = selected.contains(feature)
             UserDefaults.standard.set(joins, forKey: feature.availabilityKey)
+            guard feature.isSupportedOnCurrentSystem else { continue }
             if joins { loadedThisSession.insert(feature) }
             Self.bindings[feature]?()
         }
@@ -107,7 +119,8 @@ final class FeatureRuntime: ObservableObject {
         // for the ones handled above costs nothing. A selected feature the
         // gate refused is not installed, so it is skipped like any other
         // unavailable one and its service never comes to life.
-        for feature in selected where feature.isAvailable {
+        for feature in selected
+        where feature.isAvailable && feature.isSupportedOnCurrentSystem {
             Self.bindings[feature]?()
         }
         finishAvailabilityChange()
@@ -119,6 +132,10 @@ final class FeatureRuntime: ObservableObject {
         var changed = false
         for feature in AppFeature.allCases where mayFlip(feature, to: available) {
             UserDefaults.standard.set(available, forKey: feature.availabilityKey)
+            guard feature.isSupportedOnCurrentSystem else {
+                changed = true
+                continue
+            }
             if available { loadedThisSession.insert(feature) }
             Self.bindings[feature]?()
             changed = true
@@ -129,7 +146,8 @@ final class FeatureRuntime: ObservableObject {
     /// Launch path: replaces the old unconditional sync block. Only available
     /// features get their binding run, so nothing else even instantiates.
     func syncAtLaunch() {
-        for feature in AppFeature.allCases where feature.isAvailable {
+        for feature in AppFeature.allCases
+        where feature.isAvailable && feature.isSupportedOnCurrentSystem {
             Self.bindings[feature]?()
         }
     }
@@ -137,7 +155,8 @@ final class FeatureRuntime: ObservableObject {
     /// Re-syncs a set of features (used by the permission sinks); skips
     /// unavailable ones so their singletons never come to life.
     func sync(_ features: [AppFeature]) {
-        for feature in features where feature.isAvailable {
+        for feature in features
+        where feature.isAvailable && feature.isSupportedOnCurrentSystem {
             Self.bindings[feature]?()
         }
     }
@@ -212,6 +231,11 @@ final class FeatureRuntime: ObservableObject {
         },
         .brightness: { BrightnessService.shared.syncWithPreferences() },
         .extraBrightness: { ExtraBrightnessService.shared.syncWithPreferences() },
+        .menuBarOrganizer: {
+            MainActor.assumeIsolated {
+                MenuBarOrganizerService.shared.syncWithPreferences()
+            }
+        },
         .bluetoothSleep: { BluetoothSleepService.shared.syncWithPreferences() },
         .quickLauncher: { QuickLauncherService.shared.syncWithPreferences() },
         .colorPicker: {

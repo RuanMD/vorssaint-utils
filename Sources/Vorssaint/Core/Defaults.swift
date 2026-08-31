@@ -617,6 +617,13 @@ enum DefaultsKey {
     static let radialMenuItems = "radialMenuItems"        // Data: [RadialMenuItem] JSON
     static let radialMenuProfiles = "radialMenuProfiles"  // Data: [RadialMenuProfile] JSON
 
+    // Menu bar organizer: movable sections for third-party status items.
+    static let menuBarOrganizerEnabled = "menuBarOrganizerEnabled"
+    static let menuBarOrganizerSetupComplete = "menuBarOrganizerSetupComplete"
+    static let menuBarOrganizerAlwaysHiddenEnabled = "menuBarOrganizerAlwaysHiddenEnabled"
+    static let menuBarOrganizerShowDividers = "menuBarOrganizerShowDividers"
+    static let menuBarOrganizerPresentationMode = "menuBarOrganizerPresentationMode"
+
     // Dev-build only: force the "update available" UI for local testing.
     static let simulateUpdate = "simulateUpdate"
     static let simulateBetaUI = "simulateBetaUI"
@@ -973,6 +980,12 @@ enum Defaults {
         DefaultsKey.radialMenuAtPointer: true,
         DefaultsKey.radialMenuMouseButton: RadialMenuMouseTrigger.off.rawValue,
         DefaultsKey.radialMenuActivationMode: RadialMenuActivationMode.pressOrHold.rawValue,
+        DefaultsKey.menuBarOrganizerEnabled: false,
+        DefaultsKey.menuBarOrganizerSetupComplete: false,
+        DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled: false,
+        DefaultsKey.menuBarOrganizerShowDividers: false,
+        DefaultsKey.menuBarOrganizerPresentationMode:
+            MenuBarOrganizerPresentationMode.automatic.rawValue,
         DefaultsKey.windowMaximizeEnabled: false,
         DefaultsKey.keyboardDebounceEnabled: false,
         DefaultsKey.keyboardDebounceWindowMs: defaultKeyboardDebounceWindowMs,

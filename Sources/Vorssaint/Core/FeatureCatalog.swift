@@ -25,6 +25,8 @@ enum AppFeature: String, CaseIterable {
     case mixer, soundOutputSwitcher, micMute, musicBlock
     // Energy and display
     case keepAwake, brightness, extraBrightness, bluetoothSleep
+    // Menu bar
+    case menuBarOrganizer
     // Tools
     case quickLauncher, quickToggles, colorPicker, screenOCR, cleaningMode, mediaTools,
          cleaner, uninstaller, homebrew, appUpdates, screenshot, cameraPreview, radialMenu, scratchpad,
@@ -36,7 +38,7 @@ enum AppFeature: String, CaseIterable {
 
 /// Hub sections, in display order.
 enum FeatureGroup: String, CaseIterable {
-    case windowsDock, mouseKeyboard, clipboardFiles, sound, energyDisplay, tools, monitor
+    case windowsDock, menuBar, mouseKeyboard, clipboardFiles, sound, energyDisplay, tools, monitor
 }
 
 /// System permissions surfaced by the hub's transparency portal.
@@ -98,6 +100,8 @@ extension AppFeature {
             return .sound
         case .keepAwake, .brightness, .extraBrightness, .bluetoothSleep:
             return .energyDisplay
+        case .menuBarOrganizer:
+            return .menuBar
         case .quickLauncher, .quickToggles, .colorPicker, .screenOCR, .cleaningMode, .mediaTools,
              .cleaner, .uninstaller, .homebrew, .appUpdates, .screenshot, .cameraPreview, .radialMenu,
              .scratchpad, .commandBar, .screenRecorder, .killProcess:
@@ -145,6 +149,7 @@ extension AppFeature {
         case .keepAwake: return "moon.zzz.fill"
         case .brightness: return "display.2"
         case .extraBrightness: return "sun.max.fill"
+        case .menuBarOrganizer: return "menubar.rectangle"
         case .bluetoothSleep: return "wave.3.right.circle"
         case .quickLauncher: return "wand.and.rays"
         case .quickToggles: return "togglepower"
@@ -175,7 +180,22 @@ extension AppFeature {
 
     var availabilityKey: String { DefaultsKey.featureAvailable(rawValue) }
 
-    var isBeta: Bool { self == .fanControl || self == .killProcess }
+    var isBeta: Bool { self == .fanControl || self == .killProcess || self == .menuBarOrganizer }
+
+    /// Whether the feature is safe to run on the current macOS major.
+    /// Injectable so the unit tests can exercise future system versions.
+    static func isSupported(_ feature: AppFeature,
+                            onOperatingSystemMajorVersion major: Int =
+                                ProcessInfo.processInfo.operatingSystemVersion.majorVersion) -> Bool {
+        // The organizer drives macOS 26 menu-bar hosting internals that are
+        // not proven on macOS 27: enabling it there crashes and nothing moves.
+        // Other features keep their pre-existing OS commitments.
+        feature == .menuBarOrganizer ? major <= 26 : true
+    }
+
+    var isSupportedOnCurrentSystem: Bool {
+        Self.isSupported(self)
+    }
 
     /// Availability read straight from defaults. Existing features stay
     /// available on update; explicit beta opt-ins may start unavailable.
@@ -223,6 +243,7 @@ extension AppFeature {
         case .musicBlock: return [DefaultsKey.musicBlockEnabled]
         case .brightness: return [DefaultsKey.brightnessControlEnabled]
         case .extraBrightness: return [DefaultsKey.extraBrightnessEnabled]
+        case .menuBarOrganizer: return [DefaultsKey.menuBarOrganizerEnabled]
         case .bluetoothSleep: return [DefaultsKey.bluetoothSleepEnabled]
         case .windowLayout, .diskImageInstaller, .mixer, .micMute, .keepAwake,
              .quickLauncher, .quickToggles, .colorPicker, .screenOCR, .cleaningMode, .mediaTools,
@@ -257,6 +278,7 @@ extension AppFeature {
         case .quickToggles: return [.automationFinder]
         case .switcher: return [.accessibility, .screenRecording]
         case .dockPreview: return [.accessibility, .screenRecording]
+        case .menuBarOrganizer: return [.accessibility]
         case .screenOCR: return [.screenRecording]
         case .screenshot: return [.screenRecording]
         // The sound of the Mac rides the same grant the pixels do. Microphone
@@ -287,7 +309,7 @@ extension AppFeature {
         switch self {
         case .keepAwake, .brightness, .radialMenu, .quickToggles, .cleaner,
              .uninstaller, .homebrew, .appUpdates, .mixer, .cameraPreview,
-             .micMute:
+             .micMute, .menuBarOrganizer:
             return []
         default:
             return permissions.filter { $0 == .accessibility || $0 == .screenRecording }
@@ -304,7 +326,7 @@ extension AppFeature {
         Dictionary(uniqueKeysWithValues: allCases.map {
             ($0.availabilityKey,
              $0 != .focusFollowsMouse && $0 != .fanControl && $0 != .diskImageInstaller
-                && $0 != .killProcess)
+                && $0 != .killProcess && $0 != .menuBarOrganizer)
         })
     }
 

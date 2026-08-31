@@ -242,6 +242,7 @@ struct FeatureHubSettings: View {
         case .clipboardFiles: return hub.groupClipboardFiles
         case .sound: return hub.groupSound
         case .energyDisplay: return hub.groupEnergyDisplay
+        case .menuBar: return FeatureStrings.menuBarOrganizer(L10n.shared.language).pageTitle
         case .tools: return hub.groupTools
         case .monitor: return hub.groupMonitor
         }
@@ -301,10 +302,25 @@ private struct FeatureHubRow: View {
 
     private var installed: Bool { feature.isAvailable }
 
-    /// Set only while this Mac cannot run the feature and it is not yet
-    /// installed, so an install that predates the check keeps an ordinary
-    /// row with its settings and Uninstall reachable.
-    private var unsupportedReason: String? { feature.installBlockedReason }
+    private var supported: Bool { feature.isSupportedOnCurrentSystem }
+
+    private var unsupportedCaption: String? {
+        guard !supported, feature == .menuBarOrganizer else { return nil }
+        return FeatureStrings.menuBarOrganizer(l10n.language).unsupportedSystem
+    }
+
+    /// Covers both the hard macOS compatibility gate and hardware that is
+    /// absent on this Mac. Existing hardware-limited installs remain
+    /// uninstallable; an OS-incompatible organizer also stays non-navigable.
+    private var unsupportedReason: String? {
+        unsupportedCaption ?? feature.installBlockedReason
+    }
+
+    private var accessibilityDescription: String {
+        [feature.hubDescription(hub), unsupportedReason]
+            .compactMap { $0 }
+            .joined(separator: ". ")
+    }
 
     private var accessibilityTitle: String {
         let title = feature.hubTitle(l10n.s, hub: hub)
@@ -324,7 +340,7 @@ private struct FeatureHubRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            if installed, feature.hasNavigableSettingsDestination {
+            if installed, supported, feature.hasNavigableSettingsDestination {
                 Button {
                     SettingsRouter.shared.request(feature.settingsDestination)
                 } label: {
@@ -332,13 +348,13 @@ private struct FeatureHubRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(accessibilityTitle). \(feature.hubDescription(hub))")
+                .accessibilityLabel("\(accessibilityTitle). \(accessibilityDescription)")
                 .accessibilityAddTraits(.isLink)
                 .accessibilityRemoveTraits(.isButton)
             } else {
                 rowContent(showsChevron: false)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(accessibilityTitle). \(feature.hubDescription(hub))")
+                    .accessibilityLabel("\(accessibilityTitle). \(accessibilityDescription)")
                     .opacity(unsupportedReason == nil ? 1 : 0.4)
                     .saturation(unsupportedReason == nil ? 1 : 0)
             }
@@ -366,6 +382,7 @@ private struct FeatureHubRow: View {
                 Button(hub.installButton) { flip(to: true) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                    .disabled(!supported)
                     .accessibilityLabel("\(hub.installButton) \(accessibilityTitle)")
             }
         }
@@ -421,6 +438,12 @@ private struct FeatureHubRow: View {
                 Text(feature.hubDescription(hub))
                     .font(.caption)
                     .foregroundStyle(installed ? Color.secondary : Color.secondary.opacity(0.6))
+                if let unsupportedCaption {
+                    Label(unsupportedCaption, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
             if showsChevron {
@@ -731,6 +754,7 @@ extension AppFeature {
         case .keepAwake: return s.keepAwakeTitle
         case .brightness: return FeatureStrings.brightness(L10n.shared.language).pageTitle
         case .extraBrightness: return s.extraBrightnessName
+        case .menuBarOrganizer: return FeatureStrings.menuBarOrganizer(L10n.shared.language).pageTitle
         case .bluetoothSleep: return FeatureStrings.bluetoothSleep(L10n.shared.language).pageTitle
         case .quickLauncher: return s.launcherName
         case .quickToggles: return FeatureStrings.quickToggles(L10n.shared.language).pageTitle
@@ -795,6 +819,7 @@ extension AppFeature {
         case .keepAwake: return hub.descKeepAwake
         case .brightness: return FeatureStrings.brightness(L10n.shared.language).hubDescription
         case .extraBrightness: return hub.descExtraBrightness
+        case .menuBarOrganizer: return FeatureStrings.menuBarOrganizer(L10n.shared.language).hubDescription
         case .bluetoothSleep: return FeatureStrings.bluetoothSleep(L10n.shared.language).hubDescription
         case .quickLauncher: return hub.descQuickLauncher
         case .quickToggles: return FeatureStrings.quickToggles(L10n.shared.language).hubDescription
