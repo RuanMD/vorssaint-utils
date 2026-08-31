@@ -19,6 +19,20 @@ part they are already better at than the rest of us.
 > contributor who never learns why a rule exists cannot apply it next time,
 > and you are the only one here who has read the rule.
 
+## One resource, one branch
+
+Every new Vorssaint resource that will produce implementation work gets its own
+branch and implementation worktree before planning is handed to an agent. Record
+the resource slug, target branch, worktree path, base commit, dependency (if any),
+and the single objective of the branch in the PRD or handoff.
+
+An independent feature starts from `upstream/main`; a follow-up starts from the
+declared head of its dependency until that dependency is integrated. Never write
+code, tests, builds, or implementation artifacts for a new resource in `main`, in
+another resource's branch, or in a shared checkout. Do not use `stash`, `reset`,
+or discard commands to make an occupied checkout appear clean. A PR contains one
+resource unless the user explicitly approves a combined PR.
+
 ---
 
 ## Before writing anything
