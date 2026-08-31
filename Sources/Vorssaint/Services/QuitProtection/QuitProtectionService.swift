@@ -18,8 +18,6 @@ final class QuitProtectionService: ObservableObject {
         let event: CGEvent
         let mode: QuitProtectionMode
         let targetProcessIdentifier: pid_t?
-        var triggered = false
-        var emittedSyntheticKeyDown = false
     }
 
     private static let syntheticMarker: Int64 = 0x5652535341494E54
@@ -29,7 +27,7 @@ final class QuitProtectionService: ObservableObject {
     private var holdTimer: Timer?
     private var pendingExpiry: DispatchWorkItem?
     private var pending: Pending?
-    private var swallowKeyUpFor: QuitProtectionShortcut?
+    private var swallowShortcut: QuitProtectionShortcut?
     private var frontmostBundleIdentifier: String?
     private var frontmostProcessIdentifier: pid_t?
     private let hud = QuitProtectionHUD()
@@ -89,7 +87,7 @@ final class QuitProtectionService: ObservableObject {
             guard let self,
                   let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             else { return }
-            if self.pending != nil, self.frontmostProcessIdentifier != app.processIdentifier {
+            if let pending = self.pending, pending.targetProcessIdentifier != app.processIdentifier {
                 self.cancelPending()
             }
             self.frontmostBundleIdentifier = app.bundleIdentifier
@@ -98,13 +96,8 @@ final class QuitProtectionService: ObservableObject {
     }
 
     private func stop() {
-        holdTimer?.invalidate()
-        holdTimer = nil
-        pendingExpiry?.cancel()
-        pendingExpiry = nil
-        pending = nil
-        swallowKeyUpFor = nil
-        hud.hide()
+        cancelPending()
+        swallowShortcut = nil
 
         if let activationObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
@@ -173,27 +166,42 @@ final class QuitProtectionService: ObservableObject {
 
     private func handleKeyDown(_ event: CGEvent) -> Unmanaged<CGEvent>? {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+
         if keyCode == 53, pending != nil {
             cancelPending()
             return nil
         }
 
         let shortcut = matchingShortcut(for: event)
-        if let pending, shortcut != pending.shortcut {
-            cancelPending()
+
+        if let swallowShortcut {
+            if shortcut == swallowShortcut || isRepeat {
+                return nil
+            }
         }
 
-        guard let shortcut else { return Unmanaged.passUnretained(event) }
+        if let currentPending = pending {
+            if shortcut != currentPending.shortcut {
+                cancelPending()
+            }
+        }
+
+        guard let shortcut else {
+            return Unmanaged.passUnretained(event)
+        }
+
         let configuration = configuration(for: shortcut)
         guard configuration.enabled,
               QuitProtectionSupport.scopeAllows(configuration.scope,
-                                                 bundleIdentifier: frontmostBundleIdentifier,
-                                                 exceptions: configuration.exceptions)
-        else { return Unmanaged.passUnretained(event) }
+                                                bundleIdentifier: frontmostBundleIdentifier,
+                                                exceptions: configuration.exceptions)
+        else {
+            return Unmanaged.passUnretained(event)
+        }
 
-        let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
         if isRepeat {
-            return pending?.shortcut == shortcut ? nil : Unmanaged.passUnretained(event)
+            return nil
         }
 
         let flags = event.flags
@@ -204,7 +212,7 @@ final class QuitProtectionService: ObservableObject {
         let character = NSEvent(cgEvent: event)?.charactersIgnoringModifiers?.lowercased()
 
         switch configuration.mode {
-        case .hold, .doublePress:
+        case .hold:
             guard QuitProtectionSupport.isBaseShortcut(
                 keyCharacter: character,
                 keyCode: keyCode,
@@ -213,11 +221,41 @@ final class QuitProtectionService: ObservableObject {
                 option: option,
                 shift: shift,
                 shortcut: shortcut
-            ) else { return Unmanaged.passUnretained(event) }
-            return handleConfirmationPress(shortcut: shortcut,
-                                           mode: configuration.mode,
-                                           event: event,
-                                           configuration: configuration)
+            ) else {
+                return Unmanaged.passUnretained(event)
+            }
+            beginPending(shortcut: shortcut, mode: .hold, event: event)
+            showHUD(for: shortcut, configuration: configuration, extraModifierOnly: false)
+            return nil
+
+        case .doublePress:
+            guard QuitProtectionSupport.isBaseShortcut(
+                keyCharacter: character,
+                keyCode: keyCode,
+                command: command,
+                control: control,
+                option: option,
+                shift: shift,
+                shortcut: shortcut
+            ) else {
+                return Unmanaged.passUnretained(event)
+            }
+            if let pending, pending.shortcut == shortcut, pending.mode == .doublePress {
+                if QuitProtectionSupport.isWithinDoublePressInterval(
+                    firstTimestamp: pending.event.timestamp,
+                    secondTimestamp: event.timestamp,
+                    intervalMilliseconds: configuration.doublePressIntervalMilliseconds
+                ) {
+                    let targetPid = pending.targetProcessIdentifier
+                    cancelPending()
+                    swallowShortcut = shortcut
+                    confirm(shortcut: shortcut, event: event, targetProcessIdentifier: targetPid)
+                    return nil
+                }
+            }
+            beginPending(shortcut: shortcut, mode: .doublePress, event: event)
+            showHUD(for: shortcut, configuration: configuration, extraModifierOnly: false)
+            return nil
 
         case .extraModifier:
             if QuitProtectionSupport.isExtraShortcut(
@@ -230,12 +268,12 @@ final class QuitProtectionService: ObservableObject {
                 shortcut: shortcut,
                 extraModifier: configuration.extraModifier
             ) {
-                swallowKeyUpFor = shortcut
+                cancelPending()
+                swallowShortcut = shortcut
                 confirm(shortcut: shortcut,
                         event: event,
                         targetProcessIdentifier: frontmostProcessIdentifier,
                         removing: configuration.extraModifier)
-                hideHUD()
                 return nil
             }
             guard QuitProtectionSupport.isBaseShortcut(
@@ -246,7 +284,9 @@ final class QuitProtectionService: ObservableObject {
                 option: option,
                 shift: shift,
                 shortcut: shortcut
-            ) else { return Unmanaged.passUnretained(event) }
+            ) else {
+                return Unmanaged.passUnretained(event)
+            }
             beginPending(shortcut: shortcut, mode: .extraModifier, event: event)
             showHUD(for: shortcut, configuration: configuration, extraModifierOnly: true)
             return nil
@@ -254,67 +294,45 @@ final class QuitProtectionService: ObservableObject {
     }
 
     private func handleKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        guard let pending else {
-            if let swallowKeyUpFor,
-               matchingShortcut(for: event) == swallowKeyUpFor {
-                self.swallowKeyUpFor = nil
-                return nil
-            }
-            return Unmanaged.passUnretained(event)
+        let shortcut = matchingShortcut(for: event)
+
+        if let swallow = swallowShortcut, shortcut == swallow {
+            self.swallowShortcut = nil
+            return nil
         }
-        guard matchingShortcut(for: event) == pending.shortcut else {
+
+        guard let pending else {
             return Unmanaged.passUnretained(event)
         }
 
-        if pending.triggered {
-            if pending.emittedSyntheticKeyDown {
-                postSyntheticKeyUp(from: event)
-            }
+        guard shortcut == pending.shortcut else {
+            return Unmanaged.passUnretained(event)
         }
-        if pending.mode == .doublePress {
+
+        switch pending.mode {
+        case .hold:
+            cancelPending()
+            return nil
+
+        case .doublePress:
+            return nil
+
+        case .extraModifier:
+            cancelPending()
             return nil
         }
-        cancelPending()
-        return nil
     }
 
     private func handleFlagsChanged(_ event: CGEvent) {
-        guard let pending, !pending.triggered else { return }
+        guard pending != nil else { return }
         let flags = event.flags
         let commandHeld = flags.contains(.maskCommand)
-        if pending.mode == .hold && !commandHeld {
-            cancelPending()
-        } else if pending.mode == .extraModifier && !commandHeld {
+        if !commandHeld {
             cancelPending()
         }
     }
 
     // MARK: Confirmation state
-
-    private func handleConfirmationPress(shortcut: QuitProtectionShortcut,
-                                         mode: QuitProtectionMode,
-                                         event: CGEvent,
-                                         configuration: QuitProtectionConfiguration) -> Unmanaged<CGEvent>? {
-        if mode == .doublePress, let pending, pending.shortcut == shortcut {
-            if QuitProtectionSupport.isWithinDoublePressInterval(
-                firstTimestamp: pending.event.timestamp,
-                secondTimestamp: event.timestamp,
-                intervalMilliseconds: configuration.doublePressIntervalMilliseconds
-            ) {
-                confirm(shortcut: shortcut,
-                        event: event,
-                        targetProcessIdentifier: pending.targetProcessIdentifier)
-                swallowKeyUpFor = shortcut
-                cancelPending()
-                hideHUD()
-                return nil
-            }
-        }
-
-        beginPending(shortcut: shortcut, mode: mode, event: event)
-        showHUD(for: shortcut, configuration: configuration, extraModifierOnly: false)
-        return nil
-    }
 
     private func beginPending(shortcut: QuitProtectionShortcut,
                               mode: QuitProtectionMode,
@@ -357,19 +375,15 @@ final class QuitProtectionService: ObservableObject {
     }
 
     private func completeHold() {
-        guard var pending, pending.mode == .hold else { return }
-        pending.triggered = true
-        if QuitProtectionSupport.usesNativeQuitRequest(for: pending.shortcut) {
-            if !requestQuit(targetProcessIdentifier: pending.targetProcessIdentifier) {
-                postSyntheticKeyDown(from: pending.event)
-                pending.emittedSyntheticKeyDown = true
-            }
-        } else {
-            postSyntheticKeyDown(from: pending.event)
-            pending.emittedSyntheticKeyDown = true
-        }
-        self.pending = pending
-        showReleaseHUD(for: pending.shortcut)
+        guard let pending, pending.mode == .hold else { return }
+        let shortcut = pending.shortcut
+        let event = pending.event
+        let targetPid = pending.targetProcessIdentifier
+
+        swallowShortcut = shortcut
+        cancelPending()
+
+        confirm(shortcut: shortcut, event: event, targetProcessIdentifier: targetPid)
     }
 
     private func cancelPending() {
@@ -423,13 +437,6 @@ final class QuitProtectionService: ObservableObject {
             title = String(format: strings.doubleHUDFormat, shortcut.symbol)
         }
         hud.show(title: title, detail: strings.cancelHint)
-    }
-
-    private func showReleaseHUD(for shortcut: QuitProtectionShortcut) {
-        let configuration = configuration(for: shortcut)
-        guard configuration.showFeedback else { return }
-        let strings = FeatureStrings.quitProtection(L10n.shared.language)
-        hud.show(title: strings.releaseHint, detail: shortcut.symbol)
     }
 
     private func hideHUD() { hud.hide() }
