@@ -543,6 +543,7 @@ private struct RadialItemRow: View {
         case .url: return text.kindURL
         case .shortcut: return text.kindShortcut
         case .tool: return text.kindTool
+        case .customAction: return "Custom Action"
         case .quickToggle: return FeatureStrings.quickToggles(L10n.shared.language).pageTitle
         case .windowLayout: return FeatureStrings.windowLayout(L10n.shared.language).title
         case .media: return text.kindMedia
@@ -723,6 +724,9 @@ private struct RadialItemEditor: View {
                     if !availableTools.isEmpty {
                         Text(text.kindTool).tag(RadialMenuItem.Kind.tool)
                     }
+                    if !CustomActionService.shared.actions.filter({ $0.enabled && $0.showInRadialMenu }).isEmpty {
+                        Text("Custom Action").tag(RadialMenuItem.Kind.customAction)
+                    }
                     if !availableQuickToggles.isEmpty {
                         Text(FeatureStrings.quickToggles(l10n.language).pageTitle)
                             .tag(RadialMenuItem.Kind.quickToggle)
@@ -799,6 +803,7 @@ private struct RadialItemEditor: View {
             if kind != .url { item.customIconData = nil }
             switch kind {
             case .tool: item.payload = availableTools.first?.rawValue ?? ""
+            case .customAction: item.payload = CustomActionService.shared.actions.first(where: { $0.enabled && $0.showInRadialMenu })?.id.uuidString ?? ""
             case .quickToggle: item.payload = availableQuickToggles.first?.rawValue ?? ""
             case .windowLayout: item.payload = WindowLayoutAction.leftHalf.rawValue
             case .media: item.payload = RadialMenuMediaKey.playPause.rawValue
@@ -900,6 +905,12 @@ private struct RadialItemEditor: View {
                 ForEach(availableTools) { tool in
                     Text(tool.feature.hubTitle(l10n.s, hub: FeatureStrings.hub(l10n.language)))
                         .tag(tool.rawValue)
+                }
+            }
+        case .customAction:
+            Picker("Custom Action", selection: $item.payload) {
+                ForEach(CustomActionService.shared.actions.filter { $0.enabled && $0.showInRadialMenu }) { action in
+                    Text(action.name).tag(action.id.uuidString)
                 }
             }
         case .quickToggle:

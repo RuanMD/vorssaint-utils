@@ -364,6 +364,10 @@ final class RadialMenuService: ObservableObject {
         items.compactMap { item in
             var item = item
             if let tool = item.tool, !tool.isRunnable() { return nil }
+            if item.kind == .customAction,
+               !CustomActionService.shared.actions.contains(where: {
+                   $0.id.uuidString == item.payload && $0.enabled && $0.showInRadialMenu
+               }) { return nil }
             if item.kind == .quickToggle, !AppFeature.quickToggles.isAvailable { return nil }
             if item.kind == .windowLayout, !AppFeature.windowLayout.isAvailable { return nil }
             if item.kind == .submenu {
@@ -638,6 +642,11 @@ final class RadialMenuService: ObservableObject {
             }
         case .tool:
             if let tool = item.tool { run(tool) }
+        case .customAction:
+            if let id = UUID(uuidString: item.payload),
+               let action = CustomActionService.shared.actions.first(where: { $0.id == id }) {
+                CustomActionService.shared.execute(action)
+            }
         case .quickToggle:
             if let action = item.quickToggle { run(action) }
         case .windowLayout:

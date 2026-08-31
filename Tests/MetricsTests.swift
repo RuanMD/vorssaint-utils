@@ -21319,6 +21319,33 @@ struct MetricsTests {
                + "(ran \(detachedRuns) time(s))")
         try? FileManager.default.removeItem(at: detachRoot)
 
+        // MARK: Custom Actions
+        let customContext = CustomActionContext(selectedText: "Hello  123", clipboardText: "Copied text")
+        let upper = CustomActionSupport.execute(script: "return input.toUpperCase()",
+                                                 context: customContext, input: .selectedText)
+        expect(upper == .success("HELLO  123"),
+               "custom action executes JavaScript against selectedText/input")
+        let automatic = CustomActionSupport.execute(script: "return input.replace(/\\s+/g, ' ').trim()",
+                                                     context: customContext, input: .automatic)
+        expect(automatic == .success("Hello 123"),
+               "custom action automatic input prefers selected text")
+        let clipboard = CustomActionSupport.execute(script: "return input.toUpperCase()",
+                                                     context: CustomActionContext(selectedText: "", clipboardText: "clip"),
+                                                     input: .automatic)
+        expect(clipboard == .success("CLIP"),
+               "custom action automatic input falls back to clipboard")
+        expect(CustomActionSupport.execute(script: "return process.version",
+                                            context: customContext, input: .selectedText)
+                   == .failure(.forbiddenAPI("process")),
+               "custom action rejects process access")
+        expect(CustomActionSupport.execute(script: "throw new Error('bad')",
+                                            context: customContext, input: .selectedText)
+                   == .failure(.javascript("Error: bad")),
+               "custom action reports JavaScript exceptions")
+        let customRadial = RadialMenuItem(kind: .customAction, payload: UUID().uuidString)
+        expect(RadialMenuSupport.isValidPayload(customRadial),
+               "radial custom action payload validates as a UUID")
+
         if failures.isEmpty {
             print("TESTS OK (\(checks) checks)")
             exit(0)

@@ -207,6 +207,10 @@ enum SettingsDirectory {
                                       icon: "command",
                                       keywords: [FeatureStrings.commandBar(language).openButton,
                                                  FeatureStrings.commandBar(language).searchPlaceholder]),
+                SettingsDirectoryItem(page: .customActions,
+                                      title: "Custom Actions",
+                                      icon: "wand.and.stars",
+                                      keywords: ["JavaScript", "selectedText", "clipboardText", "transform"]),
                 SettingsDirectoryItem(page: .quickTools, title: s.quickToolsTab, icon: "wand.and.rays",
                                        featureKeywords: [
                                         (.quickLauncher, [s.launcherName]),

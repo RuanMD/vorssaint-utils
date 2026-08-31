@@ -192,7 +192,7 @@ enum RadialMenuProfilePreset: String, CaseIterable, Identifiable {
 /// value. Submenus keep their actions in `children`.
 struct RadialMenuItem: Codable, Identifiable, Equatable {
     enum Kind: String, Codable, CaseIterable {
-        case app, file, url, shortcut, tool, quickToggle, windowLayout, media, submenu
+        case app, file, url, shortcut, tool, customAction, quickToggle, windowLayout, media, submenu
     }
 
     var id = UUID()
@@ -228,6 +228,7 @@ struct RadialMenuItem: Codable, Identifiable, Equatable {
         case .url: return "link"
         case .shortcut: return "command"
         case .tool: return tool?.symbolName ?? "wrench.and.screwdriver"
+        case .customAction: return "wand.and.stars"
         case .quickToggle: return quickToggle?.symbolName ?? "togglepower"
         case .windowLayout: return windowLayoutAction?.symbolName ?? AppFeature.windowLayout.symbolName
         case .media:
@@ -580,6 +581,8 @@ enum RadialMenuSupport {
         case .url: return normalizedURL(item.payload) != nil
         case .shortcut: return GlobalShortcut(storageValue: item.payload) != nil
         case .tool: return item.tool != nil
+        case .customAction:
+            return UUID(uuidString: item.payload) != nil
         case .quickToggle: return item.quickToggle != nil
         case .windowLayout: return item.windowLayoutAction != nil
         case .media: return item.mediaKey != nil

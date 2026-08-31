@@ -179,6 +179,7 @@ enum CommandBarCatalog {
         entries.append(contentsOf: linkEntries(
             CommandBarLinks.decode(UserDefaults.standard.data(forKey: DefaultsKey.commandBarLinks)),
             bar: bar))
+        entries.append(contentsOf: CustomActionService.shared.commandBarEntries())
         return entries
     }
 

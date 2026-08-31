@@ -262,6 +262,8 @@ extension RadialMenuItem {
         case .tool:
             guard let tool else { return text.kindTool }
             return tool.feature.hubTitle(L10n.shared.s, hub: FeatureStrings.hub(L10n.shared.language))
+        case .customAction:
+            return CustomActionService.shared.actions.first { $0.id.uuidString == payload }?.name ?? "Custom Action"
         case .quickToggle:
             return quickToggle?.radialTitle ?? FeatureStrings.quickToggles(L10n.shared.language).pageTitle
         case .windowLayout:

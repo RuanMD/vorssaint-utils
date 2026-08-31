@@ -461,6 +461,7 @@ enum DefaultsKey {
     static let commandBarPins = "commandBarPins"             // row keys kept at the top, in order
     static let commandBarHidden = "commandBarHidden"         // row keys the person never wants offered
     static let commandBarLinks = "commandBarLinks"           // Data: [CommandBarLink] JSON
+    static let customActions = "customActions"               // Data: [CustomAction] JSON
     static let commandBarRowShortcuts = "commandBarRowShortcuts" // {row key: shortcut}
     static let commandBarPositionOffset = "commandBarPositionOffset" // "dx,dy" from the default spot
     // The folders a file search looks in, one per line, written with a tilde
