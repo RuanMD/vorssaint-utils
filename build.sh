@@ -247,6 +247,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/DictationSupport.swift \
         Sources/Vorssaint/Core/DictationShortcutSupport.swift \
         Sources/Vorssaint/Core/DictationInputDeviceSupport.swift \
+        Sources/Vorssaint/Core/DictationHistorySupport.swift \
         Sources/Vorssaint/Core/Defaults.swift \
         Sources/Vorssaint/Core/FeatureCatalog.swift \
         Sources/Vorssaint/Core/FeaturePresets.swift \
