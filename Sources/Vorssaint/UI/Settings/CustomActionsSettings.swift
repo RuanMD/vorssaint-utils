@@ -49,7 +49,7 @@ struct CustomActionsSettings: View {
                     sortButton(strings.nameColumn, key: .name)
                     Spacer()
                     sortButton(strings.statusColumn, key: .status)
-                        .frame(width: statusColumnWidth, alignment: .leading)
+                        .frame(width: statusColumnWidth, alignment: .center)
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -74,8 +74,7 @@ struct CustomActionsSettings: View {
                             .toggleStyle(.switch)
                             .controlSize(.small)
                             .help(action.enabled ? strings.activeStatus : strings.inactiveStatus)
-                            .frame(width: 38, alignment: .trailing)
-                            .frame(width: statusColumnWidth, alignment: .trailing)
+                            .frame(width: statusColumnWidth, alignment: .center)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
