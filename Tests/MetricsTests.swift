@@ -21427,6 +21427,15 @@ struct MetricsTests {
         expect(SettingsBackupSupport.exportKeys().isSuperset(of: Set<String>(quitProtectionKeys)),
                "quit and close protection settings are included in portable backup")
 
+        for language in AppLanguage.allCases {
+            let quitProtectionValues = Mirror(reflecting: FeatureStrings.quitProtection(language)).children
+                .compactMap { $0.value as? String }
+            expect(quitProtectionValues.count == 26 && quitProtectionValues.allSatisfy { !$0.isEmpty },
+                   "every quit protection string is set for \(language.rawValue)")
+            expect(quitProtectionValues.allSatisfy { !$0.contains("—") },
+                   "no em-dash in quit protection strings (\(language.rawValue))")
+        }
+
         if failures.isEmpty {
             print("TESTS OK (\(checks) checks)")
             exit(0)

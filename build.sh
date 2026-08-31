@@ -214,6 +214,7 @@ if (( TEST )); then
         "${VM_STATISTICS_COMPAT_FLAGS[@]}" \
         Sources/Vorssaint/Services/Media/MediaSupport.swift \
         Sources/Vorssaint/Core/QuitProtectionSupport.swift \
+        Sources/Vorssaint/Core/QuitProtectionStrings.swift \
         Sources/Vorssaint/Core/Defaults.swift \
         Sources/Vorssaint/Core/FeatureCatalog.swift \
         Sources/Vorssaint/Core/FeaturePresets.swift \
