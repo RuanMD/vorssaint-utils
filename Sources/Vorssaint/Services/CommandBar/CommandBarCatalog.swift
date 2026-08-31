@@ -296,6 +296,21 @@ enum CommandBarCatalog {
             Permissions.shared.accessibility ? nil : .needsPermission
         }
 
+        if AppFeature.menuBarOrganizer.isAvailable,
+           UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerEnabled) {
+            let organizer = FeatureStrings.menuBarOrganizerAdvanced(language)
+            entries.append(CommandBarEntry(
+                id: "action.menuBarSearch",
+                title: organizer.search,
+                subtitle: groupTitle(.menuBar, hub: hub),
+                keywords: "menu bar hidden items organizer",
+                icon: .symbol("magnifyingglass"),
+                shortcut: roleShortcut(.menuBarSearch),
+                run: { _ in afterBeat(0.1) {
+                    Task { @MainActor in MenuBarOrganizerService.shared.openSearch() }
+                } }))
+        }
+
         // Screen tools first: the beat lets the bar leave before capture.
         if AppFeature.screenshot.isAvailable {
             let screenshot = FeatureStrings.screenshot(language)

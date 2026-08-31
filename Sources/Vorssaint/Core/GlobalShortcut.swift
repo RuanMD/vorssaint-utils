@@ -213,6 +213,16 @@ struct GlobalShortcut: Equatable, Hashable {
     // layer, matching how the system numbers its own capture keys.
     static let screenRecorderDefault = GlobalShortcut(keyCode: Int64(kVK_ANSI_5),
                                                       modifiers: [.control, .option, .command])
+    static let menuBarShowHiddenDefault = GlobalShortcut(keyCode: Int64(kVK_F6),
+                                                         modifiers: [.control, .option, .command])
+    static let menuBarShowAllDefault = GlobalShortcut(keyCode: Int64(kVK_F7),
+                                                      modifiers: [.control, .option, .command])
+    static let menuBarHideAllDefault = GlobalShortcut(keyCode: Int64(kVK_F8),
+                                                      modifiers: [.control, .option, .command])
+    static let menuBarSearchDefault = GlobalShortcut(keyCode: Int64(kVK_F9),
+                                                     modifiers: [.control, .option, .command])
+    static let menuBarSecondaryBarDefault = GlobalShortcut(keyCode: Int64(kVK_F10),
+                                                           modifiers: [.control, .option, .command])
 
     static func saved(for key: String, fallback: GlobalShortcut) -> GlobalShortcut {
         if let raw = UserDefaults.standard.string(forKey: key),
@@ -616,6 +626,11 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
     case snippetLibrary
     case commandBar
     case screenRecorder
+    case menuBarShowHidden
+    case menuBarShowAll
+    case menuBarHideAll
+    case menuBarSearch
+    case menuBarSecondaryBar
 
     var id: String { storageKey }
 
@@ -643,6 +658,11 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
         case .snippetLibrary: return DefaultsKey.snippetLibraryShortcut
         case .commandBar: return DefaultsKey.commandBarShortcut
         case .screenRecorder: return DefaultsKey.recorderShortcut
+        case .menuBarShowHidden: return DefaultsKey.menuBarOrganizerShowHiddenShortcut
+        case .menuBarShowAll: return DefaultsKey.menuBarOrganizerShowAllShortcut
+        case .menuBarHideAll: return DefaultsKey.menuBarOrganizerHideAllShortcut
+        case .menuBarSearch: return DefaultsKey.menuBarOrganizerSearchShortcut
+        case .menuBarSecondaryBar: return DefaultsKey.menuBarOrganizerSecondaryBarShortcut
         }
     }
 
@@ -670,6 +690,11 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
         case .snippetLibrary: return .snippetLibraryDefault
         case .commandBar: return .commandBarDefault
         case .screenRecorder: return .screenRecorderDefault
+        case .menuBarShowHidden: return .menuBarShowHiddenDefault
+        case .menuBarShowAll: return .menuBarShowAllDefault
+        case .menuBarHideAll: return .menuBarHideAllDefault
+        case .menuBarSearch: return .menuBarSearchDefault
+        case .menuBarSecondaryBar: return .menuBarSecondaryBarDefault
         }
     }
 
@@ -705,6 +730,16 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
         case .snippetLibrary: return FeatureStrings.snippets(L10n.shared.language).libraryTitle
         case .commandBar: return FeatureStrings.commandBar(L10n.shared.language).pageTitle
         case .screenRecorder: return FeatureStrings.recorder(L10n.shared.language).pageTitle
+        case .menuBarShowHidden:
+            return FeatureStrings.menuBarOrganizerAdvanced(L10n.shared.language).showHidden
+        case .menuBarShowAll:
+            return FeatureStrings.menuBarOrganizerAdvanced(L10n.shared.language).showAll
+        case .menuBarHideAll:
+            return FeatureStrings.menuBarOrganizerAdvanced(L10n.shared.language).hideAll
+        case .menuBarSearch:
+            return FeatureStrings.menuBarOrganizerAdvanced(L10n.shared.language).search
+        case .menuBarSecondaryBar:
+            return FeatureStrings.menuBarOrganizerAdvanced(L10n.shared.language).secondaryBar
         }
     }
 
@@ -749,6 +784,16 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
         case .snippetLibrary: return [DefaultsKey.snippetLibraryEnabled]
         case .commandBar: return [DefaultsKey.commandBarShortcutEnabled]
         case .screenRecorder: return [DefaultsKey.recorderShortcutEnabled]
+        case .menuBarShowHidden: return [DefaultsKey.menuBarOrganizerEnabled,
+                                          DefaultsKey.menuBarOrganizerShowHiddenShortcutEnabled]
+        case .menuBarShowAll: return [DefaultsKey.menuBarOrganizerEnabled,
+                                      DefaultsKey.menuBarOrganizerShowAllShortcutEnabled]
+        case .menuBarHideAll: return [DefaultsKey.menuBarOrganizerEnabled,
+                                      DefaultsKey.menuBarOrganizerHideAllShortcutEnabled]
+        case .menuBarSearch: return [DefaultsKey.menuBarOrganizerEnabled,
+                                     DefaultsKey.menuBarOrganizerSearchShortcutEnabled]
+        case .menuBarSecondaryBar: return [DefaultsKey.menuBarOrganizerEnabled,
+                                           DefaultsKey.menuBarOrganizerSecondaryBarShortcutEnabled]
         }
     }
 
@@ -776,6 +821,8 @@ enum GlobalShortcutRole: CaseIterable, Identifiable {
         case .snippetLibrary: return .textSnippets
         case .commandBar: return .commandBar
         case .screenRecorder: return .screenRecorder
+        case .menuBarShowHidden, .menuBarShowAll, .menuBarHideAll,
+             .menuBarSearch, .menuBarSecondaryBar: return .menuBarOrganizer
         }
     }
 

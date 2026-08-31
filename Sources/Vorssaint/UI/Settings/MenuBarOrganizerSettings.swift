@@ -16,10 +16,26 @@ struct MenuBarOrganizerSettings: View {
     @AppStorage(DefaultsKey.menuBarOrganizerShowDividers) private var showDividers = false
     @AppStorage(DefaultsKey.menuBarOrganizerPresentationMode) private var presentationMode =
         MenuBarOrganizerPresentationMode.automatic.rawValue
+    @AppStorage(DefaultsKey.menuBarOrganizerAutoRehidePolicy) private var autoRehidePolicy =
+        MenuBarRehidePolicy.afterSeconds(MenuBarRehidePolicy.defaultDelay).storageValue
+    @AppStorage(DefaultsKey.menuBarOrganizerCustomRehideSeconds) private var customRehideSeconds =
+        MenuBarRehidePolicy.defaultDelay
+    @AppStorage(DefaultsKey.menuBarOrganizerHoverRevealEnabled) private var hoverReveal = false
+    @AppStorage(DefaultsKey.menuBarOrganizerEmptyAreaRevealEnabled) private var emptyAreaReveal = false
+    @AppStorage(DefaultsKey.menuBarOrganizerScrollRevealEnabled) private var scrollReveal = false
+    @AppStorage(DefaultsKey.menuBarOrganizerSpacingPreset) private var spacingPreset =
+        MenuBarSpacingPreset.standard.rawValue
+    @AppStorage(DefaultsKey.menuBarOrganizerCustomSpacing) private var customSpacing =
+        MenuBarSpacingPreset.standard.defaultValue
+    @AppStorage(DefaultsKey.menuBarOrganizerSecondaryBarPinned) private var secondaryBarPinned = false
     @State private var editingBegun = false
 
     private var text: MenuBarOrganizerStrings {
         FeatureStrings.menuBarOrganizer(l10n.language)
+    }
+
+    private var advancedText: MenuBarOrganizerAdvancedStrings {
+        FeatureStrings.menuBarOrganizerAdvanced(l10n.language)
     }
 
     var body: some View {
@@ -42,6 +58,7 @@ struct MenuBarOrganizerSettings: View {
                     }
                     editorSection
                     behaviorSection
+                    advancedBehaviorSection
                 }
             }
 
@@ -123,6 +140,7 @@ struct MenuBarOrganizerSettings: View {
                 Button(text.undo) { service.undoLastMove() }
                     .disabled(!service.canUndo)
                 Spacer()
+                Button(advancedText.search) { service.openSearch() }
                 Button(text.secondaryBar) { service.showSecondaryBar() }
             }
 
@@ -184,8 +202,67 @@ struct MenuBarOrganizerSettings: View {
         }
     }
 
+    private var advancedBehaviorSection: some View {
+        Section {
+            Picker(advancedText.autoRehide, selection: rehideSelection) {
+                Text(advancedText.rehideNever).tag(MenuBarRehidePolicy.never.storageValue)
+                Text(advancedText.rehideClickOutside).tag(MenuBarRehidePolicy.clickOutside.storageValue)
+                ForEach(MenuBarRehidePolicy.allowedDelays, id: \.self) { seconds in
+                    Text(String(format: advancedText.rehideSeconds, seconds))
+                        .tag(MenuBarRehidePolicy.afterSeconds(seconds).storageValue)
+                }
+                Text(advancedText.rehideCustom).tag("custom")
+            }
+            if isCustomRehide {
+                TextField(advancedText.rehideCustom, value: $customRehideSeconds, format: .number)
+                    .onChange(of: customRehideSeconds) { _, value in
+                        customRehideSeconds = MenuBarRehidePolicy.sanitizeDelay(value)
+                        autoRehidePolicy = MenuBarRehidePolicy.afterSeconds(customRehideSeconds).storageValue
+                    }
+            }
+            Toggle(advancedText.hoverReveal, isOn: $hoverReveal)
+            Toggle(advancedText.emptyAreaReveal, isOn: $emptyAreaReveal)
+            Toggle(advancedText.scrollReveal, isOn: $scrollReveal)
+            Picker(advancedText.spacing, selection: $spacingPreset) {
+                Text(advancedText.spacingCompact).tag(MenuBarSpacingPreset.compact.rawValue)
+                Text(advancedText.spacingStandard).tag(MenuBarSpacingPreset.standard.rawValue)
+                Text(advancedText.spacingSpacious).tag(MenuBarSpacingPreset.spacious.rawValue)
+                Text(advancedText.spacingCustom).tag(MenuBarSpacingPreset.custom.rawValue)
+            }
+            if spacingPreset == MenuBarSpacingPreset.custom.rawValue {
+                Slider(value: $customSpacing,
+                       in: MenuBarOrganizerAdvancedSupport.minimumSpacing...MenuBarOrganizerAdvancedSupport.maximumSpacing,
+                       step: 1) {
+                    Text(advancedText.customSpacing)
+                }
+                Text(String(format: "%.0f px", customSpacing))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Toggle(advancedText.pinned, isOn: $secondaryBarPinned)
+        } header: {
+            Text(advancedText.title)
+        }
+    }
+
     private var preferenceSignature: String {
-        "\(alwaysHiddenEnabled)|\(showDividers)|\(presentationMode)"
+        "\(alwaysHiddenEnabled)|\(showDividers)|\(presentationMode)|\(autoRehidePolicy)|\(customRehideSeconds)|\(hoverReveal)|\(emptyAreaReveal)|\(scrollReveal)|\(spacingPreset)|\(customSpacing)|\(secondaryBarPinned)"
+    }
+
+    private var isCustomRehide: Bool {
+        guard case .afterSeconds(let seconds) = MenuBarRehidePolicy.fromStorage(autoRehidePolicy)
+        else { return false }
+        return !MenuBarRehidePolicy.allowedDelays.contains(seconds)
+    }
+
+    private var rehideSelection: Binding<String> {
+        Binding(
+            get: { isCustomRehide ? "custom" : autoRehidePolicy },
+            set: { value in
+                autoRehidePolicy = value == "custom"
+                    ? MenuBarRehidePolicy.afterSeconds(customRehideSeconds).storageValue
+                    : value
+            })
     }
 
     private func organizerLane(_ section: MenuBarOrganizerSection,

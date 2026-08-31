@@ -623,6 +623,24 @@ enum DefaultsKey {
     static let menuBarOrganizerAlwaysHiddenEnabled = "menuBarOrganizerAlwaysHiddenEnabled"
     static let menuBarOrganizerShowDividers = "menuBarOrganizerShowDividers"
     static let menuBarOrganizerPresentationMode = "menuBarOrganizerPresentationMode"
+    static let menuBarOrganizerAutoRehidePolicy = "menuBarOrganizerAutoRehidePolicy"
+    static let menuBarOrganizerCustomRehideSeconds = "menuBarOrganizerCustomRehideSeconds"
+    static let menuBarOrganizerHoverRevealEnabled = "menuBarOrganizerHoverRevealEnabled"
+    static let menuBarOrganizerEmptyAreaRevealEnabled = "menuBarOrganizerEmptyAreaRevealEnabled"
+    static let menuBarOrganizerScrollRevealEnabled = "menuBarOrganizerScrollRevealEnabled"
+    static let menuBarOrganizerSpacingPreset = "menuBarOrganizerSpacingPreset"
+    static let menuBarOrganizerCustomSpacing = "menuBarOrganizerCustomSpacing"
+    static let menuBarOrganizerSecondaryBarPinned = "menuBarOrganizerSecondaryBarPinned"
+    static let menuBarOrganizerShowHiddenShortcut = "menuBarOrganizerShowHiddenShortcut"
+    static let menuBarOrganizerShowAllShortcut = "menuBarOrganizerShowAllShortcut"
+    static let menuBarOrganizerHideAllShortcut = "menuBarOrganizerHideAllShortcut"
+    static let menuBarOrganizerSearchShortcut = "menuBarOrganizerSearchShortcut"
+    static let menuBarOrganizerSecondaryBarShortcut = "menuBarOrganizerSecondaryBarShortcut"
+    static let menuBarOrganizerShowHiddenShortcutEnabled = "menuBarOrganizerShowHiddenShortcutEnabled"
+    static let menuBarOrganizerShowAllShortcutEnabled = "menuBarOrganizerShowAllShortcutEnabled"
+    static let menuBarOrganizerHideAllShortcutEnabled = "menuBarOrganizerHideAllShortcutEnabled"
+    static let menuBarOrganizerSearchShortcutEnabled = "menuBarOrganizerSearchShortcutEnabled"
+    static let menuBarOrganizerSecondaryBarShortcutEnabled = "menuBarOrganizerSecondaryBarShortcutEnabled"
 
     // Dev-build only: force the "update available" UI for local testing.
     static let simulateUpdate = "simulateUpdate"
@@ -986,6 +1004,25 @@ enum Defaults {
         DefaultsKey.menuBarOrganizerShowDividers: false,
         DefaultsKey.menuBarOrganizerPresentationMode:
             MenuBarOrganizerPresentationMode.automatic.rawValue,
+        DefaultsKey.menuBarOrganizerAutoRehidePolicy:
+            MenuBarRehidePolicy.afterSeconds(MenuBarRehidePolicy.defaultDelay).storageValue,
+        DefaultsKey.menuBarOrganizerCustomRehideSeconds: MenuBarRehidePolicy.defaultDelay,
+        DefaultsKey.menuBarOrganizerHoverRevealEnabled: false,
+        DefaultsKey.menuBarOrganizerEmptyAreaRevealEnabled: false,
+        DefaultsKey.menuBarOrganizerScrollRevealEnabled: false,
+        DefaultsKey.menuBarOrganizerSpacingPreset: MenuBarSpacingPreset.standard.rawValue,
+        DefaultsKey.menuBarOrganizerCustomSpacing: MenuBarSpacingPreset.standard.defaultValue,
+        DefaultsKey.menuBarOrganizerSecondaryBarPinned: false,
+        DefaultsKey.menuBarOrganizerShowHiddenShortcut: GlobalShortcut.menuBarShowHiddenDefault.storageValue,
+        DefaultsKey.menuBarOrganizerShowAllShortcut: GlobalShortcut.menuBarShowAllDefault.storageValue,
+        DefaultsKey.menuBarOrganizerHideAllShortcut: GlobalShortcut.menuBarHideAllDefault.storageValue,
+        DefaultsKey.menuBarOrganizerSearchShortcut: GlobalShortcut.menuBarSearchDefault.storageValue,
+        DefaultsKey.menuBarOrganizerSecondaryBarShortcut: GlobalShortcut.menuBarSecondaryBarDefault.storageValue,
+        DefaultsKey.menuBarOrganizerShowHiddenShortcutEnabled: false,
+        DefaultsKey.menuBarOrganizerShowAllShortcutEnabled: false,
+        DefaultsKey.menuBarOrganizerHideAllShortcutEnabled: false,
+        DefaultsKey.menuBarOrganizerSearchShortcutEnabled: false,
+        DefaultsKey.menuBarOrganizerSecondaryBarShortcutEnabled: false,
         DefaultsKey.windowMaximizeEnabled: false,
         DefaultsKey.keyboardDebounceEnabled: false,
         DefaultsKey.keyboardDebounceWindowMs: defaultKeyboardDebounceWindowMs,

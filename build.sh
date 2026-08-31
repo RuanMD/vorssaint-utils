@@ -240,6 +240,8 @@ if (( TEST )); then
         Sources/Vorssaint/Core/AppAppearance.swift \
         Sources/Vorssaint/Core/AppearanceStrings.swift \
         Sources/Vorssaint/Core/MenuBarOrganizerStrings.swift \
+        Sources/Vorssaint/Core/MenuBarOrganizerAdvancedStrings.swift \
+        Sources/Vorssaint/Core/MenuBarOrganizerAdvancedSupport.swift \
         Sources/Vorssaint/Core/MenuBarManagerDetection.swift \
         Sources/Vorssaint/Core/BatteryTimeStrings.swift \
         Sources/Vorssaint/Core/KeepAwakeStrings.swift \

@@ -15,13 +15,21 @@ final class MenuBarOrganizerPanelController {
 
     var isVisible: Bool { panel?.isVisible == true }
 
+    func contains(point: CGPoint) -> Bool {
+        panel?.frame.contains(point) == true
+    }
+
     func show(anchor: CGRect?) {
         guard let service else { return }
         let hiddenCount = max(service.items.filter { $0.section != .visible }.count, 1)
-        let size = CGSize(width: min(max(CGFloat(hiddenCount) * 62 + 32, 260), 720),
+        let spacing = service.secondaryBarSpacing
+        let size = CGSize(width: min(max(CGFloat(hiddenCount) * 62
+                                         + CGFloat(max(hiddenCount - 1, 0)) * spacing + 32, 260), 720),
                           height: 94)
         let content = MenuBarOrganizerSecondaryBarView(service: service)
         let panel = self.panel ?? makePanel(size: size)
+        panel.hidesOnDeactivate = !UserDefaults.standard.bool(
+            forKey: DefaultsKey.menuBarOrganizerSecondaryBarPinned)
         panel.contentViewController = NSHostingController(rootView: content)
         panel.setContentSize(size)
         position(panel, anchor: anchor)
@@ -75,7 +83,7 @@ private struct MenuBarOrganizerSecondaryBarView: View {
 
     var body: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 9) {
+            HStack(spacing: service.secondaryBarSpacing) {
                 if hiddenItems.isEmpty {
                     Label(FeatureStrings.menuBarOrganizer(l10n.language).emptySection,
                           systemImage: "menubar.rectangle")

@@ -1,0 +1,8 @@
+development_status:
+  epic-1: implemented-pending-manual-validation
+  1-1-organizer-session-preferences: implemented
+  1-2-organizer-reveal-triggers: implemented
+  1-3-organizer-auto-rehide: implemented
+  epic-2: implemented-pending-manual-validation
+  2-1-menu-bar-search: implemented
+  2-2-secondary-bar-spacing: implemented

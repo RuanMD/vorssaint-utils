@@ -14755,6 +14755,37 @@ struct MetricsTests {
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresentationMode] as? String
                     == MenuBarOrganizerPresentationMode.automatic.rawValue,
                "the MVP organizer has only conservative presentation defaults")
+        expect(MenuBarRehidePolicy.fromStorage("seconds:999") == .afterSeconds(300)
+                && MenuBarRehidePolicy.fromStorage("unknown") == .afterSeconds(5)
+                && MenuBarOrganizerAdvancedSupport.sanitizedSpacing(-4) == 0
+                && MenuBarOrganizerAdvancedSupport.sanitizedSpacing(99) == 24,
+               "advanced organizer preferences sanitize imported values")
+        expect(MenuBarOrganizerAdvancedSupport.shouldRehide(
+                    now: Date(timeIntervalSince1970: 10),
+                    deadline: Date(timeIntervalSince1970: 9),
+                    pointerInside: false, menuOpen: false, interactionInProgress: false)
+                && !MenuBarOrganizerAdvancedSupport.shouldRehide(
+                    now: Date(timeIntervalSince1970: 10),
+                    deadline: Date(timeIntervalSince1970: 9),
+                    pointerInside: true, menuOpen: false, interactionInProgress: false),
+               "auto-rehide waits while the pointer or interaction is inside")
+        let advancedItems = [
+            ManagedMenuBarItem(
+                id: MenuBarItemIdentity(bundleIdentifier: "com.example.dropbox", title: "status", occurrence: 0),
+                windowID: 90, ownerPID: 1, ownerBundleIdentifier: "com.example.dropbox",
+                sourcePID: nil, ownerName: "Dropbox", sourceName: "Dropbox", bundleIdentifier: "com.example.dropbox",
+                title: "", frame: .zero, section: .hidden, identityState: .stable,
+                isMovable: true, isProtected: false, image: nil),
+            ManagedMenuBarItem(
+                id: MenuBarItemIdentity(bundleIdentifier: "com.example.vpn", title: "status", occurrence: 0),
+                windowID: 91, ownerPID: 1, ownerBundleIdentifier: "com.example.vpn",
+                sourcePID: nil, ownerName: "VPN", sourceName: "VPN", bundleIdentifier: "com.example.vpn",
+                title: "Connected", frame: .zero, section: .alwaysHidden, identityState: .stable,
+                isMovable: true, isProtected: false, image: nil),
+        ]
+        expect(MenuBarOrganizerAdvancedSupport.search("drop", items: advancedItems).first?.displayName == "Dropbox"
+                && MenuBarOrganizerAdvancedSupport.search("connected", items: advancedItems).first?.displayName == "VPN - Connected",
+               "menu bar search ranks app and item names across hidden sections")
 
         // MARK: Radial menu (issue #220)
 

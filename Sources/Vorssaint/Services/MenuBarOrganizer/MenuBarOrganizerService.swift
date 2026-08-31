@@ -29,10 +29,15 @@ final class MenuBarOrganizerService: ObservableObject {
     private var hiddenDivider: MenuBarDividerItem?
     private var alwaysHiddenDivider: MenuBarDividerItem?
     private var secondaryPanel: MenuBarOrganizerPanelController?
+    private var searchPanel: MenuBarOrganizerSearchPanelController?
+    private let hotkeys = MenuBarOrganizerHotkeyService()
     private var refreshTimer: Timer?
     private var refreshTask: Task<Void, Never>?
     private var teardownTask: Task<Void, Never>?
+    private var rehideTask: Task<Void, Never>?
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+    private var eventMonitors: [Any] = []
+    private var menuTracking = false
     private var editingCount = 0
     private var preEditingState: (hidden: Bool, always: Bool)?
     private var undoRecord: UndoRecord?
@@ -77,6 +82,14 @@ final class MenuBarOrganizerService: ObservableObject {
 
         startIfNeeded()
         syncAlwaysHiddenDivider()
+        hotkeys.sync(actions: [
+            .menuBarShowHidden: { [weak self] in self?.showHidden() },
+            .menuBarShowAll: { [weak self] in self?.showAll() },
+            .menuBarHideAll: { [weak self] in self?.hideAll() },
+            .menuBarSearch: { [weak self] in self?.openSearch() },
+            .menuBarSecondaryBar: { [weak self] in self?.showSecondaryBar() },
+        ])
+        installRevealMonitors()
         applyDividerState()
         refresh()
     }
@@ -161,9 +174,42 @@ final class MenuBarOrganizerService: ObservableObject {
             secondaryPanel = MenuBarOrganizerPanelController(service: self)
         }
         secondaryPanel?.show(anchor: controlItem?.frame)
+        scheduleAutoRehide()
+    }
+
+    func showHidden() {
+        guard isRunning else { return }
+        show(.hidden)
+    }
+
+    func showAll() {
+        guard isRunning else { return }
+        show(.alwaysHidden)
+    }
+
+    func openSearch() {
+        guard isRunning else { return }
+        if searchPanel == nil {
+            searchPanel = MenuBarOrganizerSearchPanelController(service: self)
+        }
+        searchPanel?.show(anchor: controlItem?.frame)
+    }
+
+    func searchItems(query: String) -> [ManagedMenuBarItem] {
+        MenuBarOrganizerAdvancedSupport.search(query, items: items)
+    }
+
+    var secondaryBarSpacing: CGFloat {
+        let preset = MenuBarSpacingPreset(rawValue: UserDefaults.standard.string(
+            forKey: DefaultsKey.menuBarOrganizerSpacingPreset) ?? "") ?? .standard
+        let custom = UserDefaults.standard.double(forKey: DefaultsKey.menuBarOrganizerCustomSpacing)
+        return CGFloat(MenuBarOrganizerAdvancedSupport.effectiveSpacing(
+            preset: preset, custom: custom))
     }
 
     func hideAll() {
+        rehideTask?.cancel()
+        rehideTask = nil
         secondaryPanel?.close()
         hiddenSectionShown = false
         alwaysHiddenSectionShown = false
@@ -203,6 +249,7 @@ final class MenuBarOrganizerService: ObservableObject {
                   let original = items.first(where: { $0.id == itemID })
             else { return }
             secondaryPanel?.close()
+            searchPanel?.close()
             if original.section != .visible {
                 showInMenuBar(original.section)
                 try? await Task.sleep(for: .milliseconds(160))
@@ -250,6 +297,7 @@ final class MenuBarOrganizerService: ObservableObject {
         hiddenSectionShown = !setupComplete
         alwaysHiddenSectionShown = !setupComplete
         installObservers()
+        installRevealMonitors()
         scheduleRefreshTimer()
     }
 
@@ -259,8 +307,14 @@ final class MenuBarOrganizerService: ObservableObject {
         refreshTimer?.invalidate()
         refreshTimer = nil
         removeObservers()
+        removeRevealMonitors()
+        rehideTask?.cancel()
+        rehideTask = nil
+        hotkeys.stop()
         secondaryPanel?.close()
         secondaryPanel = nil
+        searchPanel?.close()
+        searchPanel = nil
         editingCount = 0
         preEditingState = nil
         undoRecord = nil
@@ -524,6 +578,131 @@ final class MenuBarOrganizerService: ObservableObject {
         }
         applyDividerState()
         refresh()
+        scheduleAutoRehide()
+    }
+
+    private func scheduleAutoRehide() {
+        rehideTask?.cancel()
+        guard isRunning, editingCount == 0 else { return }
+        let policy = MenuBarRehidePolicy.fromStorage(UserDefaults.standard.string(
+            forKey: DefaultsKey.menuBarOrganizerAutoRehidePolicy))
+        guard !UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerSecondaryBarPinned) else {
+            return
+        }
+        guard case .afterSeconds(let seconds) = policy else { return }
+        guard hiddenSectionShown || alwaysHiddenSectionShown || secondaryPanel?.isVisible == true else {
+            return
+        }
+        rehideTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            await MainActor.run { self?.rehideIfSafe() }
+        }
+    }
+
+    private func rehideIfSafe() {
+        guard isRunning else { return }
+        let pointerInside = managedSurfaceContains(NSEvent.mouseLocation)
+        let pressed = NSEvent.pressedMouseButtons != 0
+        let shouldHide = MenuBarOrganizerAdvancedSupport.shouldRehide(
+            now: Date(), deadline: Date(), pointerInside: pointerInside,
+            menuOpen: menuTracking, interactionInProgress: pressed)
+        guard shouldHide else {
+            scheduleAutoRehide()
+            return
+        }
+        hideAll()
+    }
+
+    private func installRevealMonitors() {
+        removeRevealMonitors()
+        let defaults = UserDefaults.standard
+        let hover = defaults.bool(forKey: DefaultsKey.menuBarOrganizerHoverRevealEnabled)
+        let emptyArea = defaults.bool(forKey: DefaultsKey.menuBarOrganizerEmptyAreaRevealEnabled)
+        let scroll = defaults.bool(forKey: DefaultsKey.menuBarOrganizerScrollRevealEnabled)
+        let hasClickOutside = MenuBarRehidePolicy.fromStorage(defaults.string(
+            forKey: DefaultsKey.menuBarOrganizerAutoRehidePolicy)) == .clickOutside
+        guard hover || emptyArea || scroll || hasClickOutside else { return }
+
+        if hover {
+            eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) {
+                [weak self] event in
+                Task { @MainActor in self?.handleMouseMoved(event) }
+            } as Any)
+        }
+        if scroll {
+            eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .scrollWheel) {
+                [weak self] event in
+                Task { @MainActor in self?.handleScroll(event) }
+            } as Any)
+        }
+        if emptyArea || hasClickOutside {
+            eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) {
+                [weak self] event in
+                Task { @MainActor in self?.handleMouseDown(event) }
+            } as Any)
+        }
+        eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) {
+            [weak self] event in
+            Task { @MainActor in self?.handleLocalMouse(event) }
+            return event
+        } as Any)
+    }
+
+    private func removeRevealMonitors() {
+        for monitor in eventMonitors { NSEvent.removeMonitor(monitor) }
+        eventMonitors.removeAll()
+    }
+
+    private func handleMouseMoved(_ event: NSEvent) {
+        guard UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerHoverRevealEnabled),
+              isMenuBarPoint(event) else { return }
+        showHidden()
+    }
+
+    private func handleScroll(_ event: NSEvent) {
+        guard UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerScrollRevealEnabled),
+              isMenuBarPoint(event) else { return }
+        showHidden()
+    }
+
+    private func handleMouseDown(_ event: NSEvent) {
+        let point = NSEvent.mouseLocation
+        if UserDefaults.standard.bool(forKey: DefaultsKey.menuBarOrganizerEmptyAreaRevealEnabled),
+           isMenuBarPoint(event), !managedSurfaceContains(point) {
+            showHidden()
+            return
+        }
+        if MenuBarRehidePolicy.fromStorage(UserDefaults.standard.string(
+            forKey: DefaultsKey.menuBarOrganizerAutoRehidePolicy)) == .clickOutside,
+           !managedSurfaceContains(point) {
+            hideAll()
+        }
+    }
+
+    private func handleLocalMouse(_ event: NSEvent) {
+        if event.type == .leftMouseDown {
+            handleMouseDown(event)
+        } else if event.type == .leftMouseUp {
+            scheduleAutoRehide()
+        }
+    }
+
+    private func isMenuBarPoint(_ event: NSEvent) -> Bool {
+        let point = event.locationInWindow
+        let global = event.window?.convertPoint(toScreen: point) ?? NSEvent.mouseLocation
+        return NSScreen.screens.contains { screen in
+            global.x >= screen.frame.minX && global.x <= screen.frame.maxX
+                && global.y >= screen.frame.maxY - 48 && global.y <= screen.frame.maxY + 2
+        }
+    }
+
+    private func managedSurfaceContains(_ point: CGPoint) -> Bool {
+        if controlItem?.frame?.contains(point) == true || hiddenDivider?.frame?.contains(point) == true
+            || alwaysHiddenDivider?.frame?.contains(point) == true {
+            return true
+        }
+        return secondaryPanel?.contains(point: point) == true || searchPanel?.contains(point: point) == true
     }
 
     private func scheduleRefreshTimer() {
@@ -573,6 +752,14 @@ final class MenuBarOrganizerService: ObservableObject {
         observe(.default, NSApplication.didChangeScreenParametersNotification) { [weak self] in
             Task { await self?.provider.invalidateIdentityCache() }
             self?.refresh()
+        }
+        observe(.default, NSMenu.didBeginTrackingNotification) { [weak self] in
+            self?.menuTracking = true
+            self?.rehideTask?.cancel()
+        }
+        observe(.default, NSMenu.didEndTrackingNotification) { [weak self] in
+            self?.menuTracking = false
+            self?.scheduleAutoRehide()
         }
     }
 
