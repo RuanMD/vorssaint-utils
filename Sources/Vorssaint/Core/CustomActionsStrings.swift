@@ -8,6 +8,10 @@ import Foundation
 struct CustomActionsFeatureStrings {
     let pageTitle: String
     let actionSection: String
+    let nameColumn: String
+    let statusColumn: String
+    let activeStatus: String
+    let inactiveStatus: String
     let name: String
     let description: String
     let enabled: String
@@ -49,6 +53,10 @@ extension CustomActionsFeatureStrings {
     static let enUS = CustomActionsFeatureStrings(
         pageTitle: "Custom Actions",
         actionSection: "Custom Action",
+        nameColumn: "Name",
+        statusColumn: "Status",
+        activeStatus: "Enabled",
+        inactiveStatus: "Disabled",
         name: "Name",
         description: "Description",
         enabled: "Enabled",
@@ -80,6 +88,10 @@ extension CustomActionsFeatureStrings {
     static let ptBR = CustomActionsFeatureStrings(
         pageTitle: "Ações personalizadas",
         actionSection: "Ação personalizada",
+        nameColumn: "Nome",
+        statusColumn: "Estado",
+        activeStatus: "Ativada",
+        inactiveStatus: "Desativada",
         name: "Nome",
         description: "Descrição",
         enabled: "Ativada",

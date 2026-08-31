@@ -48,6 +48,12 @@ final class CustomActionService: ObservableObject {
         return true
     }
 
+    func setEnabled(_ action: CustomAction, enabled: Bool) {
+        var updated = action
+        updated.enabled = enabled
+        _ = save(updated)
+    }
+
     func remove(_ action: CustomAction) {
         let next = actions.filter { $0.id != action.id }
         UserDefaults.standard.set(CustomActionSupport.encode(next), forKey: DefaultsKey.customActions)
