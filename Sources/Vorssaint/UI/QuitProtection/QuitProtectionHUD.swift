@@ -11,7 +11,6 @@ final class QuitProtectionHUD {
 
     func show(title: String, detail: String) {
         if panel == nil {
-            guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
             let panel = NSPanel(contentRect: CGRect(origin: .zero, size: size),
                                 styleMask: [.borderless, .nonactivatingPanel],
                                 backing: .buffered,
@@ -26,19 +25,32 @@ final class QuitProtectionHUD {
             panel.becomesKeyOnlyIfNeeded = true
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary,
                                         .stationary, .ignoresCycle]
-            let frame = screen.visibleFrame
-            panel.setFrameOrigin(CGPoint(x: (frame.midX - size.width / 2).rounded(),
-                                         y: (frame.minY + 18).rounded()))
             self.panel = panel
         }
 
         guard let content = panel?.contentView as? ContentView else { return }
         content.update(title: title, detail: detail)
+        positionPanel()
+        panel?.alphaValue = 1
         panel?.orderFrontRegardless()
+        // Event taps can arrive between normal AppKit drawing passes. Draw now
+        // so a short confirmation never waits for another app event to appear.
+        panel?.display()
     }
 
     func hide() {
         panel?.orderOut(nil)
+    }
+
+    private func positionPanel() {
+        guard let panel,
+              let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) })
+                ?? NSScreen.main
+                ?? NSScreen.screens.first
+        else { return }
+        let frame = screen.visibleFrame
+        panel.setFrameOrigin(CGPoint(x: (frame.midX - size.width / 2).rounded(),
+                                     y: (frame.minY + 18).rounded()))
     }
 
     private final class ContentView: NSView {
