@@ -5,8 +5,14 @@ import SwiftUI
 
 struct CustomActionsSettings: View {
     @ObservedObject private var service = CustomActionService.shared
+    @ObservedObject private var l10n = L10n.shared
     @State private var selectedID: CustomAction.ID?
     @State private var draft = CustomAction()
+    @State private var testInput = ""
+
+    private var strings: CustomActionsFeatureStrings {
+        FeatureStrings.customActions(l10n.language)
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -19,8 +25,8 @@ struct CustomActionsSettings: View {
                     }
                     .tag(action.id)
                     .contextMenu {
-                        Button("Duplicate") { select(service.duplicate(action)) }
-                        Button("Delete", role: .destructive) { service.remove(action) }
+                        Button(strings.duplicateButton) { select(service.duplicate(action)) }
+                        Button(strings.deleteButton, role: .destructive) { service.remove(action) }
                     }
                 }
             }
@@ -29,49 +35,63 @@ struct CustomActionsSettings: View {
             Divider()
 
             Form {
-                Section("Custom Action") {
-                    TextField("Name", text: $draft.name)
-                    TextField("Description", text: $draft.description)
-                    Toggle("Enabled", isOn: $draft.enabled)
+                Section(strings.actionSection) {
+                    TextField(strings.name, text: $draft.name)
+                    TextField(strings.description, text: $draft.description)
+                    Toggle(strings.enabled, isOn: $draft.enabled)
                 }
 
-                Section("JavaScript") {
+                Section(strings.javascriptSection) {
                     TextEditor(text: $draft.script)
                         .font(.system(.body, design: .monospaced))
                         .frame(minHeight: 180)
                         .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
-                    Text("Available: selectedText, clipboardText, input")
+                    Text(strings.availableVariables)
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
-                Section("Input and Output") {
-                    Picker("Input", selection: $draft.input) {
-                        Text("Selected text").tag(CustomActionInput.selectedText)
-                        Text("Clipboard").tag(CustomActionInput.clipboardText)
-                        Text("Automatic").tag(CustomActionInput.automatic)
+                Section(strings.inputOutputSection) {
+                    Picker(strings.input, selection: $draft.input) {
+                        Text(strings.selectedText).tag(CustomActionInput.selectedText)
+                        Text(strings.clipboardText).tag(CustomActionInput.clipboardText)
+                        Text(strings.automatic).tag(CustomActionInput.automatic)
                     }
-                    Picker("Output", selection: $draft.output) {
-                        Text("Replace selection").tag(CustomActionOutput.replaceSelection)
-                        Text("Insert at cursor").tag(CustomActionOutput.insertAtCursor)
-                        Text("Copy to clipboard").tag(CustomActionOutput.copyToClipboard)
-                        Text("Preview").tag(CustomActionOutput.preview)
+                    Picker(strings.output, selection: $draft.output) {
+                        Text(strings.replaceSelection).tag(CustomActionOutput.replaceSelection)
+                        Text(strings.insertAtCursor).tag(CustomActionOutput.insertAtCursor)
+                        Text(strings.copyToClipboard).tag(CustomActionOutput.copyToClipboard)
+                        Text(strings.preview).tag(CustomActionOutput.preview)
                     }
-                    Toggle("Show in Command Bar", isOn: $draft.showInCommandBar)
-                    Toggle("Show in Radial Menu", isOn: $draft.showInRadialMenu)
+                    Toggle(strings.showCommandBar, isOn: $draft.showInCommandBar)
+                    Toggle(strings.showRadialMenu, isOn: $draft.showInRadialMenu)
                 }
 
-                Section {
-                    HStack {
-                        Button("Test") {
-                            service.execute(draft, context: CustomActionContext(
-                                selectedText: "Selected sample",
-                                clipboardText: "Clipboard sample"), applyOutput: false)
+                Section(strings.testInputSection) {
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $testInput)
+                            .frame(minHeight: 76, maxHeight: 130)
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+                        if testInput.isEmpty {
+                            Text(strings.testInputPlaceholder)
+                                .foregroundStyle(.tertiary)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 8)
+                                .allowsHitTesting(false)
                         }
-                        Button("Save") {
+                    }
+                    Text(strings.testInputHint)
+                        .font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        Button(strings.testButton) {
+                            service.execute(draft, context: CustomActionContext(
+                                selectedText: testInput,
+                                clipboardText: testInput), applyOutput: false)
+                        }
+                        Button(strings.saveButton) {
                             guard service.save(draft) else { return }
                             selectedID = draft.id
                         }
-                        Button("New") { draft = CustomAction(); selectedID = nil }
+                        Button(strings.newButton) { draft = CustomAction(); selectedID = nil; testInput = "" }
                     }
                     if let error = service.lastError {
                         Label(error, systemImage: "exclamationmark.triangle")
@@ -83,12 +103,14 @@ struct CustomActionsSettings: View {
                             .padding(8)
                             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
                     }
+                    Text(strings.testOnlyHint)
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
             }
             .formStyle(.grouped)
             .padding()
         }
-        .navigationTitle("Custom Actions")
+        .navigationTitle(strings.pageTitle)
         .onAppear { service.syncWithPreferences(); select(service.actions.first) }
         .onChange(of: selectedID) { _, id in
             guard let id, let action = service.actions.first(where: { $0.id == id }) else { return }
