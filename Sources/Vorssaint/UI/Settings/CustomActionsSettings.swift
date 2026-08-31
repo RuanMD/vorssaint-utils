@@ -21,6 +21,8 @@ struct CustomActionsSettings: View {
         FeatureStrings.customActions(l10n.language)
     }
 
+    private let statusColumnWidth: CGFloat = 92
+
     private var sortedActions: [CustomAction] {
         service.actions.sorted { left, right in
             switch sortKey {
@@ -47,7 +49,7 @@ struct CustomActionsSettings: View {
                     sortButton(strings.nameColumn, key: .name)
                     Spacer()
                     sortButton(strings.statusColumn, key: .status)
-                        .frame(width: 92, alignment: .leading)
+                        .frame(width: statusColumnWidth, alignment: .leading)
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -70,8 +72,11 @@ struct CustomActionsSettings: View {
                             ))
                             .labelsHidden()
                             .toggleStyle(.switch)
+                            .controlSize(.small)
                             .help(action.enabled ? strings.activeStatus : strings.inactiveStatus)
+                            .frame(width: 38, alignment: .trailing)
                         }
+                        .frame(width: statusColumnWidth, alignment: .trailing)
                         .contentShape(Rectangle())
                         .tag(action.id)
                         .contextMenu {
@@ -92,6 +97,7 @@ struct CustomActionsSettings: View {
                     TextField(strings.name, text: $draft.name)
                     TextField(strings.description, text: $draft.description)
                     Toggle(strings.enabled, isOn: $draft.enabled)
+                        .controlSize(.small)
                 }
 
                 Section(strings.javascriptSection) {
@@ -116,7 +122,9 @@ struct CustomActionsSettings: View {
                         Text(strings.preview).tag(CustomActionOutput.preview)
                     }
                     Toggle(strings.showCommandBar, isOn: $draft.showInCommandBar)
+                        .controlSize(.small)
                     Toggle(strings.showRadialMenu, isOn: $draft.showInRadialMenu)
+                        .controlSize(.small)
                 }
 
                 Section(strings.testInputSection) {
