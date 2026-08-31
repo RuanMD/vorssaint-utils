@@ -17,7 +17,9 @@ final class QuitProtectionService: ObservableObject {
         let shortcut: QuitProtectionShortcut
         let event: CGEvent
         let mode: QuitProtectionMode
+        let targetProcessIdentifier: pid_t?
         var triggered = false
+        var emittedSyntheticKeyDown = false
     }
 
     private static let syntheticMarker: Int64 = 0x5652535341494E54
@@ -29,6 +31,7 @@ final class QuitProtectionService: ObservableObject {
     private var pending: Pending?
     private var swallowKeyUpFor: QuitProtectionShortcut?
     private var frontmostBundleIdentifier: String?
+    private var frontmostProcessIdentifier: pid_t?
     private let hud = QuitProtectionHUD()
 
     private init() {}
@@ -75,14 +78,22 @@ final class QuitProtectionService: ObservableObject {
         guard !isRunning else { return }
         guard installTap() else { return }
         isRunning = true
-        frontmostBundleIdentifier = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        let frontmost = NSWorkspace.shared.frontmostApplication
+        frontmostBundleIdentifier = frontmost?.bundleIdentifier
+        frontmostProcessIdentifier = frontmost?.processIdentifier
         activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
             queue: .main
         ) { [weak self] note in
-            self?.frontmostBundleIdentifier = (note.userInfo?[NSWorkspace.applicationUserInfoKey]
-                as? NSRunningApplication)?.bundleIdentifier
+            guard let self,
+                  let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            else { return }
+            if self.pending != nil, self.frontmostProcessIdentifier != app.processIdentifier {
+                self.cancelPending()
+            }
+            self.frontmostBundleIdentifier = app.bundleIdentifier
+            self.frontmostProcessIdentifier = app.processIdentifier
         }
     }
 
@@ -220,7 +231,10 @@ final class QuitProtectionService: ObservableObject {
                 extraModifier: configuration.extraModifier
             ) {
                 swallowKeyUpFor = shortcut
-                postSyntheticPress(from: event, removing: configuration.extraModifier)
+                confirm(shortcut: shortcut,
+                        event: event,
+                        targetProcessIdentifier: frontmostProcessIdentifier,
+                        removing: configuration.extraModifier)
                 hideHUD()
                 return nil
             }
@@ -253,7 +267,9 @@ final class QuitProtectionService: ObservableObject {
         }
 
         if pending.triggered {
-            postSyntheticKeyUp(from: event)
+            if pending.emittedSyntheticKeyDown {
+                postSyntheticKeyUp(from: event)
+            }
         }
         if pending.mode == .doublePress {
             return nil
@@ -285,7 +301,9 @@ final class QuitProtectionService: ObservableObject {
                 secondTimestamp: event.timestamp,
                 intervalMilliseconds: configuration.doublePressIntervalMilliseconds
             ) {
-                postSyntheticPress(from: event)
+                confirm(shortcut: shortcut,
+                        event: event,
+                        targetProcessIdentifier: pending.targetProcessIdentifier)
                 swallowKeyUpFor = shortcut
                 cancelPending()
                 hideHUD()
@@ -305,7 +323,10 @@ final class QuitProtectionService: ObservableObject {
         holdTimer = nil
         pendingExpiry?.cancel()
         pendingExpiry = nil
-        pending = Pending(shortcut: shortcut, event: event, mode: mode)
+        pending = Pending(shortcut: shortcut,
+                          event: event,
+                          mode: mode,
+                          targetProcessIdentifier: frontmostProcessIdentifier)
 
         let configuration = configuration(for: shortcut)
         switch mode {
@@ -338,8 +359,16 @@ final class QuitProtectionService: ObservableObject {
     private func completeHold() {
         guard var pending, pending.mode == .hold else { return }
         pending.triggered = true
+        if QuitProtectionSupport.usesNativeQuitRequest(for: pending.shortcut) {
+            if !requestQuit(targetProcessIdentifier: pending.targetProcessIdentifier) {
+                postSyntheticKeyDown(from: pending.event)
+                pending.emittedSyntheticKeyDown = true
+            }
+        } else {
+            postSyntheticKeyDown(from: pending.event)
+            pending.emittedSyntheticKeyDown = true
+        }
         self.pending = pending
-        postSyntheticKeyDown(from: pending.event)
         showReleaseHUD(for: pending.shortcut)
     }
 
@@ -427,6 +456,25 @@ final class QuitProtectionService: ObservableObject {
 
     private func isSynthetic(_ event: CGEvent) -> Bool {
         event.getIntegerValueField(.eventSourceUserData) == Self.syntheticMarker
+    }
+
+    private func confirm(shortcut: QuitProtectionShortcut,
+                         event: CGEvent,
+                         targetProcessIdentifier: pid_t?,
+                         removing modifier: QuitProtectionExtraModifier? = nil) {
+        if QuitProtectionSupport.usesNativeQuitRequest(for: shortcut),
+           requestQuit(targetProcessIdentifier: targetProcessIdentifier) {
+            return
+        }
+        postSyntheticPress(from: event, removing: modifier)
+    }
+
+    @discardableResult
+    private func requestQuit(targetProcessIdentifier: pid_t?) -> Bool {
+        guard let targetProcessIdentifier,
+              let app = NSRunningApplication(processIdentifier: targetProcessIdentifier)
+        else { return false }
+        return app.terminate()
     }
 
     private func postSyntheticKeyDown(from event: CGEvent,

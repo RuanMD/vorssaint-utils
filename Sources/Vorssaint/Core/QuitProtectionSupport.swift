@@ -76,6 +76,10 @@ enum QuitProtectionSupport {
         return secondTimestamp - firstTimestamp <= allowedNanoseconds
     }
 
+    static func usesNativeQuitRequest(for shortcut: QuitProtectionShortcut) -> Bool {
+        shortcut == .quit
+    }
+
     static func scopeAllows(_ scope: QuitProtectionScope,
                             bundleIdentifier: String?,
                             exceptions: [String]) -> Bool {

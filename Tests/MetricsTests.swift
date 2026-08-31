@@ -21338,6 +21338,9 @@ struct MetricsTests {
             secondTimestamp: 2_500_000_001,
             intervalMilliseconds: 1_500
         ), "a second press after the interval starts a new confirmation")
+        expect(QuitProtectionSupport.usesNativeQuitRequest(for: .quit)
+                && !QuitProtectionSupport.usesNativeQuitRequest(for: .close),
+               "quit confirmation asks the target app to terminate while close stays a window shortcut")
 
         expect(QuitProtectionSupport.scopeAllows(.all, bundleIdentifier: nil, exceptions: []),
                "all-app scope protects even an app without a bundle identifier")
