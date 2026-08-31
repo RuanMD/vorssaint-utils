@@ -97,7 +97,8 @@ final class CustomActionService: ObservableObject {
     }
 
     func commandBarEntries() -> [CommandBarEntry] {
-        actions.filter { $0.enabled && $0.showInCommandBar }.map { action in
+        guard AppFeature.customActions.isAvailable else { return [] }
+        return actions.filter { $0.enabled && $0.showInCommandBar }.map { action in
             CommandBarEntry(id: "custom-action.\(action.id.uuidString)",
                             stableKey: "custom-action.\(action.id.uuidString)",
                             title: action.name,

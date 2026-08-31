@@ -233,6 +233,13 @@ final class FeatureRuntime: ObservableObject {
         .radialMenu: { RadialMenuService.shared.syncWithPreferences() },
         .scratchpad: { ScratchpadService.shared.syncWithPreferences() },
         .commandBar: { CommandBarService.shared.syncWithPreferences() },
+        .customActions: {
+            if AppFeature.customActions.isAvailable {
+                CustomActionService.shared.syncWithPreferences()
+            } else {
+                CustomActionService.shared.suspend()
+            }
+        },
         .cleaner: {
             CleanerScheduler.shared.syncWithPreferences()
             WhatsAppDownloadScheduler.shared.syncWithPreferences()
