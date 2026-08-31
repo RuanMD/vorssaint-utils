@@ -561,6 +561,9 @@ enum DefaultsKey {
     static let dictationSecondaryMicrophone = "dictationSecondaryMicrophone"
     static let dictationPauseMedia = "dictationPauseMedia"
     static let dictationMediaResumeDelay = "dictationMediaResumeDelay"
+    static let dictationHistoryEnabled = "dictationHistoryEnabled"
+    static let dictationHistorySaveAudio = "dictationHistorySaveAudio"
+    static let dictationHistoryRetentionDays = "dictationHistoryRetentionDays"
     static let dictationSecondaryProvider = "dictationSecondaryProvider"
     static let dictationSecondaryOpenAIModel = "dictationSecondaryOpenAIModel"
     static let dictationSecondaryGroqModel = "dictationSecondaryGroqModel"
@@ -1230,6 +1233,9 @@ enum Defaults {
         DefaultsKey.dictationSecondaryMicrophone: "",
         DefaultsKey.dictationPauseMedia: false,
         DefaultsKey.dictationMediaResumeDelay: 0,
+        DefaultsKey.dictationHistoryEnabled: false,
+        DefaultsKey.dictationHistorySaveAudio: true,
+        DefaultsKey.dictationHistoryRetentionDays: 7,
         DefaultsKey.dictationSecondaryProvider: DictationProvider.groq.rawValue,
         DefaultsKey.dictationSecondaryOpenAIModel: DictationProvider.openAI.defaultModel.id,
         DefaultsKey.dictationSecondaryGroqModel: DictationProvider.groq.defaultModel.id,
