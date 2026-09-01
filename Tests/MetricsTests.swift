@@ -13187,6 +13187,25 @@ struct MetricsTests {
                     record: privateOnlyRecord, source: technicalSource),
                "organizer dividers are excluded even before their AppKit window IDs settle")
 
+        let axOnlyCandidate = MenuBarItemSourceCandidate(
+            source: technicalSource,
+            frame: CGRect(x: 120, y: 0, width: 20, height: 22))
+        let duplicateAXOnlyCandidate = MenuBarItemSourceCandidate(
+            source: technicalSource,
+            frame: CGRect(x: 120, y: 0, width: 20, height: 22))
+        let distinctAXOnlyCandidate = MenuBarItemSourceCandidate(
+            source: MenuBarItemSourceIdentity(
+                pid: 100,
+                bundleIdentifier: "com.example.other",
+                name: "Other App",
+                axIdentifier: "com.example.other.status",
+                axTitle: "Other status"),
+            frame: CGRect(x: 150, y: 0, width: 20, height: 22))
+        expect(MenuBarOrganizerSupport.deduplicatedSourceCandidates([
+                    axOnlyCandidate, duplicateAXOnlyCandidate, distinctAXOnlyCandidate
+                ]) == [axOnlyCandidate, distinctAXOnlyCandidate],
+               "Accessibility-only status candidates are de-duplicated before the editor renders them")
+
         func managedMenuBarItem(_ windowID: CGWindowID,
                                 occurrence: Int,
                                 x: CGFloat,

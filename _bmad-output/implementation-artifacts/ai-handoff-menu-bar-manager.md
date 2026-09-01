@@ -296,7 +296,7 @@ screenshots privados ou dumps no Git.
 git diff --check
 ```
 
-4. Atualizar a Story 2.3/2.4 e este handoff com o commit, a evidência e as limitações.
+4. Atualizar a Story 2.3/2.4/2.5 e este handoff com o commit, a evidência e as limitações.
    Só então considerar a entrega pronta para revisão humana.
 
 ## 11. Correção de descoberta e clareza do editor (Story 2.4)
@@ -337,3 +337,29 @@ asset, texto de interface ou nome interno daquele projeto.
    toda a faixa horizontal.
 5. Tente mover somente um item estável e confirme que o controle de lote da Story
    2.3 permanece ativo.
+
+## 12. Correção de curso: catálogo Accessibility (Story 2.5)
+
+O macOS 26 pode expor a menu bar inteira como uma superfície composta, sem uma
+`CGWindow` por ícone. Por isso, a descoberta deixou de depender de janelas:
+
+1. `MenuBarItemSourceResolver.discover()` percorre `AXExtrasMenuBar` dos apps em
+   uma task utilitária, com timeout de mensagem já existente e cache curto.
+2. O mesmo catálogo é usado para correlacionar slots WindowServer; não há mais uma
+   segunda varredura AX para resolver Control Center, evitando carga duplicada.
+3. Candidatos só-AX entram no editor com título humano/ícone e `isMovable == false`.
+   O WindowServer continua exigido exclusivamente para arrastar/clicar com segurança.
+4. Candidatos AX duplicados são deduplicados por origem, identificador/título e
+   frame. Divisores internos permanecem excluídos.
+5. A barra secundária mostra apenas itens correlacionados/movíveis; ela não afirma
+   ser o inventário completo do sistema.
+
+Limite: widgets que não expõem `AXExtrasMenuBar` **nem** um slot WindowServer não
+podem ser enumerados por esta arquitetura. Não inventar uma associação nem liberar
+movimento nesses casos. Uma futura melhoria só deve introduzir helper separado após
+medir bloqueio/CPU no app principal; não copiar o XPC ou dependências do Thaw.
+
+Roteiro manual da Story 2.5: com Accessibility no bundle Developer, atualizar o
+Organizer e comparar o editor com a status bar; confirmar que itens AX-only têm
+nome/ícone, lock e não entram na barra secundária; mover somente um item confirmado;
+revogar Accessibility e confirmar o teardown/PermissionRow sem Screen Recording.

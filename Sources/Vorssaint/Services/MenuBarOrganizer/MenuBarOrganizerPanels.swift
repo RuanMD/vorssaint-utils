@@ -21,7 +21,9 @@ final class MenuBarOrganizerPanelController {
 
     func show(anchor: CGRect?) {
         guard let service else { return }
-        let hiddenCount = max(service.items.filter { $0.section != .visible }.count, 1)
+        let hiddenCount = max(service.items.filter {
+            $0.section != .visible && $0.isMovable
+        }.count, 1)
         let spacing = service.secondaryBarSpacing
         let size = CGSize(width: min(max(CGFloat(hiddenCount) * 62
                                          + CGFloat(max(hiddenCount - 1, 0)) * spacing + 32, 260), 720),
@@ -78,7 +80,7 @@ private struct MenuBarOrganizerSecondaryBarView: View {
     @ObservedObject private var l10n = L10n.shared
 
     private var hiddenItems: [ManagedMenuBarItem] {
-        service.items.filter { $0.section != .visible }
+        service.items.filter { $0.section != .visible && $0.isMovable }
     }
 
     var body: some View {

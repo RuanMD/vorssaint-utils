@@ -64,6 +64,19 @@ struct MenuBarItemSourceIdentity: Equatable {
     }
 }
 
+/// An Accessibility status item. It can exist even when the WindowServer only
+/// exposes the whole composited menu bar instead of an individual CG window.
+struct MenuBarItemSourceCandidate: Equatable {
+    let source: MenuBarItemSourceIdentity
+    let frame: CGRect
+
+    var slotKey: String {
+        "\(source.pid):\(source.bundleIdentifier):"
+            + (source.axIdentifier ?? source.axTitle ?? source.name)
+            + ":\(Int(frame.minX)): \(Int(frame.minY))"
+    }
+}
+
 struct ResolvedMenuBarItemIdentity {
     let id: MenuBarItemIdentity
     let state: MenuBarItemIdentityState
@@ -242,11 +255,24 @@ enum MenuBarOrganizerSupport {
         return (privateRecords + publicRecords).filter { seen.insert($0.windowID).inserted }
     }
 
+    static func deduplicatedSourceCandidates(
+        _ candidates: [MenuBarItemSourceCandidate]
+    ) -> [MenuBarItemSourceCandidate] {
+        var seen = Set<String>()
+        return candidates.filter { seen.insert($0.slotKey).inserted }
+    }
+
     static func isOrganizerInternalItem(
         record: MenuBarOrganizerWindowRecord,
         source: MenuBarItemSourceIdentity?
     ) -> Bool {
         [record.title, source?.axIdentifier, source?.axTitle]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .contains { $0.hasPrefix("Vorssaint.MenuBarOrganizer.") }
+    }
+
+    static func isOrganizerInternalSource(_ source: MenuBarItemSourceIdentity) -> Bool {
+        [source.axIdentifier, source.axTitle]
             .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .contains { $0.hasPrefix("Vorssaint.MenuBarOrganizer.") }
     }

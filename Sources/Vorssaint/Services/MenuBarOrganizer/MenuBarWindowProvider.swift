@@ -24,7 +24,13 @@ final class MenuBarWindowProvider {
         let enumeratedRecords = enumeration.records.filter {
             !excludedWindowIDs.contains($0.windowID)
         }
-        let resolvedSources = await resolver.resolve(records: enumeratedRecords)
+        let catalog = MenuBarOrganizerSupport.deduplicatedSourceCandidates(
+            await resolver.discover())
+        let resolvedSources = await resolver.resolve(
+            records: enumeratedRecords, catalog: catalog)
+        // The resolver correlates this catalog with WindowServer frames. A
+        // successful correlation upgrades a host window to its real source;
+        // an uncorrelated candidate remains visible but intentionally locked.
         // Divider window IDs can be temporarily unavailable while AppKit inserts
         // or removes a status item. Their accessibility identifiers remain a
         // reliable second exclusion mechanism during that transition.
@@ -32,14 +38,37 @@ final class MenuBarWindowProvider {
             !MenuBarOrganizerSupport.isOrganizerInternalItem(
                 record: $0, source: resolvedSources[$0.windowID])
         }
-        let sources = resolvedSources.filter { entry in
+        var sources = resolvedSources.filter { entry in
             records.contains { $0.windowID == entry.key }
         }
-        let identities = MenuBarOrganizerSupport.identities(for: records, sources: sources)
+        let uncorrelatedCandidates = catalog.filter { candidate in
+            !MenuBarOrganizerSupport.isOrganizerInternalSource(candidate.source)
+                && !records.contains {
+                    MenuBarOrganizerSupport.frameMatchScore($0.frame, candidate.frame) != nil
+                }
+        }
+        .sorted { $0.slotKey < $1.slotKey }
+        let virtualRecords = uncorrelatedCandidates.enumerated().map { index, candidate in
+            let virtualWindowID = CGWindowID(0xF000_0000 + UInt32(index))
+            sources[virtualWindowID] = candidate.source
+            return MenuBarOrganizerWindowRecord(
+                windowID: virtualWindowID,
+                ownerPID: candidate.source.pid,
+                ownerName: candidate.source.name,
+                ownerBundleIdentifier: candidate.source.bundleIdentifier,
+                title: candidate.source.displayTitle ?? "",
+                frame: candidate.frame,
+                layer: 0,
+                alpha: 1,
+                isOnScreen: true)
+        }
+        let allRecords = records + virtualRecords
+        let virtualWindowIDs = Set(virtualRecords.map(\.windowID))
+        let identities = MenuBarOrganizerSupport.identities(for: allRecords, sources: sources)
         let currentPID = ProcessInfo.processInfo.processIdentifier
 
         let items = await MainActor.run {
-            records.compactMap { record -> ManagedMenuBarItem? in
+            allRecords.compactMap { record -> ManagedMenuBarItem? in
                 guard let resolved = identities[record.windowID] else { return nil }
                 let source = resolved.source
                 let bundleIdentifier = source?.bundleIdentifier
@@ -50,7 +79,8 @@ final class MenuBarWindowProvider {
                     || MenuBarOrganizerSupport.isSystemImmovable(
                         bundleIdentifier: bundleIdentifier,
                         title: title)
-                let movable = resolved.state == .stable && !protected
+                let movable = !virtualWindowIDs.contains(record.windowID)
+                    && resolved.state == .stable && !protected
                 let sourceApp = source.flatMap { NSRunningApplication(processIdentifier: $0.pid) }
                 let ownerApp = NSRunningApplication(processIdentifier: record.ownerPID)
                 let iconApp = sourceApp ?? ownerApp
@@ -88,13 +118,13 @@ final class MenuBarWindowProvider {
         return MenuBarItemSnapshot(
             items: items,
             capabilities: MenuBarOrganizerCapabilities(
-                canEnumerate: enumeration.succeeded,
+                canEnumerate: enumeration.succeeded || !catalog.isEmpty,
                 canMove: AXIsProcessTrusted(),
                 hasPrivateWindowList: enumeration.usedPrivateWindowList,
                 unresolvedItemCount: items.count {
                     $0.identityState == .provisional
                 }),
-            enumerationSucceeded: enumeration.succeeded)
+            enumerationSucceeded: enumeration.succeeded || !catalog.isEmpty)
     }
 
     func invalidateIdentityCache() async {

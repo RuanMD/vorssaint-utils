@@ -20,6 +20,8 @@ sem transformar uma operação individual em uma alteração em lote.
 - **2.4 — Descoberta confiável e editor legível:** combinar a enumeração pública
   do WindowServer com a sonda privada, ocultar os divisores internos do Vorssaint
   e separar a identidade técnica do rótulo apresentado.
+- **2.5 — Catálogo por Accessibility e correlação:** usar Accessibility como fonte
+  de descoberta e WindowServer somente para identificar posição/movimento seguro.
 
 ## Requirements & Constraints
 

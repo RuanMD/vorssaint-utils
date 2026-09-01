@@ -16,27 +16,48 @@ actor MenuBarItemSourceResolver {
         let name: String
     }
 
-    private struct AXItemRecord: Sendable {
-        let source: MenuBarItemSourceIdentity
-        let frame: CGRect
+    private var cache: [CGWindowID: MenuBarItemSourceIdentity] = [:]
+    private var catalogCache: [MenuBarItemSourceCandidate] = []
+    private var catalogTask: Task<[MenuBarItemSourceCandidate], Never>?
+    private var catalogUpdatedAt: Date?
+
+    /// Accessibility is the canonical source for items that macOS 26 renders
+    /// into one composited menu-bar surface. Cache it briefly: Settings refreshes
+    /// often while the user drags, and walking every app must remain bounded.
+    func discover() async -> [MenuBarItemSourceCandidate] {
+        guard AXIsProcessTrusted() else { return [] }
+        if let catalogUpdatedAt,
+           Date().timeIntervalSince(catalogUpdatedAt) < 2 {
+            return catalogCache
+        }
+        let applications = await runningApplications()
+        if catalogTask == nil {
+            catalogTask = Task.detached(priority: .utility) {
+                var candidates: [MenuBarItemSourceCandidate] = []
+                for application in applications {
+                    guard !Task.isCancelled else { return [] }
+                    candidates.append(contentsOf: Self.scanExtrasMenuBar(application))
+                }
+                return candidates
+            }
+        }
+        guard let catalogTask else { return catalogCache }
+        let candidates = await catalogTask.value
+        self.catalogTask = nil
+        guard !Task.isCancelled else { return catalogCache }
+        catalogCache = candidates
+        catalogUpdatedAt = Date()
+        return candidates
     }
 
-    private var cache: [CGWindowID: MenuBarItemSourceIdentity] = [:]
-    private var scanTask: Task<[CGWindowID: MenuBarItemSourceIdentity], Never>?
-    private var scanID: UUID?
-
     func resolve(
-        records: [MenuBarOrganizerWindowRecord]
-    ) async -> [CGWindowID: MenuBarItemSourceIdentity] {
+        records: [MenuBarOrganizerWindowRecord],
+        catalog: [MenuBarItemSourceCandidate]
+    ) -> [CGWindowID: MenuBarItemSourceIdentity] {
         let liveWindowIDs = Set(records.map(\.windowID))
         cache = cache.filter { liveWindowIDs.contains($0.key) }
 
         var result = cache
-        let unresolvedHosted = records.filter {
-            $0.ownerBundleIdentifier == MenuBarOrganizerSupport.controlCenterBundleIdentifier
-                && result[$0.windowID] == nil
-        }
-
         for record in records
         where record.ownerBundleIdentifier != MenuBarOrganizerSupport.controlCenterBundleIdentifier {
             let source = MenuBarItemSourceIdentity(
@@ -50,9 +71,24 @@ actor MenuBarItemSourceResolver {
             result[record.windowID] = source
             cache[record.windowID] = source
         }
+        let matches = Self.match(records: records, catalog: catalog)
+        for (windowID, source) in matches {
+            result[windowID] = source
+            cache[windowID] = source
+        }
+        return result
+    }
 
-        guard !unresolvedHosted.isEmpty, AXIsProcessTrusted() else { return result }
-        let applications = await MainActor.run {
+    func invalidate() {
+        catalogTask?.cancel()
+        catalogTask = nil
+        catalogCache.removeAll()
+        catalogUpdatedAt = nil
+        cache.removeAll()
+    }
+
+    private func runningApplications() async -> [ApplicationRecord] {
+        await MainActor.run {
             NSWorkspace.shared.runningApplications.compactMap { app -> ApplicationRecord? in
                 guard !app.isTerminated else { return nil }
                 let bundleID = app.bundleIdentifier ?? ""
@@ -64,41 +100,12 @@ actor MenuBarItemSourceResolver {
                     name: app.localizedName ?? bundleID)
             }
         }
-        if scanTask == nil {
-            scanID = UUID()
-            scanTask = Task.detached(priority: .utility) {
-                Self.match(records: unresolvedHosted, applications: applications)
-            }
-        }
-        guard let scanTask, let activeScanID = scanID else { return result }
-        let matches = await scanTask.value
-        if scanID == activeScanID {
-            self.scanTask = nil
-            scanID = nil
-        }
-        for (windowID, source) in matches {
-            result[windowID] = source
-            cache[windowID] = source
-        }
-        return result
-    }
-
-    func invalidate() {
-        scanTask?.cancel()
-        scanTask = nil
-        scanID = nil
-        cache.removeAll()
     }
 
     private static func match(
         records: [MenuBarOrganizerWindowRecord],
-        applications: [ApplicationRecord]
+        catalog: [MenuBarItemSourceCandidate]
     ) -> [CGWindowID: MenuBarItemSourceIdentity] {
-        var axItems: [AXItemRecord] = []
-        for application in applications {
-            guard !Task.isCancelled else { return [:] }
-            axItems.append(contentsOf: scanExtrasMenuBar(application))
-        }
         struct Candidate {
             let windowID: CGWindowID
             let source: MenuBarItemSourceIdentity
@@ -110,7 +117,7 @@ actor MenuBarItemSourceResolver {
         var candidates: [Candidate] = []
         for record in records {
             guard !Task.isCancelled else { return [:] }
-            for axItem in axItems {
+            for axItem in catalog {
                 // A generic hosted slot can overlap Control Center's own AX
                 // child exactly. That match identifies the host, not the app
                 // that supplied the item, and must remain provisional.
@@ -126,9 +133,7 @@ actor MenuBarItemSourceResolver {
                     windowID: record.windowID,
                     source: axItem.source,
                     score: score,
-                    sourceSlot: "\(axItem.source.pid):"
-                        + (axItem.source.axIdentifier ?? axItem.source.axTitle ?? "")
-                        + ":\(Int(axItem.frame.minX)):\(Int(axItem.frame.minY))",
+                    sourceSlot: axItem.slotKey,
                     usesOwnerFallback:
                         axItem.source.bundleIdentifier
                             == MenuBarOrganizerSupport.controlCenterBundleIdentifier))
@@ -152,7 +157,7 @@ actor MenuBarItemSourceResolver {
         return result
     }
 
-    private static func scanExtrasMenuBar(_ app: ApplicationRecord) -> [AXItemRecord] {
+    private static func scanExtrasMenuBar(_ app: ApplicationRecord) -> [MenuBarItemSourceCandidate] {
         let application = AXUIElementCreateApplication(app.pid)
         AXUIElementSetMessagingTimeout(application, 0.2)
         guard let extras: AXUIElement = attribute("AXExtrasMenuBar", from: application),
@@ -169,7 +174,7 @@ actor MenuBarItemSourceResolver {
                 name: app.name,
                 axIdentifier: attribute(kAXIdentifierAttribute, from: child),
                 axTitle: attribute(kAXTitleAttribute, from: child))
-            return AXItemRecord(source: source, frame: frame)
+            return MenuBarItemSourceCandidate(source: source, frame: frame)
         }
     }
 
