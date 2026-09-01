@@ -48,6 +48,10 @@ final class MenuBarWindowProvider {
             !MenuBarOrganizerSupport.isOrganizerInternalSource(candidate.source)
                 && candidate.source.bundleIdentifier
                     != MenuBarOrganizerSupport.controlCenterBundleIdentifier
+                && candidate.source.bundleIdentifier != "com.apple.systemuiserver"
+                && candidate.frame.minY <= 48
+                && candidate.frame.width > 0 && candidate.frame.width < 400
+                && candidate.frame.height > 0 && candidate.frame.height <= 64
                 && !records.contains {
                     MenuBarOrganizerSupport.frameMatchScore($0.frame, candidate.frame) != nil
                 }
@@ -85,7 +89,8 @@ final class MenuBarWindowProvider {
                         bundleIdentifier: bundleIdentifier,
                         title: title)
                 let movable = !virtualWindowIDs.contains(record.windowID)
-                    && resolved.state == .stable && !protected
+                    && (resolved.state == .stable || (source != nil && source?.bundleIdentifier != MenuBarOrganizerSupport.controlCenterBundleIdentifier))
+                    && !protected
                 let sourceApp = source.flatMap { NSRunningApplication(processIdentifier: $0.pid) }
                 let ownerApp = NSRunningApplication(processIdentifier: record.ownerPID)
                 let iconApp = sourceApp ?? ownerApp
@@ -94,6 +99,8 @@ final class MenuBarWindowProvider {
                 // which can return lower-quality or wrong icons for hosted items.
                 let icon: NSImage? = iconApp?.icon
                     ?? iconApp?.bundleURL.map { NSWorkspace.shared.icon(forFile: $0.path) }
+                    ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
+                        .map { NSWorkspace.shared.icon(forFile: $0.path) }
                 return ManagedMenuBarItem(
                     id: resolved.id,
                     windowID: record.windowID,

@@ -266,6 +266,7 @@ struct MenuBarOrganizerSettings: View {
                                title: String) -> some View {
         let laneItems = MenuBarOrganizerSupport.orderedItems(service.items, in: section)
             .filter { $0.identityState != .provisional }
+            .filter { $0.isMovable || $0.image != nil }
         return VStack(alignment: .leading, spacing: 7) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
@@ -283,7 +284,9 @@ struct MenuBarOrganizerSettings: View {
                             label: MenuBarOrganizerSupport.displayName(for: item,
                                                                        among: service.items))
                             .onDrag {
-                                NSItemProvider(object: item.id.storageValue as NSString)
+                                item.isMovable
+                                    ? NSItemProvider(object: item.id.storageValue as NSString)
+                                    : NSItemProvider()
                             }
                             .onDrop(
                                 of: [UTType.text],
