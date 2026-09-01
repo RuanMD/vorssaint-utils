@@ -1,5 +1,10 @@
 # Handoff para implementação por outra IA — Menu Bar Manager avançado
 
+> **Estado atual — leia antes de editar:** o MVP do follow-up já foi implementado
+> na branch abaixo. A próxima IA não deve reimplementar o recurso nem criar outra
+> branch; deve validar manualmente, corrigir somente regressões encontradas e
+> atualizar este handoff com evidências.
+
 ## 1. Contrato operacional obrigatório
 
 Este documento entrega uma implementação para a branch do recurso. Antes de
@@ -178,12 +183,12 @@ git log --oneline upstream/main..HEAD
 ```
 
 Resultado automatizado atual: `swift build` e `./build.sh --test` passam; o harness
-reporta 9.470 checks. A validação Developer em hardware real ainda é necessária
+reporta 9.473 checks. `./build.sh --dev`, `SELFTEST` e a instalação Developer
+também foram concluídos no commit `d5f814a`. A validação em hardware real ainda é necessária
 para TCC, notch, múltiplos monitores, Spaces e interação com organizer concorrente.
-Foi identificada uma correção de curso na Story 2.3: rótulos repetidos e a
-revelação transitória durante edição fazem uma movimentação unitária parecer em
-lote. Implementar a validação de cardinalidade por `windowID` e o fallback de
-rótulo antes de considerar o Organizer pronto para uso manual.
+Essa correção de curso já foi implementada na Story 2.3: rótulos repetidos e a
+revelação transitória durante edição não devem fazer uma movimentação unitária
+parecer em lote. A validação usa identidade completa e rejeita alterações extras.
 Não fazer `git push`, force-push ou abrir PR sem autorização explícita. Antes da
 entrega, informar branch, commit, base/dependência, arquivos principais, testes,
 build Developer, limitações manuais, permissões e qualquer trabalho adiado.
@@ -192,3 +197,104 @@ Definição de pronto: os critérios de aceitação do PRD estão cobertos por t
 roteiro manual, a branch contém somente este follow-up e seus artefatos necessários,
 nenhum recurso do MVP foi duplicado, nenhum segredo foi introduzido e o comportamento
 de permissão/indisponibilidade é explicável e recuperável.
+
+## 9. Estado implementado e correção da movimentação unitária
+
+Commits relevantes desta entrega:
+
+- `39ca696` — documentação da Story 2.3 e correção do crash transitório do
+  `MenuBarDividerItem.windowID`.
+- `6248f11` — validação de identidade visível e movimentação unitária.
+- `d5f814a` — fechamento do handoff, ordem de revisão e status dos artefatos.
+
+O código já entregue faz o seguinte:
+
+1. O editor de Settings e a barra secundária calculam rótulos únicos no snapshot.
+   Itens repetidos aparecem com sufixos determinísticos (`#1`, `#2`) e não exibem
+   PID ou `windowID`. Colisões de caixa, acentos e nomes como `App`/`App #1` são
+   tratadas.
+2. O drop continua transportando o `MenuBarItemIdentity.storageValue` completo.
+   O service revalida o alvo, exige identidade estável e usa um baseline único
+   durante as tentativas de Command-drag.
+3. Depois do gesto, a validação compara as sequências por identidade, permitindo
+   apenas o reflow esperado dos vizinhos. Se outra identidade, seção ou window ID
+   inválido aparecer, o movimento não é confirmado e o undo é limpo.
+4. A UI informa que revelar `Hidden`/`Always Hidden` na sessão de edição é
+   transitório; revelar os itens não significa alterar a classificação em lote.
+5. A correção anterior do crash evita assertion quando um divisor ainda não tem
+   uma janela de status item durante refresh.
+
+Arquivos principais:
+
+- `Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerSupport.swift`
+  — rótulos únicos e `isSingleItemMove`.
+- `Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerService.swift`
+  — baseline, revalidação, pós-verificação e rollback lógico do undo.
+- `Sources/Vorssaint/UI/Settings/MenuBarOrganizerSettings.swift` — aviso de
+  revelação transitória e rótulos usados no drag-and-drop.
+- `Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerPanels.swift` e
+  `MenuBarOrganizerSearchPanel.swift` — rótulos da barra secundária e busca.
+- `Tests/MetricsTests.swift` — 9.473 checks, incluindo duplicatas, caixa/acentos,
+  lote, no-op, identidade reatribuída e window ID duplicado.
+
+## 10. O que a próxima IA precisa fazer
+
+### Não fazer
+
+- não criar branch nova, outro worktree ou outra implementação do provider;
+- não copiar código do Ice, adicionar `AXSwift` ou introduzir dependências;
+- não alterar o app oficial `/Applications/Vorssaint.app`;
+- não declarar a Story 2.3 pronta para distribuição sem o roteiro manual abaixo;
+- não fazer `push`, force-push, merge remoto ou abrir PR sem autorização explícita.
+
+### Validar no Mac real
+
+Use somente o bundle Developer instalado:
+
+```sh
+open "/Applications/Vorssaint (Developer).app"
+/usr/libexec/PlistBuddy -c 'Print :VorssaintBuildCommit' "/Applications/Vorssaint (Developer).app/Contents/Info.plist"
+```
+
+O valor esperado é `d5f814a · ...` e o bundle ID é `com.vorssaint.utils.dev`.
+
+1. Com Accessibility negada, abrir Menu Bar Organizer e confirmar que aparece
+   orientação/`PermissionRow`, sem crash e sem desativar outras features.
+2. Conceder Accessibility, voltar ao app e atualizar o snapshot.
+3. Usar vários itens do Vorssaint, Google Drive e Control Center. Confirmar que
+   itens com o mesmo nome têm rótulos diferentes.
+4. Arrastar exatamente um item de `Sempre ocultos` para `Visíveis`, de volta para
+   `Ocultos` e para `Sempre ocultos`. A aparição temporária de outros itens na
+   barra é esperada para o gesto, mas somente o item selecionado pode ser
+   confirmado como movido.
+5. Reordenar dois itens na mesma seção e testar drop em seção vazia. Confirmar
+   ordem após refresh e reinício.
+6. Abrir a barra secundária em Mac com notch e monitor externo; verificar monitor,
+   ordem, auto-hide, pin e que a janela não rouba foco.
+7. Testar busca por item oculto, ativação, item provisório e item que desaparece.
+8. Testar revogação de Accessibility durante a sessão e a presença de outro
+   organizer. O service deve desmontar/rejeitar a ação de forma recuperável.
+9. Confirmar que o Organizer nunca solicita Screen Recording.
+
+Registrar no handoff: data, macOS, modelo, bundle usado, permissões antes/depois,
+itens testados, resultado de cada passo e qualquer crash/log. Não colocar tokens,
+screenshots privados ou dumps no Git.
+
+### Se encontrar falha
+
+1. Reproduzir primeiro com `git status --short --branch` e registrar o passo
+   exato.
+2. Corrigir na mesma `feat/menu-bar-manager-followup`, adicionando teste puro em
+   `Tests/MetricsTests.swift` quando a regra puder ser isolada.
+3. Rodar novamente:
+
+```sh
+./build.sh --test
+./build.sh --dev
+./build/VorssaintDeveloper --selftest
+./build.sh --dev --install
+git diff --check
+```
+
+4. Atualizar a Story 2.3 e este handoff com o commit, a evidência e as limitações.
+   Só então considerar a entrega pronta para revisão humana.
