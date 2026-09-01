@@ -180,6 +180,10 @@ git log --oneline upstream/main..HEAD
 Resultado automatizado atual: `swift build` e `./build.sh --test` passam; o harness
 reporta 9.470 checks. A validação Developer em hardware real ainda é necessária
 para TCC, notch, múltiplos monitores, Spaces e interação com organizer concorrente.
+Foi identificada uma correção de curso na Story 2.3: rótulos repetidos e a
+revelação transitória durante edição fazem uma movimentação unitária parecer em
+lote. Implementar a validação de cardinalidade por `windowID` e o fallback de
+rótulo antes de considerar o Organizer pronto para uso manual.
 Não fazer `git push`, force-push ou abrir PR sem autorização explícita. Antes da
 entrega, informar branch, commit, base/dependência, arquivos principais, testes,
 build Developer, limitações manuais, permissões e qualquer trabalho adiado.
