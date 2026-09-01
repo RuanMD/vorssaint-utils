@@ -276,7 +276,7 @@ struct MenuBarOrganizerSettings: View {
         return VStack(alignment: .leading, spacing: 7) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-            ScrollView(.horizontal) {
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     if laneItems.isEmpty {
                         Text(text.emptySection)
@@ -371,27 +371,24 @@ private struct MenuBarOrganizerEditorItem: View {
     }
 
     var body: some View {
-        HStack(spacing: 5) {
-            MenuBarOrganizerItemIcon(item: item, size: 18)
-            Text(label)
-                .font(.caption)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: 180)
+        HStack(spacing: 3) {
+            MenuBarOrganizerItemIcon(item: item, size: 22)
             if item.identityState == .provisional {
                 Image(systemName: "questionmark.circle")
-                    .font(.caption2)
+                    .font(.system(size: 9))
                     .foregroundStyle(.orange)
             } else if !item.isMovable {
-                Image(systemName: "lock.fill").font(.caption2)
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 7)
+        .padding(.horizontal, 6)
         .padding(.vertical, 5)
         .background(Capsule().fill(Color.secondary.opacity(0.12)))
         .help(item.identityState == .provisional
               ? text.unresolvedItem
-              : (item.isProtected ? text.protectedItem : item.displayName))
+              : (item.isProtected ? text.protectedItem : label))
         .opacity(item.isMovable ? 1 : 0.62)
     }
 }

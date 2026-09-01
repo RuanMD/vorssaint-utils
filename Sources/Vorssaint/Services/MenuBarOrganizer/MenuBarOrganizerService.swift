@@ -385,11 +385,11 @@ final class MenuBarOrganizerService: ObservableObject {
         let length = MenuBarOrganizerSupport.collapsedLength(
             screenWidths: NSScreen.screens.map(\.frame.width))
         hiddenDivider?.setCollapsed(
-            !hiddenSectionShown && editingCount == 0,
+            !hiddenSectionShown,
             markerVisible: markers,
             collapsedLength: length)
         alwaysHiddenDivider?.setCollapsed(
-            !alwaysHiddenSectionShown && editingCount == 0,
+            !alwaysHiddenSectionShown,
             markerVisible: markers,
             collapsedLength: length)
     }
