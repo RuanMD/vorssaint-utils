@@ -412,7 +412,16 @@ final class MenuBarOrganizerService: ObservableObject {
             previousCount: items.count,
             newCount: snapshot.items.count,
             enumerationSucceeded: snapshot.enumerationSucceeded) {
-            items = snapshot.items
+            // Carry forward items from non-visible sections that temporarily
+            // disappear when their apps stop reporting via AXExtrasMenuBar
+            // while those items are hidden behind a collapsed divider.
+            let carried = items.filter { previous in
+                guard previous.section != .visible,
+                      previous.identityState == .stable
+                else { return false }
+                return !snapshot.items.contains { $0.id == previous.id }
+            }
+            items = snapshot.items + carried
         }
         return snapshot
     }
@@ -429,7 +438,7 @@ final class MenuBarOrganizerService: ObservableObject {
         }
 
         showInMenuBar(.alwaysHidden)
-        try? await Task.sleep(for: .milliseconds(100))
+        try? await Task.sleep(for: .milliseconds(350))
         _ = await refreshNow()
         guard let original = items.first(where: { $0.id == itemID }) else {
             operationMessage = moveErrorMessage(.itemUnavailable)
@@ -458,7 +467,7 @@ final class MenuBarOrganizerService: ObservableObject {
         }
 
         var lastError: MenuBarItemMoveError = .verificationFailed
-        for attempt in 0..<2 {
+        for attempt in 0..<3 {
             guard let snapshot = await refreshNow(), snapshot.enumerationSucceeded,
                   let current = items.first(where: { $0.id == movingItemID }) else {
                 lastError = .itemUnavailable
@@ -483,7 +492,7 @@ final class MenuBarOrganizerService: ObservableObject {
                 try await mover.move(item: current,
                                      destinationFrame: destination.frame,
                                      placeAfter: destination.placeAfter)
-                try? await Task.sleep(for: .milliseconds(120 + attempt * 80))
+                try? await Task.sleep(for: .milliseconds(300 + attempt * 200))
                 guard let snapshot = await refreshNow(), snapshot.enumerationSucceeded else {
                     lastError = .itemUnavailable
                     break

@@ -40,7 +40,7 @@ actor MenuBarItemSourceResolver {
     func discover() async -> [MenuBarItemSourceCandidate] {
         guard AXIsProcessTrusted() else { return [] }
         if let catalogUpdatedAt,
-           Date().timeIntervalSince(catalogUpdatedAt) < 2 {
+           Date().timeIntervalSince(catalogUpdatedAt) < 5 {
             return catalogCache
         }
         let applications = await runningApplications()
@@ -49,13 +49,6 @@ actor MenuBarItemSourceResolver {
                 var candidates: [MenuBarItemSourceCandidate] = []
                 for application in applications {
                     guard !Task.isCancelled else { return [] }
-                    // Control Center's own AX children are just the items it
-                    // hosts on behalf of real apps. Those apps expose the same
-                    // items from their own process — scanning CC only creates
-                    // duplicate candidates with the wrong source bundle.
-                    guard application.bundleIdentifier
-                            != MenuBarOrganizerSupport.controlCenterBundleIdentifier
-                    else { continue }
                     candidates.append(contentsOf: Self.scanExtrasMenuBar(application))
                 }
                 return candidates
@@ -80,8 +73,6 @@ actor MenuBarItemSourceResolver {
         var result = cache
 
         // Priority 1 — direct window-ID match (most reliable).
-        // Each AX element that exposes a backing CGWindowID via
-        // _AXUIElementGetWindow skips the frame-heuristic entirely.
         var windowIDResolved = Set<CGWindowID>()
         for candidate in catalog {
             guard let wid = candidate.windowID,
@@ -89,38 +80,39 @@ actor MenuBarItemSourceResolver {
                   !MenuBarOrganizerSupport.isOrganizerInternalSource(candidate.source)
             else { continue }
             let existing = result[wid]
-            guard existing == nil
-                || existing?.bundleIdentifier
-                    == MenuBarOrganizerSupport.controlCenterBundleIdentifier
-            else { continue }
+            if let existing,
+               existing.bundleIdentifier != MenuBarOrganizerSupport.controlCenterBundleIdentifier,
+               candidate.source.bundleIdentifier == MenuBarOrganizerSupport.controlCenterBundleIdentifier {
+                continue
+            }
             result[wid] = candidate.source
             cache[wid] = candidate.source
             windowIDResolved.insert(wid)
         }
 
-        // Priority 2 — owner-bundle fallback for non-CC records not yet resolved.
-        for record in records
-        where !windowIDResolved.contains(record.windowID)
-            && record.ownerBundleIdentifier
-                != MenuBarOrganizerSupport.controlCenterBundleIdentifier {
-            let source = MenuBarItemSourceIdentity(
-                pid: record.ownerPID,
-                bundleIdentifier: record.ownerBundleIdentifier.isEmpty
-                    ? "pid:\(record.ownerPID)"
-                    : record.ownerBundleIdentifier,
-                name: record.ownerName,
-                axIdentifier: nil,
-                axTitle: record.title)
-            result[record.windowID] = source
-            cache[record.windowID] = source
-        }
-
-        // Priority 3 — frame-based matching for records not resolved above.
+        // Priority 2 — frame-based matching for records not yet resolved by window ID.
         let needsFrameMatch = records.filter { !windowIDResolved.contains($0.windowID) }
         let matches = Self.match(records: needsFrameMatch, catalog: catalog)
         for (windowID, source) in matches {
             result[windowID] = source
             cache[windowID] = source
+            windowIDResolved.insert(windowID)
+        }
+
+        // Priority 3 — owner-bundle fallback for records not yet matched via AX.
+        for record in records
+        where !windowIDResolved.contains(record.windowID) {
+            let bundleID = record.ownerBundleIdentifier.isEmpty
+                ? "pid:\(record.ownerPID)"
+                : record.ownerBundleIdentifier
+            let source = MenuBarItemSourceIdentity(
+                pid: record.ownerPID,
+                bundleIdentifier: bundleID,
+                name: record.ownerName.isEmpty ? bundleID : record.ownerName,
+                axIdentifier: nil,
+                axTitle: record.title.isEmpty ? nil : record.title)
+            result[record.windowID] = source
+            cache[record.windowID] = source
         }
         return result
     }
@@ -138,6 +130,9 @@ actor MenuBarItemSourceResolver {
             NSWorkspace.shared.runningApplications.compactMap { app -> ApplicationRecord? in
                 guard !app.isTerminated else { return nil }
                 let bundleID = app.bundleIdentifier ?? ""
+                // Exclude Control Center from AXExtrasMenuBar scanning so its internal
+                // sub-controls (which are not standalone status bar icons) do not pollute the catalog.
+                guard bundleID != MenuBarOrganizerSupport.controlCenterBundleIdentifier else { return nil }
                 return ApplicationRecord(
                     pid: app.processIdentifier,
                     bundleIdentifier: bundleID.isEmpty
@@ -205,7 +200,7 @@ actor MenuBarItemSourceResolver {
 
     private static func scanExtrasMenuBar(_ app: ApplicationRecord) -> [MenuBarItemSourceCandidate] {
         let application = AXUIElementCreateApplication(app.pid)
-        AXUIElementSetMessagingTimeout(application, 0.2)
+        AXUIElementSetMessagingTimeout(application, 0.5)
         guard let extras: AXUIElement = attribute("AXExtrasMenuBar", from: application),
               let children: [AXUIElement] = attribute(kAXChildrenAttribute, from: extras)
         else { return [] }
