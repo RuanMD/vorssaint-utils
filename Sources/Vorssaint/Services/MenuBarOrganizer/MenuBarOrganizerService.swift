@@ -612,6 +612,14 @@ final class MenuBarOrganizerService: ObservableObject {
         case .visible:
             return hiddenDivider?.frame.map { quartzFrame($0, placeAfter: true) }
         case .hidden:
+            // Anchor to the alwaysHiddenDivider (drop just to its right) so
+            // the item lands solidly inside the hidden section between the
+            // two dividers, even when that section is empty and the dividers
+            // sit adjacent. Falls back to hiddenDivider.minX - 2 when the
+            // always-hidden section is disabled.
+            if let frame = alwaysHiddenDivider?.frame {
+                return quartzFrame(frame, placeAfter: true)
+            }
             return hiddenDivider?.frame.map { quartzFrame($0, placeAfter: false) }
         case .alwaysHidden:
             return alwaysHiddenDivider?.frame.map { quartzFrame($0, placeAfter: false) }
