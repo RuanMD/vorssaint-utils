@@ -115,3 +115,23 @@ Do not claim Accessibility, notch, Spaces, multiple monitors, hardware, network,
 or real app interaction was tested unless it was actually tested. Report branch,
 base, dependency, commit, files, tests, build variant, manual gaps, permissions,
 and deferred scope when handing work back.
+
+## Developer installation gate
+
+For implementation work requested for local use, install the validated Developer
+bundle on the MacBook before handing the resource back. Run this only after
+`swift build`, `./build.sh --test`, selftest, and `./build.sh --dev` pass, and only
+when the user has authorized installation:
+
+```sh
+./build.sh --dev --install
+open "/Applications/Vorssaint (Developer).app"
+```
+
+Verify that `/Applications/Vorssaint (Developer).app` exists, its bundle
+identifier is `com.vorssaint.utils.dev`, its embedded `VorssaintBuildCommit`
+matches the current commit, and its signature verifies. Use the Developer bundle
+so Accessibility consent remains separate from the production app. Never replace
+the production app, use `sudo`, or claim that TCC/hardware behavior was tested
+merely because installation succeeded. If installation fails, report the exact
+failure and keep the implementation status open.

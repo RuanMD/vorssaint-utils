@@ -37,8 +37,19 @@ For the Menu Bar Manager follow-up:
 - keep the feature safe when Accessibility is denied or revoked.
 
 Use red-green-refactor for pure logic. Run focused tests, `swift build`,
-`./build.sh --test`, selftest, full build, and the Developer installation when
-manual validation is possible. Do not claim unexecuted TCC, hardware, monitor,
-Space, or third-party-app tests. Do not push, force-push, or open a PR without
-explicit user authorization. Finish with a concise report of changed files,
-acceptance criteria, tests, build, permissions, limitations, branch, and commit.
+`./build.sh --test`, selftest, and the full Developer build. When the user asks
+for local installation, install the validated bundle before handoff:
+
+```sh
+./build.sh --dev --install
+open "/Applications/Vorssaint (Developer).app"
+```
+
+Verify the installed path, `com.vorssaint.utils.dev` bundle identifier,
+`VorssaintBuildCommit`, and code signature against the current commit. Treat an
+installation failure as an incomplete delivery. Installation does not prove TCC,
+notch, monitor, Space, hardware, or third-party-app behavior; report those gaps
+explicitly. Do not push, force-push, or open a PR without explicit user
+authorization. Finish with a concise report of changed files, acceptance
+criteria, tests, build, installation result, permissions, limitations, branch,
+and commit.

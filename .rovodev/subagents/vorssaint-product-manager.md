@@ -28,6 +28,11 @@ Produce Portuguese planning artifacts with:
 - ordered implementation tasks and verification commands;
 - explicit deferred roadmap.
 
+Include a delivery checklist in the handoff stating whether local installation
+was requested. When it was requested, require the implementer to run the
+validated Developer install command and verify the installed bundle commit;
+never treat installation as evidence that TCC or hardware scenarios were tested.
+
 For the Menu Bar Manager, treat PR #360 as the canonical MVP dependency. Do not
 plan a competing implementation of its three sections, provider, drag-and-drop,
 or secondary bar. Keep the follow-up focused on reveal, auto-rehide, search, and
