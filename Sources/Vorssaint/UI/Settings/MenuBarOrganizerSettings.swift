@@ -161,14 +161,6 @@ struct MenuBarOrganizerSettings: View {
             Text(text.manualHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            if service.capabilities.unresolvedItemCount > 0 {
-                Label(String(
-                    format: text.unresolvedCountFormat,
-                    service.capabilities.unresolvedItemCount),
-                      systemImage: "questionmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
             if !service.capabilities.automaticEditorAvailable {
                 Label(text.automaticMoveUnavailable,
                       systemImage: "exclamationmark.triangle")
@@ -273,6 +265,7 @@ struct MenuBarOrganizerSettings: View {
     private func organizerLane(_ section: MenuBarOrganizerSection,
                                title: String) -> some View {
         let laneItems = MenuBarOrganizerSupport.orderedItems(service.items, in: section)
+            .filter { $0.identityState != .provisional }
         return VStack(alignment: .leading, spacing: 7) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
@@ -373,11 +366,7 @@ private struct MenuBarOrganizerEditorItem: View {
     var body: some View {
         HStack(spacing: 3) {
             MenuBarOrganizerItemIcon(item: item, size: 22)
-            if item.identityState == .provisional {
-                Image(systemName: "questionmark.circle")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.orange)
-            } else if !item.isMovable {
+            if !item.isMovable {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
@@ -386,9 +375,7 @@ private struct MenuBarOrganizerEditorItem: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 5)
         .background(Capsule().fill(Color.secondary.opacity(0.12)))
-        .help(item.identityState == .provisional
-              ? text.unresolvedItem
-              : (item.isProtected ? text.protectedItem : label))
+        .help(item.isProtected ? text.protectedItem : label)
         .opacity(item.isMovable ? 1 : 0.62)
     }
 }
