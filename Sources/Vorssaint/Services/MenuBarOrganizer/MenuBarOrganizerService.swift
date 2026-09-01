@@ -505,12 +505,25 @@ final class MenuBarOrganizerService: ObservableObject {
                     lastError = .itemUnavailable
                     break
                 }
-                let movedOnlySelectedItem = MenuBarOrganizerSupport.isSingleItemMove(
+                // Fast-path: the moved item's WindowServer window persists
+                // through a Cmd-drag, so if that windowID is now in the
+                // destination section, the move succeeded. Accept even if
+                // Control Center reflowed adjacent items — retrying would
+                // cause the visible "sobe/desce" bug where each attempt
+                // Cmd-drags the item again.
+                if let movedItem = items.first(where: { $0.windowID == current.windowID }),
+                   movedItem.section == section {
+                    canUndo = undoRecord != nil
+                    return
+                }
+                // Slow-path: windowID vanished or landed in the wrong section.
+                // Use the strict identity-based verification as a secondary
+                // signal before conceding.
+                if MenuBarOrganizerSupport.isSingleItemMove(
                     before: baselineItems,
                     after: items,
                     movingItemID: movingItemID,
-                    destination: section)
-                if movedOnlySelectedItem,
+                    destination: section),
                    let movedItem = MenuBarOrganizerSupport.equivalentItem(
                        to: original,
                        in: items,

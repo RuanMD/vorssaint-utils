@@ -675,7 +675,13 @@ enum MenuBarOrganizerSupport {
     }
 
     static func isEditorVisible(_ item: ManagedMenuBarItem) -> Bool {
-        item.isMovable || item.isProtected
+        if item.isProtected { return true }
+        // Provisional Control Center-hosted placeholders (no resolved source
+        // app, generic icon) are hidden from the editor to keep the UI clean.
+        // They stay physically in the menu bar and are still repositioned by
+        // the dividers; the user just doesn't see a manipulable pill for them.
+        if item.identityState == .provisional { return false }
+        return item.isMovable
     }
 
     /// A Cmd-drag preserves the WindowServer window, so mapping across the
