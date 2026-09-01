@@ -13404,6 +13404,30 @@ struct MetricsTests {
                     movingItemID: moveBefore[1].id, destination: .visible),
                "a validação pós-movimento aceita uma identidade e rejeita movimentação em lote")
 
+        // CC-hosted provisional items keep their windowID through a Cmd-drag,
+        // so a move that only changes their section must be verified even
+        // when the identity's occurrence index shifts due to the section
+        // recount. Regression coverage for the "identidade não confiável" bug.
+        let provisionalBefore = [
+            managedMenuBarItem(41, occurrence: 0, x: 10, section: .visible),
+            managedMenuBarItem(42, occurrence: 3, x: 800, section: .alwaysHidden,
+                               identityState: .provisional),
+            managedMenuBarItem(43, occurrence: 4, x: 830, section: .alwaysHidden,
+                               identityState: .provisional),
+        ]
+        let provisionalAfter = [
+            managedMenuBarItem(41, occurrence: 0, x: 10, section: .visible),
+            managedMenuBarItem(42, occurrence: 1, x: 40, section: .visible,
+                               identityState: .provisional),
+            managedMenuBarItem(43, occurrence: 3, x: 830, section: .alwaysHidden,
+                               identityState: .provisional),
+        ]
+        expect(MenuBarOrganizerSupport.isSingleItemMove(
+                    before: provisionalBefore, after: provisionalAfter,
+                    movingItemID: provisionalBefore[1].id, destination: .visible),
+               "provisional CC-hosted items map by windowID across a Cmd-drag "
+               + "even when their occurrence index shifts")
+
         let hostedRecord = menuBarRecord(
             3,
             ownerPID: 42,

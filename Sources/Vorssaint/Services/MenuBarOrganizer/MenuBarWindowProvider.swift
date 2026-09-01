@@ -53,11 +53,12 @@ final class MenuBarWindowProvider {
                     || MenuBarOrganizerSupport.isSystemImmovable(
                         bundleIdentifier: bundleIdentifier,
                         title: title)
-                let movable = (resolved.state == .stable
-                    || (source != nil
-                        && source?.bundleIdentifier
-                            != MenuBarOrganizerSupport.controlCenterBundleIdentifier))
-                    && !protected
+                // Any non-protected item with a WindowServer window can be
+                // Command-dragged: the synthetic event is routed to the window
+                // owner (Control Center for hosted items, the app itself for
+                // direct items). Provisional AX identity does not prevent the
+                // drag from reaching the correct process.
+                let movable = !protected
                 let sourceApp = source.flatMap { NSRunningApplication(processIdentifier: $0.pid) }
                 let ownerApp = NSRunningApplication(processIdentifier: record.ownerPID)
                 let iconApp = sourceApp ?? ownerApp

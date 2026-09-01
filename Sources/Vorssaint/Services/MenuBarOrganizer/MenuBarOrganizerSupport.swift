@@ -363,6 +363,12 @@ enum MenuBarOrganizerSupport {
         in items: [ManagedMenuBarItem],
         requiringFrameProximity: Bool = false
     ) -> ManagedMenuBarItem? {
+        // The Cmd-drag preserves the WindowServer window, so windowID is the
+        // most reliable anchor across a move — even for provisional CC-hosted
+        // items whose identity/frame shift when the section boundary changes.
+        if let sameWindow = items.first(where: { $0.windowID == item.windowID }) {
+            return sameWindow
+        }
         if let exact = items.first(where: { $0.id == item.id }) {
             return exact
         }
@@ -672,7 +678,12 @@ enum MenuBarOrganizerSupport {
         item.isMovable || item.isProtected
     }
 
-    /// Compara a entidade arrastada por fonte e título, não pelo ID volátil da janela.
+    /// A Cmd-drag preserves the WindowServer window, so mapping across the
+    /// snapshot pair is done by `windowID` first (stable). Non-moving items
+    /// are then anchored by exact identity, and only the moving item is left
+    /// to resolve by section+semantic match — which must be unambiguous.
+    /// A windowID that persisted but now has a different bundle identifier is
+    /// treated as a recreated window belonging to another app and rejected.
     static func isSingleItemMove(before: [ManagedMenuBarItem],
                                  after: [ManagedMenuBarItem],
                                  movingItemID: MenuBarItemIdentity,
@@ -685,52 +696,83 @@ enum MenuBarOrganizerSupport {
               let beforeMoving = before.first(where: { $0.id == movingItemID })
         else { return false }
 
-        let movingCandidates = after.filter {
-            isSemanticallySameItem(beforeMoving, $0) && $0.section == destination
-        }
-        guard let afterMoving = movingCandidates.first(where: { $0.id == movingItemID })
-                ?? movingCandidates.min(by: {
-                    itemMatchCost(beforeMoving, $0) < itemMatchCost(beforeMoving, $1)
-                })
-        else { return false }
+        let afterByWindow = Dictionary(uniqueKeysWithValues: after.map { ($0.windowID, $0) })
+        var mapping: [CGWindowID: ManagedMenuBarItem] = [:]
+        var usedWindowIDs = Set<CGWindowID>()
+        var unmatched: [ManagedMenuBarItem] = []
 
-        var usedWindowIDs = Set([afterMoving.windowID])
-        var mapping: [MenuBarItemIdentity: ManagedMenuBarItem] = [
-            beforeMoving.id: afterMoving
-        ]
-        for item in before where item.id != beforeMoving.id {
+        // Round 1 — anchor by windowID + semantic compatibility.
+        for item in before {
+            if let candidate = afterByWindow[item.windowID],
+               isSemanticallySameItem(item, candidate) {
+                mapping[item.windowID] = candidate
+                usedWindowIDs.insert(candidate.windowID)
+            } else {
+                unmatched.append(item)
+            }
+        }
+
+        // Round 2 — anchor remaining items by exact identity in unused set.
+        var stillUnmatched: [ManagedMenuBarItem] = []
+        for item in unmatched {
             let candidates = after.filter {
                 !usedWindowIDs.contains($0.windowID)
                     && isSemanticallySameItem(item, $0)
+                    && $0.id == item.id
             }
-            guard let match = candidates.first(where: { $0.id == item.id })
-                    ?? candidates.min(by: {
-                        itemMatchCost(item, $0) < itemMatchCost(item, $1)
-                    })
-            else { return false }
+            if candidates.count == 1, let match = candidates.first {
+                mapping[item.windowID] = match
+                usedWindowIDs.insert(match.windowID)
+            } else {
+                stillUnmatched.append(item)
+            }
+        }
+
+        // Round 3 — only the moving item may remain. Match by section+semantic;
+        // must be exactly one candidate in the destination.
+        if stillUnmatched.count == 1, let residual = stillUnmatched.first,
+           residual.windowID == beforeMoving.windowID {
+            let candidates = after.filter {
+                !usedWindowIDs.contains($0.windowID)
+                    && $0.section == destination
+                    && isSemanticallySameItem(residual, $0)
+            }
+            guard candidates.count == 1, let match = candidates.first else { return false }
+            mapping[residual.windowID] = match
             usedWindowIDs.insert(match.windowID)
-            mapping[item.id] = match
-            guard match.section == item.section else { return false }
+        } else if !stillUnmatched.isEmpty {
+            return false
         }
 
+        // Verify every non-moving item stayed in its original section and
+        // that the moving item reached the destination.
+        for item in before {
+            guard let match = mapping[item.windowID] else { return false }
+            if item.windowID == beforeMoving.windowID {
+                guard match.section == destination else { return false }
+            } else {
+                guard match.section == item.section else { return false }
+            }
+        }
+
+        // Ordering within each section must be preserved for non-moving items.
         for section in MenuBarOrganizerSection.allCases {
-            let beforeIDs = orderedItems(before, in: section)
-                .map(\.id)
-                .filter { $0 != beforeMoving.id }
-            let afterIDs = orderedItems(after, in: section)
+            let beforeWindows = orderedItems(before, in: section)
+                .map(\.windowID)
+                .filter { $0 != beforeMoving.windowID }
+            let afterWindows = orderedItems(after, in: section)
                 .compactMap { candidate in
-                    mapping.first(where: { $0.value.id == candidate.id })?.key
+                    mapping.first(where: { $0.value.windowID == candidate.windowID })?.key
                 }
-                .filter { $0 != beforeMoving.id }
-            guard beforeIDs == afterIDs else { return false }
+                .filter { $0 != beforeMoving.windowID }
+            guard beforeWindows == afterWindows else { return false }
         }
 
+        // A no-op inside the same section is not a real move.
         if beforeMoving.section == destination {
-            let beforeOrder = orderedItems(before, in: destination).map(\.id)
+            let beforeOrder = orderedItems(before, in: destination).map(\.windowID)
             let afterOrder = orderedItems(after, in: destination).compactMap { candidate in
-                mapping.first(where: { entry in
-                    entry.value.id == candidate.id
-                })?.key
+                mapping.first(where: { $0.value.windowID == candidate.windowID })?.key
             }
             guard beforeOrder != afterOrder else { return false }
         }

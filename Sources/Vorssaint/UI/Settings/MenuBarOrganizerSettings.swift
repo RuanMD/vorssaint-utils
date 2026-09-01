@@ -182,7 +182,9 @@ struct MenuBarOrganizerSettings: View {
     @ViewBuilder
     private var availabilityDiagnostics: some View {
         let counts = service.capabilities.moveAvailabilityCounts
-        if counts.locked > 0 {
+        // Provisional items are now movable via the WindowServer window, so
+        // only surface counts for items that are genuinely blocked.
+        if counts.protected > 0 || counts.windowTargetUnavailable > 0 {
             VStack(alignment: .leading, spacing: 3) {
                 if counts.windowTargetUnavailable > 0 {
                     Text(String(format: text.windowTargetUnavailableCountFormat,
@@ -190,10 +192,6 @@ struct MenuBarOrganizerSettings: View {
                 }
                 if counts.protected > 0 {
                     Text(String(format: text.protectedCountFormat, counts.protected))
-                }
-                if counts.provisionalIdentity > 0 {
-                    Text(String(format: text.unresolvedCountFormat,
-                                counts.provisionalIdentity))
                 }
             }
             .font(.caption)
@@ -390,10 +388,10 @@ private struct MenuBarOrganizerEditorItem: View {
 
     private var helpText: String {
         switch item.moveAvailability {
-        case .movable:
+        case .movable, .provisionalIdentity:
+            // Provisional items still drag via their WindowServer window; the
+            // label is enough — no scary "will not be moved" warning.
             return label
-        case .provisionalIdentity:
-            return text.unresolvedItem
         case .protected:
             return text.protectedItem
         case .windowTargetUnavailable:

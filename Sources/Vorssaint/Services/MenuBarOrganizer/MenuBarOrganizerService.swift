@@ -451,10 +451,6 @@ final class MenuBarOrganizerService: ObservableObject {
             operationMessage = moveErrorMessage(.itemUnavailable)
             return
         }
-        guard original.identityState == .stable else {
-            operationMessage = moveErrorMessage(.provisionalIdentity)
-            return
-        }
         if let targetID,
            MenuBarOrganizerSupport.item(matching: targetID, in: items) == nil {
             operationMessage = moveErrorMessage(.itemUnavailable)

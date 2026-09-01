@@ -24,9 +24,6 @@ final class MenuBarItemMover {
               destinationFrame: CGRect,
               placeAfter: Bool) async throws {
         guard AXIsProcessTrusted() else { throw MenuBarItemMoveError.permissionMissing }
-        guard item.identityState == .stable else {
-            throw MenuBarItemMoveError.provisionalIdentity
-        }
         guard item.isMovable, !item.isProtected else {
             throw MenuBarItemMoveError.itemNotMovable
         }
