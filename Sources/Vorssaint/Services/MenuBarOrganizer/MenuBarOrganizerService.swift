@@ -451,18 +451,23 @@ final class MenuBarOrganizerService: ObservableObject {
                     image: previous.image ?? current.image)
             }
             // Carry forward items from non-visible sections that temporarily
-            // vanish entirely from the snapshot when their apps stop reporting
-            // via AXExtrasMenuBar while those items are hidden behind a
-            // collapsed divider.
-            let stabilizedWindowIDs = Set(stabilized.map(\.windowID))
-            let carried = items.filter { previous in
-                guard previous.section != .visible else { return false }
+            // vanish entirely from the snapshot. Use semantic matching (not
+            // just windowID equality) so a recreated window doesn't leave the
+            // old carried entry behind. Also dedupe within the carried set to
+            // prevent accumulation across successive refreshes.
+            let carried = items.reduce(into: [ManagedMenuBarItem]()) { acc, previous in
+                guard previous.section != .visible else { return }
                 let identityIsUsable = previous.identityState == .stable
                     || (previous.sourcePID != nil
                         && previous.bundleIdentifier
                             != MenuBarOrganizerSupport.controlCenterBundleIdentifier)
-                guard identityIsUsable else { return false }
-                return !stabilizedWindowIDs.contains(previous.windowID)
+                guard identityIsUsable else { return }
+                let inFresh = MenuBarOrganizerSupport.equivalentItem(
+                    to: previous, in: stabilized, requiringFrameProximity: false) != nil
+                let alreadyCarried = MenuBarOrganizerSupport.equivalentItem(
+                    to: previous, in: acc, requiringFrameProximity: false) != nil
+                guard !inFresh, !alreadyCarried else { return }
+                acc.append(previous)
             }
             items = stabilized + carried
         }
@@ -799,10 +804,15 @@ final class MenuBarOrganizerService: ObservableObject {
             refreshTimer = nil
             return
         }
-        // Align the editing-mode refresh with the AX catalog TTL (5 s). A
-        // shorter interval forces partial rebuilds that lose apps timing out
-        // on their AXExtrasMenuBar query, producing pill flicker in the UI.
-        let interval: TimeInterval = editingCount > 0 ? 5 : 10
+        // Pause the periodic timer while the user is editing. The editor
+        // refreshes explicitly (open, "Atualizar" button, post-move) and via
+        // workspace notifications (app launch/quit). Continuous polling only
+        // caused AX-scan flicker without any user benefit.
+        guard editingCount == 0 else {
+            refreshTimer = nil
+            return
+        }
+        let interval: TimeInterval = 10
         let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
