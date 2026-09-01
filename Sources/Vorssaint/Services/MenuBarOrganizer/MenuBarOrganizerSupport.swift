@@ -27,6 +27,24 @@ enum MenuBarItemIdentityState: String, Codable {
     case provisional
 }
 
+enum MenuBarItemMoveAvailability: Equatable {
+    case movable
+    case provisionalIdentity
+    case protected
+    case windowTargetUnavailable
+}
+
+struct MenuBarItemMoveAvailabilityCounts: Equatable {
+    let movable: Int
+    let provisionalIdentity: Int
+    let protected: Int
+    let windowTargetUnavailable: Int
+
+    var locked: Int {
+        provisionalIdentity + protected + windowTargetUnavailable
+    }
+}
+
 struct MenuBarItemIdentity: Hashable, Codable {
     let bundleIdentifier: String
     let title: String
@@ -119,6 +137,12 @@ struct ManagedMenuBarItem: Identifiable {
         }
         return appName.isEmpty ? (cleanTitle.isEmpty ? "Menu bar item" : cleanTitle) : appName
     }
+
+    var moveAvailability: MenuBarItemMoveAvailability {
+        if isProtected { return .protected }
+        if identityState == .provisional { return .provisionalIdentity }
+        return isMovable ? .movable : .windowTargetUnavailable
+    }
 }
 
 struct MenuBarOrganizerWindowRecord: Equatable {
@@ -138,6 +162,7 @@ struct MenuBarOrganizerCapabilities: Equatable {
     let canMove: Bool
     let hasPrivateWindowList: Bool
     let unresolvedItemCount: Int
+    let moveAvailabilityCounts: MenuBarItemMoveAvailabilityCounts
 
     var automaticEditorAvailable: Bool {
         canEnumerate && canMove
@@ -187,13 +212,14 @@ enum MenuBarOrganizerSupport {
         let seeds = records.map { record -> Seed in
             let source = sources[record.windowID]
             let isHosted = record.ownerBundleIdentifier == controlCenterBundleIdentifier
+            let hasConcreteAX = source != nil && source?.stableTitle != nil
+                && !isGenericControlCenterHostedTitle(source?.stableTitle ?? "")
             // A generic Control Center AX child proves only which process hosts
-            // the window. It does not prove which third-party app created the
-            // status item, so never promote that host fallback to a stable
-            // persisted identity.
+            // the window. When an item has concrete AX title/identifier, use it.
             let sourceIsOnlyHost = isHosted
                 && source?.bundleIdentifier == controlCenterBundleIdentifier
-                && isGenericControlCenterHostedTitle(record.title)
+                && (isGenericControlCenterHostedTitle(record.title) || isGenericControlCenterHostedTitle(source?.stableTitle ?? ""))
+                && !hasConcreteAX
             let resolvedSource = sourceIsOnlyHost ? nil : source
             let state: MenuBarItemIdentityState = isHosted
                 && (resolvedSource == nil || resolvedSource?.stableTitle == nil)
@@ -236,7 +262,8 @@ enum MenuBarOrganizerSupport {
     static func isLikelyMenuBarWindow(_ record: MenuBarOrganizerWindowRecord,
                                       statusLevel: Int,
                                       screenTopEdges: [CGFloat]) -> Bool {
-        guard record.layer == statusLevel,
+        let allowedLevels = [statusLevel, 101, 24, 25]
+        guard allowedLevels.contains(record.layer),
               record.alpha > 0,
               record.frame.width > 0,
               record.frame.height > 0,
@@ -266,11 +293,102 @@ enum MenuBarOrganizerSupport {
         return (privateRecords + publicRecords).filter { seen.insert($0.windowID).inserted }
     }
 
+    static func normalizedMenuBarWindowRecords(
+        _ records: [MenuBarOrganizerWindowRecord],
+        statusLevel: Int
+    ) -> [MenuBarOrganizerWindowRecord] {
+        var normalized: [MenuBarOrganizerWindowRecord] = []
+        for record in records {
+            guard let index = normalized.firstIndex(where: {
+                samePhysicalSlot($0, record)
+            }) else {
+                normalized.append(record)
+                continue
+            }
+            if preferredWindowRecord(record, over: normalized[index], statusLevel: statusLevel) {
+                normalized[index] = record
+            }
+        }
+        return normalized
+    }
+
     static func deduplicatedSourceCandidates(
         _ candidates: [MenuBarItemSourceCandidate]
     ) -> [MenuBarItemSourceCandidate] {
-        var seen = Set<String>()
-        return candidates.filter { seen.insert($0.slotKey).inserted }
+        var result: [MenuBarItemSourceCandidate] = []
+        for candidate in candidates {
+            guard let index = result.firstIndex(where: {
+                sameSourceCandidate($0, candidate)
+            }) else {
+                result.append(candidate)
+                continue
+            }
+            if candidate.windowID != nil, result[index].windowID == nil {
+                result[index] = candidate
+            }
+        }
+        return result
+    }
+
+    static func isSemanticallySameItem(
+        _ lhs: ManagedMenuBarItem,
+        _ rhs: ManagedMenuBarItem
+    ) -> Bool {
+        guard itemBundleIdentifier(lhs) == itemBundleIdentifier(rhs) else {
+            return false
+        }
+        let leftTitle = normalizedItemTitle(lhs)
+        let rightTitle = normalizedItemTitle(rhs)
+        return leftTitle.isEmpty || rightTitle.isEmpty || leftTitle == rightTitle
+    }
+
+    static func item(
+        matching identity: MenuBarItemIdentity,
+        in items: [ManagedMenuBarItem]
+    ) -> ManagedMenuBarItem? {
+        if let exact = items.first(where: { $0.id == identity }) {
+            return exact
+        }
+        return items
+            .filter {
+                $0.id.bundleIdentifier == identity.bundleIdentifier
+                    && $0.id.title == identity.title
+            }
+            .sorted { $0.id.occurrence < $1.id.occurrence }
+            .first
+    }
+
+    static func equivalentItem(
+        to item: ManagedMenuBarItem,
+        in items: [ManagedMenuBarItem],
+        requiringFrameProximity: Bool = false
+    ) -> ManagedMenuBarItem? {
+        if let exact = items.first(where: { $0.id == item.id }) {
+            return exact
+        }
+        return items
+            .filter { candidate in
+                guard isSemanticallySameItem(item, candidate) else { return false }
+                return !requiringFrameProximity
+                    || frameMatchScore(item.frame, candidate.frame) != nil
+            }
+            .min {
+                itemMatchCost(item, $0) < itemMatchCost(item, $1)
+            }
+    }
+
+    static func semanticMoveMatch(
+        before: ManagedMenuBarItem,
+        after: [ManagedMenuBarItem],
+        excluding excluded: Set<CGWindowID>
+    ) -> ManagedMenuBarItem? {
+        after
+            .filter { !excluded.contains($0.windowID) && isSemanticallySameItem(before, $0) }
+            .min {
+                if $0.id == before.id { return true }
+                if $1.id == before.id { return false }
+                return itemMatchCost(before, $0) < itemMatchCost(before, $1)
+            }
     }
 
     static func isOrganizerInternalItem(
@@ -345,9 +463,7 @@ enum MenuBarOrganizerSupport {
     static func isSystemImmovable(bundleIdentifier: String, title: String) -> Bool {
         let normalized = title.lowercased()
         if bundleIdentifier == controlCenterBundleIdentifier {
-            return normalized.contains("clock")
-                || normalized.contains("siri")
-                || isGenericControlCenterHostedTitle(title)
+            return normalized.contains("clock") || normalized.contains("siri")
         }
         return bundleIdentifier == systemUIServerBundleIdentifier
             && (normalized.contains("clock") || normalized.contains("notification"))
@@ -381,6 +497,133 @@ enum MenuBarOrganizerSupport {
             }
             return $0.frame.minX < $1.frame.minX
         }
+    }
+
+    static func moveAvailabilityCounts(
+        for items: [ManagedMenuBarItem]
+    ) -> MenuBarItemMoveAvailabilityCounts {
+        var counts = MenuBarItemMoveAvailabilityCounts(
+            movable: 0,
+            provisionalIdentity: 0,
+            protected: 0,
+            windowTargetUnavailable: 0)
+        for item in items {
+            switch item.moveAvailability {
+            case .movable:
+                counts = MenuBarItemMoveAvailabilityCounts(
+                    movable: counts.movable + 1,
+                    provisionalIdentity: counts.provisionalIdentity,
+                    protected: counts.protected,
+                    windowTargetUnavailable: counts.windowTargetUnavailable)
+            case .provisionalIdentity:
+                counts = MenuBarItemMoveAvailabilityCounts(
+                    movable: counts.movable,
+                    provisionalIdentity: counts.provisionalIdentity + 1,
+                    protected: counts.protected,
+                    windowTargetUnavailable: counts.windowTargetUnavailable)
+            case .protected:
+                counts = MenuBarItemMoveAvailabilityCounts(
+                    movable: counts.movable,
+                    provisionalIdentity: counts.provisionalIdentity,
+                    protected: counts.protected + 1,
+                    windowTargetUnavailable: counts.windowTargetUnavailable)
+            case .windowTargetUnavailable:
+                counts = MenuBarItemMoveAvailabilityCounts(
+                    movable: counts.movable,
+                    provisionalIdentity: counts.provisionalIdentity,
+                    protected: counts.protected,
+                    windowTargetUnavailable: counts.windowTargetUnavailable + 1)
+            }
+        }
+        return counts
+    }
+
+    private static func samePhysicalSlot(
+        _ lhs: MenuBarOrganizerWindowRecord,
+        _ rhs: MenuBarOrganizerWindowRecord
+    ) -> Bool {
+        guard lhs.ownerPID == rhs.ownerPID,
+              normalizedRecordBundle(lhs) == normalizedRecordBundle(rhs),
+              normalizedRecordTitle(lhs) == normalizedRecordTitle(rhs)
+        else { return false }
+        return frameMatchScore(lhs.frame, rhs.frame) != nil
+    }
+
+    private static func preferredWindowRecord(
+        _ lhs: MenuBarOrganizerWindowRecord,
+        over rhs: MenuBarOrganizerWindowRecord,
+        statusLevel: Int
+    ) -> Bool {
+        let lhsStatus = lhs.layer == statusLevel
+        let rhsStatus = rhs.layer == statusLevel
+        if lhsStatus != rhsStatus { return lhsStatus }
+        if lhs.isOnScreen != rhs.isOnScreen { return lhs.isOnScreen }
+        if lhs.alpha != rhs.alpha { return lhs.alpha > rhs.alpha }
+        let lhsArea = lhs.frame.width * lhs.frame.height
+        let rhsArea = rhs.frame.width * rhs.frame.height
+        if lhsArea != rhsArea { return lhsArea < rhsArea }
+        return lhs.windowID < rhs.windowID
+    }
+
+    private static func sameSourceCandidate(
+        _ lhs: MenuBarItemSourceCandidate,
+        _ rhs: MenuBarItemSourceCandidate
+    ) -> Bool {
+        guard lhs.source.pid == rhs.source.pid,
+              lhs.source.bundleIdentifier == rhs.source.bundleIdentifier
+        else { return false }
+        if let lhsIdentifier = stableSourceIdentifier(lhs.source),
+           let rhsIdentifier = stableSourceIdentifier(rhs.source) {
+            return lhsIdentifier == rhsIdentifier
+        }
+        let lhsTitle = normalizedSourceTitle(lhs.source)
+        let rhsTitle = normalizedSourceTitle(rhs.source)
+        guard !lhsTitle.isEmpty, lhsTitle == rhsTitle else { return false }
+        return frameMatchScore(lhs.frame, rhs.frame) != nil
+    }
+
+    private static func stableSourceIdentifier(
+        _ source: MenuBarItemSourceIdentity
+    ) -> String? {
+        let identifier = source.axIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return identifier.isEmpty ? nil : identifier
+    }
+
+    private static func normalizedRecordBundle(
+        _ record: MenuBarOrganizerWindowRecord
+    ) -> String {
+        record.ownerBundleIdentifier.isEmpty
+            ? "pid:\(record.ownerPID)"
+            : record.ownerBundleIdentifier
+    }
+
+    private static func normalizedRecordTitle(
+        _ record: MenuBarOrganizerWindowRecord
+    ) -> String {
+        let title = userFacingTitle(record.title).lowercased()
+        return title.isEmpty ? record.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() : title
+    }
+
+    private static func normalizedSourceTitle(
+        _ source: MenuBarItemSourceIdentity
+    ) -> String {
+        (source.axTitle ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private static func itemBundleIdentifier(_ item: ManagedMenuBarItem) -> String {
+        item.id.bundleIdentifier.isEmpty ? item.bundleIdentifier : item.id.bundleIdentifier
+    }
+
+    private static func normalizedItemTitle(_ item: ManagedMenuBarItem) -> String {
+        let title = item.id.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return title.isEmpty ? item.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() : title
+    }
+
+    private static func itemMatchCost(
+        _ lhs: ManagedMenuBarItem,
+        _ rhs: ManagedMenuBarItem
+    ) -> CGFloat {
+        hypot(lhs.frame.midX - rhs.frame.midX, lhs.frame.midY - rhs.frame.midY)
     }
 
     /// Retorna rótulos legíveis quando vários status items usam o mesmo
@@ -425,48 +668,76 @@ enum MenuBarOrganizerSupport {
         displayNames(for: items)[item.id] ?? item.displayName
     }
 
-    /// Um único Command-drag desloca os frames vizinhos quando a menu bar
-    /// reorganiza o espaço. Compara as identidades ordenadas sem o item arrastado
-    /// para aceitar esses deslocamentos e rejeitar uma segunda alteração.
+    static func isEditorVisible(_ item: ManagedMenuBarItem) -> Bool {
+        item.isMovable || item.isProtected
+    }
+
+    /// Compara a entidade arrastada por fonte e título, não pelo ID volátil da janela.
     static func isSingleItemMove(before: [ManagedMenuBarItem],
                                  after: [ManagedMenuBarItem],
                                  movingItemID: MenuBarItemIdentity,
                                  destination: MenuBarOrganizerSection) -> Bool {
-        let beforeIDs = before.map(\.id)
-        let afterIDs = after.map(\.id)
         let beforeWindowIDs = before.map(\.windowID)
         let afterWindowIDs = after.map(\.windowID)
-        guard let beforeMoving = before.first(where: { $0.id == movingItemID }),
-              let afterMoving = after.first(where: { $0.id == movingItemID }),
-              afterMoving.section == destination,
-              beforeIDs.count == Set(beforeIDs).count,
-              afterIDs.count == Set(afterIDs).count,
+        guard before.count == after.count,
               beforeWindowIDs.count == Set(beforeWindowIDs).count,
               afterWindowIDs.count == Set(afterWindowIDs).count,
-              beforeIDs.count == afterIDs.count,
-              Set(beforeIDs) == Set(afterIDs),
-              beforeMoving.id == afterMoving.id
+              let beforeMoving = before.first(where: { $0.id == movingItemID })
         else { return false }
 
-        let sections = MenuBarOrganizerSection.allCases
-        for section in sections {
+        let movingCandidates = after.filter {
+            isSemanticallySameItem(beforeMoving, $0) && $0.section == destination
+        }
+        guard let afterMoving = movingCandidates.first(where: { $0.id == movingItemID })
+                ?? movingCandidates.min(by: {
+                    itemMatchCost(beforeMoving, $0) < itemMatchCost(beforeMoving, $1)
+                })
+        else { return false }
+
+        var usedWindowIDs = Set([afterMoving.windowID])
+        var mapping: [MenuBarItemIdentity: ManagedMenuBarItem] = [
+            beforeMoving.id: afterMoving
+        ]
+        for item in before where item.id != beforeMoving.id {
+            let candidates = after.filter {
+                !usedWindowIDs.contains($0.windowID)
+                    && isSemanticallySameItem(item, $0)
+            }
+            guard let match = candidates.first(where: { $0.id == item.id })
+                    ?? candidates.min(by: {
+                        itemMatchCost(item, $0) < itemMatchCost(item, $1)
+                    })
+            else { return false }
+            usedWindowIDs.insert(match.windowID)
+            mapping[item.id] = match
+            guard match.section == item.section else { return false }
+        }
+
+        for section in MenuBarOrganizerSection.allCases {
             let beforeIDs = orderedItems(before, in: section)
                 .map(\.id)
-                .filter { $0 != movingItemID }
+                .filter { $0 != beforeMoving.id }
             let afterIDs = orderedItems(after, in: section)
-                .map(\.id)
-                .filter { $0 != movingItemID }
+                .compactMap { candidate in
+                    mapping.first(where: { $0.value.id == candidate.id })?.key
+                }
+                .filter { $0 != beforeMoving.id }
             guard beforeIDs == afterIDs else { return false }
         }
 
-        if beforeMoving.section == destination,
-           orderedItems(before, in: destination).map(\.id)
-                == orderedItems(after, in: destination).map(\.id) {
-            return false
+        if beforeMoving.section == destination {
+            let beforeOrder = orderedItems(before, in: destination).map(\.id)
+            let afterOrder = orderedItems(after, in: destination).compactMap { candidate in
+                mapping.first(where: { entry in
+                    entry.value.id == candidate.id
+                })?.key
+            }
+            guard beforeOrder != afterOrder else { return false }
         }
-
         return true
     }
+
+
 }
 
 private extension String {

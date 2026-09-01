@@ -15,7 +15,8 @@ final class MenuBarOrganizerService: ObservableObject {
         canEnumerate: false,
         canMove: AXIsProcessTrusted(),
         hasPrivateWindowList: false,
-        unresolvedItemCount: 0)
+        unresolvedItemCount: 0,
+        moveAvailabilityCounts: MenuBarOrganizerSupport.moveAvailabilityCounts(for: []))
     @Published private(set) var isRunning = false
     @Published private(set) var hiddenSectionShown = true
     @Published private(set) var alwaysHiddenSectionShown = true
@@ -76,7 +77,8 @@ final class MenuBarOrganizerService: ObservableObject {
                 canEnumerate: capabilities.canEnumerate,
                 canMove: false,
                 hasPrivateWindowList: capabilities.hasPrivateWindowList,
-                unresolvedItemCount: capabilities.unresolvedItemCount)
+                unresolvedItemCount: capabilities.unresolvedItemCount,
+                moveAvailabilityCounts: capabilities.moveAvailabilityCounts)
             return
         }
 
@@ -353,7 +355,8 @@ final class MenuBarOrganizerService: ObservableObject {
                 canEnumerate: false,
                 canMove: AXIsProcessTrusted(),
                 hasPrivateWindowList: false,
-                unresolvedItemCount: 0)
+                unresolvedItemCount: 0,
+                moveAvailabilityCounts: MenuBarOrganizerSupport.moveAvailabilityCounts(for: []))
         }
     }
 
@@ -419,7 +422,10 @@ final class MenuBarOrganizerService: ObservableObject {
                 guard previous.section != .visible,
                       previous.identityState == .stable
                 else { return false }
-                return !snapshot.items.contains { $0.id == previous.id }
+                return MenuBarOrganizerSupport.equivalentItem(
+                    to: previous,
+                    in: snapshot.items,
+                    requiringFrameProximity: false) == nil
             }
             items = snapshot.items + carried
         }
@@ -439,8 +445,9 @@ final class MenuBarOrganizerService: ObservableObject {
 
         showInMenuBar(.alwaysHidden)
         try? await Task.sleep(for: .milliseconds(350))
+        await provider.invalidateIdentityCache()
         _ = await refreshNow()
-        guard let original = items.first(where: { $0.id == itemID }) else {
+        guard let original = MenuBarOrganizerSupport.item(matching: itemID, in: items) else {
             operationMessage = moveErrorMessage(.itemUnavailable)
             return
         }
@@ -448,7 +455,8 @@ final class MenuBarOrganizerService: ObservableObject {
             operationMessage = moveErrorMessage(.provisionalIdentity)
             return
         }
-        if let targetID, items.first(where: { $0.id == targetID }) == nil {
+        if let targetID,
+           MenuBarOrganizerSupport.item(matching: targetID, in: items) == nil {
             operationMessage = moveErrorMessage(.itemUnavailable)
             return
         }
@@ -469,16 +477,20 @@ final class MenuBarOrganizerService: ObservableObject {
         var lastError: MenuBarItemMoveError = .verificationFailed
         for attempt in 0..<3 {
             guard let snapshot = await refreshNow(), snapshot.enumerationSucceeded,
-                  let current = items.first(where: { $0.id == movingItemID }) else {
+                  let current = MenuBarOrganizerSupport.equivalentItem(
+                    to: original,
+                    in: items,
+                    requiringFrameProximity: false) else {
                 lastError = .itemUnavailable
                 break
             }
-            guard targetID == nil || items.first(where: { $0.id == targetID })?.section == section else {
+            guard targetID == nil || MenuBarOrganizerSupport.item(
+                matching: targetID!, in: items)?.section == section else {
                 lastError = .itemUnavailable
                 break
             }
             let targetWindowID = targetID.flatMap { id in
-                items.first(where: { $0.id == id })?.windowID
+                MenuBarOrganizerSupport.item(matching: id, in: items)?.windowID
             }
             guard let destination = destination(
                 for: section,
@@ -503,8 +515,11 @@ final class MenuBarOrganizerService: ObservableObject {
                     movingItemID: movingItemID,
                     destination: section)
                 if movedOnlySelectedItem,
-                   let currentWindowID = items.first(where: { $0.id == movingItemID })?.windowID,
-                   moveWasVerified(windowID: currentWindowID,
+                   let movedItem = MenuBarOrganizerSupport.equivalentItem(
+                       to: original,
+                       in: items,
+                       requiringFrameProximity: false),
+                   moveWasVerified(item: movedItem,
                                   targetItemID: targetID,
                                   section: section) {
                     canUndo = undoRecord != nil
@@ -552,17 +567,16 @@ final class MenuBarOrganizerService: ObservableObject {
         }
     }
 
-    private func moveWasVerified(windowID: CGWindowID,
+    private func moveWasVerified(item: ManagedMenuBarItem,
                                  targetItemID: MenuBarItemIdentity?,
                                  section: MenuBarOrganizerSection) -> Bool {
-        guard let current = items.first(where: { $0.windowID == windowID }),
-              current.section == section
-        else { return false }
-        guard let targetItemID else { return true }
-        guard let target = items.first(where: { $0.id == targetItemID }) else {
-            return false
-        }
-        return current.frame.maxX <= target.frame.minX + 3
+        guard item.section == section else { return false }
+        guard let targetItemID,
+              let target = MenuBarOrganizerSupport.item(
+                matching: targetItemID,
+                in: items)
+        else { return targetItemID == nil }
+        return item.frame.maxX <= target.frame.minX + 3
     }
 
     private func show(_ section: MenuBarOrganizerSection) {

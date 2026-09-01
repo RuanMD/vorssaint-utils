@@ -28,56 +28,21 @@ final class MenuBarWindowProvider {
             await resolver.discover())
         let resolvedSources = await resolver.resolve(
             records: enumeratedRecords, catalog: catalog)
-        // The resolver correlates this catalog with WindowServer frames. A
-        // successful correlation upgrades a host window to its real source;
-        // an uncorrelated candidate remains visible but intentionally locked.
-        // Divider window IDs can be temporarily unavailable while AppKit inserts
-        // or removes a status item. Their accessibility identifiers remain a
-        // reliable second exclusion mechanism during that transition.
+        // An AX-only candidate has no verified WindowServer target for the
+        // Command-drag. Keep it out of the editor until it correlates to a real
+        // status-item window instead of rendering it as a locked pseudo-item.
         let records = enumeratedRecords.filter {
             !MenuBarOrganizerSupport.isOrganizerInternalItem(
                 record: $0, source: resolvedSources[$0.windowID])
         }
-        var sources = resolvedSources.filter { entry in
+        let sources = resolvedSources.filter { entry in
             records.contains { $0.windowID == entry.key }
         }
-        let uncorrelatedCandidates = catalog.filter { candidate in
-            // Never promote Control Center's own AX children to virtual records:
-            // the real apps that own those items already appear in the catalog
-            // under their own bundle IDs, making CC duplicates redundant.
-            !MenuBarOrganizerSupport.isOrganizerInternalSource(candidate.source)
-                && candidate.source.bundleIdentifier
-                    != MenuBarOrganizerSupport.controlCenterBundleIdentifier
-                && candidate.source.bundleIdentifier != "com.apple.systemuiserver"
-                && candidate.frame.minY <= 48
-                && candidate.frame.width > 0 && candidate.frame.width < 400
-                && candidate.frame.height > 0 && candidate.frame.height <= 64
-                && !records.contains {
-                    MenuBarOrganizerSupport.frameMatchScore($0.frame, candidate.frame) != nil
-                }
-        }
-        .sorted { $0.slotKey < $1.slotKey }
-        let virtualRecords = uncorrelatedCandidates.enumerated().map { index, candidate in
-            let virtualWindowID = CGWindowID(0xF000_0000 + UInt32(index))
-            sources[virtualWindowID] = candidate.source
-            return MenuBarOrganizerWindowRecord(
-                windowID: virtualWindowID,
-                ownerPID: candidate.source.pid,
-                ownerName: candidate.source.name,
-                ownerBundleIdentifier: candidate.source.bundleIdentifier,
-                title: candidate.source.displayTitle ?? "",
-                frame: candidate.frame,
-                layer: 0,
-                alpha: 1,
-                isOnScreen: true)
-        }
-        let allRecords = records + virtualRecords
-        let virtualWindowIDs = Set(virtualRecords.map(\.windowID))
-        let identities = MenuBarOrganizerSupport.identities(for: allRecords, sources: sources)
+        let identities = MenuBarOrganizerSupport.identities(for: records, sources: sources)
         let currentPID = ProcessInfo.processInfo.processIdentifier
 
         let items = await MainActor.run {
-            allRecords.compactMap { record -> ManagedMenuBarItem? in
+            records.compactMap { record -> ManagedMenuBarItem? in
                 guard let resolved = identities[record.windowID] else { return nil }
                 let source = resolved.source
                 let bundleIdentifier = source?.bundleIdentifier
@@ -88,8 +53,10 @@ final class MenuBarWindowProvider {
                     || MenuBarOrganizerSupport.isSystemImmovable(
                         bundleIdentifier: bundleIdentifier,
                         title: title)
-                let movable = !virtualWindowIDs.contains(record.windowID)
-                    && (resolved.state == .stable || (source != nil && source?.bundleIdentifier != MenuBarOrganizerSupport.controlCenterBundleIdentifier))
+                let movable = (resolved.state == .stable
+                    || (source != nil
+                        && source?.bundleIdentifier
+                            != MenuBarOrganizerSupport.controlCenterBundleIdentifier))
                     && !protected
                 let sourceApp = source.flatMap { NSRunningApplication(processIdentifier: $0.pid) }
                 let ownerApp = NSRunningApplication(processIdentifier: record.ownerPID)
@@ -137,7 +104,9 @@ final class MenuBarWindowProvider {
                 hasPrivateWindowList: enumeration.usedPrivateWindowList,
                 unresolvedItemCount: items.count {
                     $0.identityState == .provisional
-                }),
+                },
+                moveAvailabilityCounts: MenuBarOrganizerSupport.moveAvailabilityCounts(
+                    for: items)),
             enumerationSucceeded: enumeration.succeeded || !catalog.isEmpty)
     }
 
@@ -194,6 +163,8 @@ final class MenuBarWindowProvider {
         records = MenuBarOrganizerSupport.mergedMenuBarWindowRecords(
             privateRecords: privateRecords,
             publicRecords: publicRecords)
+        records = MenuBarOrganizerSupport.normalizedMenuBarWindowRecords(
+            records, statusLevel: statusLevel)
 
         return EnumerationResult(
             records: records,

@@ -4,10 +4,10 @@
 
 - Branch: `feat/menu-bar-manager-followup`
 - Worktree: `/Users/ruansantana/Documents/DeepAgent/vorssaint-utils-menu-bar-manager`
-- HEAD: `a9e5ae6` — `fix(menu-bar): catalog accessibility status items`
+- HEAD: `e3f4d36` — `fix(menu-bar): resolve icons and eliminate duplicate items`
 - Dependência: PR #360 / head local `18383b9`
 - Bundle de teste instalado: `/Applications/Vorssaint (Developer).app`
-  (`com.vorssaint.utils.dev`, build `a9e5ae6`)
+  (`com.vorssaint.utils.dev`, build `6cbec5e`)
 
 ## O que foi corrigido
 
@@ -22,6 +22,15 @@ Organizer não pode depender apenas de `CGWindowList` para descobrir ícones.
 - Divisores internos `Vorssaint.MenuBarOrganizer.*` são excluídos.
 - A barra secundária inclui somente itens movíveis/correlacionados.
 - Evitada varredura AX duplicada no refresh.
+- **`6cbec5e`**: Itens das lanes do editor exibem apenas ícone (sem texto/rótulo
+  "#N"); nome completo disponível no tooltip de hover. Indicadores de bloqueio e
+  identidade provisória mantidos como badge pequeno.
+- **`6cbec5e`**: Setas das divisórias na status bar colapsam seções corretamente
+  mesmo com o painel de Ajustes aberto (removida a guarda `editingCount == 0`
+  em `applyDividerState`). A classificação de seção via `midX` dos divisores se
+  mantém correta após o colapso porque a ordenação relativa item/divisor é
+  preservada.
+- Scroll indicator das lanes ocultado (ruído visual).
 
 ## Próxima validação manual
 

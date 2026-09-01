@@ -159,13 +159,33 @@ struct MenuBarOrganizerItemIcon: View {
                     .resizable()
                     .scaledToFit()
             } else {
-                Image(systemName: item.bundleIdentifier.hasPrefix("com.apple.")
-                      ? "switch.2" : "app.dashed")
+                Image(systemName: systemIconName)
                     .resizable()
                     .scaledToFit()
                     .foregroundStyle(.secondary)
             }
         }
         .frame(width: size, height: size)
+    }
+
+    private var systemIconName: String {
+        let title = item.title.lowercased()
+        let bundle = item.bundleIdentifier.lowercased()
+        if title.contains("wifi") || title.contains("wi-fi") || bundle.contains("wifi") {
+            return "wifi"
+        } else if title.contains("battery") || title.contains("bateria") || bundle.contains("battery") {
+            return "battery.100"
+        } else if title.contains("sound") || title.contains("volume") || title.contains("som") || title.contains("audio") || bundle.contains("sound") {
+            return "speaker.wave.2.fill"
+        } else if title.contains("bluetooth") || bundle.contains("bluetooth") {
+            return "wave.3.forward"
+        } else if title.contains("clock") || title.contains("relogio") || title.contains("relógio") || title.contains("time") || title.contains("data") || title.contains("date") {
+            return "clock.fill"
+        } else if title.contains("display") || title.contains("screen") || title.contains("tela") {
+            return "display"
+        } else if title.contains("controlcenter") || title.contains("central") || bundle.contains("controlcenter") {
+            return "switch.2"
+        }
+        return "app.dashed"
     }
 }

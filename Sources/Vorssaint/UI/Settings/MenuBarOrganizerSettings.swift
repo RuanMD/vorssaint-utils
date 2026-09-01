@@ -161,6 +161,7 @@ struct MenuBarOrganizerSettings: View {
             Text(text.manualHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            availabilityDiagnostics
             if !service.capabilities.automaticEditorAvailable {
                 Label(text.automaticMoveUnavailable,
                       systemImage: "exclamationmark.triangle")
@@ -175,6 +176,28 @@ struct MenuBarOrganizerSettings: View {
             }
         } header: {
             Text(text.sectionsTitle)
+        }
+    }
+
+    @ViewBuilder
+    private var availabilityDiagnostics: some View {
+        let counts = service.capabilities.moveAvailabilityCounts
+        if counts.locked > 0 {
+            VStack(alignment: .leading, spacing: 3) {
+                if counts.windowTargetUnavailable > 0 {
+                    Text(String(format: text.windowTargetUnavailableCountFormat,
+                                counts.windowTargetUnavailable))
+                }
+                if counts.protected > 0 {
+                    Text(String(format: text.protectedCountFormat, counts.protected))
+                }
+                if counts.provisionalIdentity > 0 {
+                    Text(String(format: text.unresolvedCountFormat,
+                                counts.provisionalIdentity))
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
     }
 
@@ -265,8 +288,7 @@ struct MenuBarOrganizerSettings: View {
     private func organizerLane(_ section: MenuBarOrganizerSection,
                                title: String) -> some View {
         let laneItems = MenuBarOrganizerSupport.orderedItems(service.items, in: section)
-            .filter { $0.identityState != .provisional }
-            .filter { $0.isMovable || $0.image != nil }
+            .filter(MenuBarOrganizerSupport.isEditorVisible)
         return VStack(alignment: .leading, spacing: 7) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
@@ -366,6 +388,19 @@ private struct MenuBarOrganizerEditorItem: View {
         FeatureStrings.menuBarOrganizer(l10n.language)
     }
 
+    private var helpText: String {
+        switch item.moveAvailability {
+        case .movable:
+            return label
+        case .provisionalIdentity:
+            return text.unresolvedItem
+        case .protected:
+            return text.protectedItem
+        case .windowTargetUnavailable:
+            return text.windowTargetUnavailableItem
+        }
+    }
+
     var body: some View {
         HStack(spacing: 3) {
             MenuBarOrganizerItemIcon(item: item, size: 22)
@@ -378,7 +413,7 @@ private struct MenuBarOrganizerEditorItem: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 5)
         .background(Capsule().fill(Color.secondary.opacity(0.12)))
-        .help(item.isProtected ? text.protectedItem : label)
+        .help(helpText)
         .opacity(item.isMovable ? 1 : 0.62)
     }
 }

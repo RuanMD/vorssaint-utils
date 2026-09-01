@@ -13130,7 +13130,10 @@ struct MetricsTests {
                            ownerName: String = "App",
                            ownerBundleIdentifier: String,
                            title: String,
-                           x: CGFloat) -> MenuBarOrganizerWindowRecord {
+                           x: CGFloat,
+                           layer: Int = 0,
+                           alpha: Double = 1,
+                           isOnScreen: Bool = true) -> MenuBarOrganizerWindowRecord {
             MenuBarOrganizerWindowRecord(
                 windowID: windowID,
                 ownerPID: ownerPID,
@@ -13138,10 +13141,42 @@ struct MetricsTests {
                 ownerBundleIdentifier: ownerBundleIdentifier,
                 title: title,
                 frame: CGRect(x: x, y: 0, width: 20, height: 22),
-                layer: 0,
-                alpha: 1,
-                isOnScreen: true)
+                layer: layer,
+                alpha: alpha,
+                isOnScreen: isOnScreen)
         }
+
+        let sameSlotRecords = [
+            menuBarRecord(40, ownerBundleIdentifier: "com.example.slot", title: "State", x: 20, layer: 101),
+            menuBarRecord(41, ownerBundleIdentifier: "com.example.slot", title: "State", x: 20, layer: 0),
+        ]
+        let normalizedSameSlot = MenuBarOrganizerSupport.normalizedMenuBarWindowRecords(
+            sameSlotRecords, statusLevel: 0)
+        expect(normalizedSameSlot.count == 1 && normalizedSameSlot[0].windowID == 41,
+               "duplicate WindowServer layers collapse to the on-screen status window")
+        let distinctSameAppRecords = [
+            menuBarRecord(42, ownerBundleIdentifier: "com.example.slot", title: "State", x: 20),
+            menuBarRecord(43, ownerBundleIdentifier: "com.example.slot", title: "State", x: 52),
+        ]
+        expect(MenuBarOrganizerSupport.normalizedMenuBarWindowRecords(
+            distinctSameAppRecords, statusLevel: 0).count == 2,
+               "physically distinct status items from one app remain separate")
+        let frameShiftedAXCandidate = MenuBarItemSourceCandidate(
+            source: MenuBarItemSourceIdentity(
+                pid: 101,
+                bundleIdentifier: "com.example.ax",
+                name: "AX App",
+                axIdentifier: nil,
+                axTitle: "Status"),
+            frame: CGRect(x: 120, y: 0, width: 20, height: 22))
+        let nearbyFrameShiftedAXCandidate = MenuBarItemSourceCandidate(
+            source: frameShiftedAXCandidate.source,
+            frame: CGRect(x: 124, y: 1, width: 20, height: 22))
+        expect(MenuBarOrganizerSupport.deduplicatedSourceCandidates([
+            frameShiftedAXCandidate, nearbyFrameShiftedAXCandidate
+        ]) == [frameShiftedAXCandidate],
+               "Accessibility candidates with nearby frames collapse without exact coordinates")
+
         let duplicateMenuRecords = [
             menuBarRecord(1, ownerBundleIdentifier: "com.example.app", title: "State", x: 40),
             menuBarRecord(2, ownerBundleIdentifier: "com.example.app", title: "State", x: 10),
@@ -13210,7 +13245,10 @@ struct MetricsTests {
                                 occurrence: Int,
                                 x: CGFloat,
                                 section: MenuBarOrganizerSection,
-                                name: String = "Example App") -> ManagedMenuBarItem {
+                                name: String = "Example App",
+                                identityState: MenuBarItemIdentityState = .stable,
+                                isMovable: Bool = true,
+                                isProtected: Bool = false) -> ManagedMenuBarItem {
             ManagedMenuBarItem(
                 id: MenuBarItemIdentity(bundleIdentifier: "com.example.app",
                                         title: "status", occurrence: occurrence),
@@ -13224,11 +13262,34 @@ struct MetricsTests {
                 title: "",
                 frame: CGRect(x: x, y: 0, width: 20, height: 22),
                 section: section,
-                identityState: .stable,
-                isMovable: true,
-                isProtected: false,
+                identityState: identityState,
+                isMovable: isMovable,
+                isProtected: isProtected,
                 image: nil)
         }
+        let moveAvailabilityItems = [
+            managedMenuBarItem(16, occurrence: 0, x: 10, section: .visible),
+            managedMenuBarItem(17, occurrence: 1, x: 30, section: .visible,
+                               identityState: .provisional, isMovable: false),
+            managedMenuBarItem(18, occurrence: 2, x: 50, section: .visible,
+                               isMovable: false, isProtected: true),
+            managedMenuBarItem(19, occurrence: 3, x: 70, section: .visible,
+                               isMovable: false),
+        ]
+        let availabilityCounts = MenuBarOrganizerSupport.moveAvailabilityCounts(
+            for: moveAvailabilityItems)
+        expect(moveAvailabilityItems.map(\.moveAvailability) == [
+                    .movable, .provisionalIdentity, .protected, .windowTargetUnavailable
+                ]
+                && availabilityCounts.movable == 1
+                && availabilityCounts.provisionalIdentity == 1
+                && availabilityCounts.protected == 1
+                && availabilityCounts.windowTargetUnavailable == 1
+                && availabilityCounts.locked == 3,
+               "menu bar move availability distinguishes movable, provisional, protected and AX-only items")
+        expect(moveAvailabilityItems.filter(MenuBarOrganizerSupport.isEditorVisible).map(\.windowID)
+                    == [16, 18],
+               "editor shows movable app items and explicit protections, not ambiguous targets")
         let duplicateLabels = [
             managedMenuBarItem(11, occurrence: 0, x: 10, section: .visible),
             managedMenuBarItem(12, occurrence: 1, x: 40, section: .visible),
@@ -13255,6 +13316,25 @@ struct MetricsTests {
             managedMenuBarItem(22, occurrence: 1, x: 30, section: .visible),
             managedMenuBarItem(23, occurrence: 2, x: 50, section: .hidden),
         ]
+        let changedIdentityAfter = [
+            managedMenuBarItem(121, occurrence: 0, x: 10, section: .visible),
+            managedMenuBarItem(122, occurrence: 7, x: 30, section: .hidden),
+            managedMenuBarItem(123, occurrence: 2, x: 50, section: .hidden),
+        ]
+        expect(MenuBarOrganizerSupport.isSingleItemMove(
+                    before: moveBefore, after: changedIdentityAfter,
+                    movingItemID: moveBefore[1].id, destination: .hidden),
+               "post-move validation tolerates changed WindowServer IDs and occurrences")
+
+        let changedIdentityDuplicate = [
+            managedMenuBarItem(131, occurrence: 0, x: 10, section: .visible),
+            managedMenuBarItem(132, occurrence: 7, x: 30, section: .hidden),
+            managedMenuBarItem(133, occurrence: 7, x: 50, section: .hidden),
+        ]
+        expect(!MenuBarOrganizerSupport.isSingleItemMove(
+                    before: moveBefore, after: changedIdentityDuplicate,
+                    movingItemID: moveBefore[1].id, destination: .hidden),
+               "post-move validation rejects ambiguous semantic matches")
         let moveAfter = [
             managedMenuBarItem(21, occurrence: 0, x: 10, section: .visible),
             managedMenuBarItem(22, occurrence: 1, x: 30, section: .hidden),
@@ -13415,10 +13495,15 @@ struct MetricsTests {
         expect(MenuBarOrganizerSupport.isSystemImmovable(
                 bundleIdentifier: "com.apple.controlcenter", title: "Clock")
                 && MenuBarOrganizerSupport.isSystemImmovable(
+                    bundleIdentifier: "com.apple.controlcenter", title: "Siri")
+                && !MenuBarOrganizerSupport.isSystemImmovable(
                     bundleIdentifier: "com.apple.controlcenter", title: "Item-14")
                 && !MenuBarOrganizerSupport.isSystemImmovable(
                     bundleIdentifier: "com.example.app", title: "Clock"),
-               "protected system items are not offered to automatic movement")
+               "only named system controls are protected; generic hosted slots are not")
+        expect(MenuBarOrganizerSupport.isGenericControlCenterHostedTitle("Item-14")
+                && !MenuBarOrganizerSupport.isGenericControlCenterHostedTitle("Siri"),
+               "generic Control Center host labels remain a correlation signal, not protection")
         expect(MenuBarManagerDetection.isKnownManager(bundleIdentifier: "com.stonerl.Thaw")
                 && MenuBarManagerDetection.isKnownManager(
                     bundleIdentifier: "com.jordanbaird.Ice.beta")
@@ -13752,10 +13837,14 @@ struct MetricsTests {
                    "every menu bar organizer string is set for \(language.rawValue)")
             expect(menuBarOrganizerValues.allSatisfy { !$0.contains("—") },
                    "no em-dash in menu bar organizer strings (\(language.rawValue))")
-            expect(FeatureStrings.menuBarOrganizer(language).unsupportedSystem.contains("27")
-                    && FeatureStrings.menuBarOrganizer(language).unresolvedCountFormat.contains("%d")
-                    && FeatureStrings.menuBarOrganizer(language).conflictFormat.contains("%@"),
-                   "organizer compatibility and formats stay explicit (\(language.rawValue))")
+            let organizerStrings = FeatureStrings.menuBarOrganizer(language)
+            expect(organizerStrings.unsupportedSystem.contains("27")
+                    && organizerStrings.unresolvedCountFormat.contains("%d")
+                    && organizerStrings.windowTargetUnavailableCountFormat.contains("%d")
+                    && organizerStrings.protectedCountFormat.contains("%d")
+                    && organizerStrings.conflictFormat.contains("%@")
+                    && !organizerStrings.windowTargetUnavailableItem.isEmpty,
+                   "organizer compatibility, lock diagnostics and formats stay explicit (\(language.rawValue))")
             let screenshotValues = Mirror(reflecting: FeatureStrings.screenshot(language)).children
                 .compactMap { $0.value as? String }
             expect(!screenshotValues.isEmpty && screenshotValues.allSatisfy { !$0.isEmpty },
