@@ -676,11 +676,13 @@ enum MenuBarOrganizerSupport {
 
     static func isEditorVisible(_ item: ManagedMenuBarItem) -> Bool {
         if item.isProtected { return true }
-        // Provisional Control Center-hosted placeholders (no resolved source
-        // app, generic icon) are hidden from the editor to keep the UI clean.
-        // They stay physically in the menu bar and are still repositioned by
-        // the dividers; the user just doesn't see a manipulable pill for them.
-        if item.identityState == .provisional { return false }
+        // Hide only true Control Center placeholders — provisional items where
+        // AX resolution failed entirely (unknown source app, generic blue icon).
+        // Provisional items whose source app IS known keep a real app icon and
+        // are still worth showing so the user can drag them between sections.
+        let sourceUnknown = item.sourcePID == nil
+            || item.bundleIdentifier == controlCenterBundleIdentifier
+        if item.identityState == .provisional, sourceUnknown { return false }
         return item.isMovable
     }
 

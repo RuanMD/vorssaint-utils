@@ -417,11 +417,17 @@ final class MenuBarOrganizerService: ObservableObject {
             enumerationSucceeded: snapshot.enumerationSucceeded) {
             // Carry forward items from non-visible sections that temporarily
             // disappear when their apps stop reporting via AXExtrasMenuBar
-            // while those items are hidden behind a collapsed divider.
+            // while those items are hidden behind a collapsed divider. Include
+            // provisional items whose source app was resolved — their icon and
+            // section stay meaningful even when the AX scan oscillates, which
+            // stops the "sumindo e aparecendo" flicker in the editor.
             let carried = items.filter { previous in
-                guard previous.section != .visible,
-                      previous.identityState == .stable
-                else { return false }
+                guard previous.section != .visible else { return false }
+                let identityIsUsable = previous.identityState == .stable
+                    || (previous.sourcePID != nil
+                        && previous.bundleIdentifier
+                            != MenuBarOrganizerSupport.controlCenterBundleIdentifier)
+                guard identityIsUsable else { return false }
                 return MenuBarOrganizerSupport.equivalentItem(
                     to: previous,
                     in: snapshot.items,
