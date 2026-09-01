@@ -157,7 +157,10 @@ final class MenuBarOrganizerService: ObservableObject {
         if hiddenSectionShown || secondaryPanel?.isVisible == true {
             hideAll()
         } else {
-            show(.hidden)
+            // Chevron clicks always reveal inline in the menu bar,
+            // regardless of the presentation mode setting (which governs
+            // hotkey/gesture reveals only).
+            showInMenuBar(.hidden)
         }
     }
 
@@ -172,7 +175,7 @@ final class MenuBarOrganizerService: ObservableObject {
             applyDividerState()
             refresh()
         } else {
-            show(.alwaysHidden)
+            showInMenuBar(.alwaysHidden)
         }
     }
 
