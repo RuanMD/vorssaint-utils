@@ -291,6 +291,91 @@ enum MenuBarOrganizerSupport {
             return $0.frame.minX < $1.frame.minX
         }
     }
+
+    /// Retorna rótulos legíveis quando vários status items usam o mesmo
+    /// fallback de app/título. O sufixo deriva da identidade estável, nunca de
+    /// PID ou identificador do WindowServer.
+    static func displayNames(for items: [ManagedMenuBarItem]) -> [MenuBarItemIdentity: String] {
+        let grouped = Dictionary(grouping: items) { item in
+            item.displayName.folding(options: [.diacriticInsensitive, .caseInsensitive],
+                                     locale: Locale(identifier: "en_US_POSIX"))
+                .lowercased()
+        }
+        var labels: [MenuBarItemIdentity: String] = [:]
+        var usedLabels = Set<String>()
+        for key in grouped.keys.sorted() {
+            guard let group = grouped[key] else { continue }
+            let ordered = group.sorted { $0.id.storageValue < $1.id.storageValue }
+            for (index, item) in ordered.enumerated() {
+                let preferred = ordered.count > 1
+                    ? "\(item.displayName) #\(index + 1)"
+                    : item.displayName
+                var label = preferred
+                var suffix = 2
+                while usedLabels.contains(normalizedLabel(label)) {
+                    label = "\(preferred) #\(suffix)"
+                    suffix += 1
+                }
+                usedLabels.insert(normalizedLabel(label))
+                labels[item.id] = label
+            }
+        }
+        return labels
+    }
+
+    private static func normalizedLabel(_ label: String) -> String {
+        label.folding(options: [.diacriticInsensitive, .caseInsensitive],
+                      locale: Locale(identifier: "en_US_POSIX"))
+            .lowercased()
+    }
+
+    static func displayName(for item: ManagedMenuBarItem,
+                            among items: [ManagedMenuBarItem]) -> String {
+        displayNames(for: items)[item.id] ?? item.displayName
+    }
+
+    /// Um único Command-drag desloca os frames vizinhos quando a menu bar
+    /// reorganiza o espaço. Compara as identidades ordenadas sem o item arrastado
+    /// para aceitar esses deslocamentos e rejeitar uma segunda alteração.
+    static func isSingleItemMove(before: [ManagedMenuBarItem],
+                                 after: [ManagedMenuBarItem],
+                                 movingItemID: MenuBarItemIdentity,
+                                 destination: MenuBarOrganizerSection) -> Bool {
+        let beforeIDs = before.map(\.id)
+        let afterIDs = after.map(\.id)
+        let beforeWindowIDs = before.map(\.windowID)
+        let afterWindowIDs = after.map(\.windowID)
+        guard let beforeMoving = before.first(where: { $0.id == movingItemID }),
+              let afterMoving = after.first(where: { $0.id == movingItemID }),
+              afterMoving.section == destination,
+              beforeIDs.count == Set(beforeIDs).count,
+              afterIDs.count == Set(afterIDs).count,
+              beforeWindowIDs.count == Set(beforeWindowIDs).count,
+              afterWindowIDs.count == Set(afterWindowIDs).count,
+              beforeIDs.count == afterIDs.count,
+              Set(beforeIDs) == Set(afterIDs),
+              beforeMoving.id == afterMoving.id
+        else { return false }
+
+        let sections = MenuBarOrganizerSection.allCases
+        for section in sections {
+            let beforeIDs = orderedItems(before, in: section)
+                .map(\.id)
+                .filter { $0 != movingItemID }
+            let afterIDs = orderedItems(after, in: section)
+                .map(\.id)
+                .filter { $0 != movingItemID }
+            guard beforeIDs == afterIDs else { return false }
+        }
+
+        if beforeMoving.section == destination,
+           orderedItems(before, in: destination).map(\.id)
+                == orderedItems(after, in: destination).map(\.id) {
+            return false
+        }
+
+        return true
+    }
 }
 
 private extension String {

@@ -93,7 +93,11 @@ private struct MenuBarOrganizerSearchView: View {
                                 service.activate(itemID: item.id)
                                 close()
                             } label: {
-                                MenuBarOrganizerItemLabel(item: item, showsSection: true)
+                                MenuBarOrganizerItemLabel(
+                                    item: item,
+                                    displayName: MenuBarOrganizerSupport.displayName(
+                                        for: item, among: service.items),
+                                    showsSection: true)
                                     .padding(.vertical, 4)
                             }
                             .buttonStyle(.plain)

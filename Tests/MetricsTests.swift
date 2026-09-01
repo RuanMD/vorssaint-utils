@@ -13152,6 +13152,124 @@ struct MetricsTests {
                 && duplicateIdentities[2]?.id.occurrence == 1,
                "duplicate menu bar items keep stable identities while reordered")
 
+        func managedMenuBarItem(_ windowID: CGWindowID,
+                                occurrence: Int,
+                                x: CGFloat,
+                                section: MenuBarOrganizerSection,
+                                name: String = "Example App") -> ManagedMenuBarItem {
+            ManagedMenuBarItem(
+                id: MenuBarItemIdentity(bundleIdentifier: "com.example.app",
+                                        title: "status", occurrence: occurrence),
+                windowID: windowID,
+                ownerPID: 1,
+                ownerBundleIdentifier: "com.example.app",
+                sourcePID: nil,
+                ownerName: name,
+                sourceName: name,
+                bundleIdentifier: "com.example.app",
+                title: "",
+                frame: CGRect(x: x, y: 0, width: 20, height: 22),
+                section: section,
+                identityState: .stable,
+                isMovable: true,
+                isProtected: false,
+                image: nil)
+        }
+        let duplicateLabels = [
+            managedMenuBarItem(11, occurrence: 0, x: 10, section: .visible),
+            managedMenuBarItem(12, occurrence: 1, x: 40, section: .visible),
+            managedMenuBarItem(13, occurrence: 2, x: 70, section: .visible, name: "Example App #1"),
+        ]
+        let labelsForward = MenuBarOrganizerSupport.displayNames(for: duplicateLabels)
+        let labelsReversed = MenuBarOrganizerSupport.displayNames(for: Array(duplicateLabels.reversed()))
+        expect(labelsForward[duplicateLabels[0].id] == "Example App #1"
+                && labelsForward[duplicateLabels[1].id] == "Example App #2"
+                && labelsForward[duplicateLabels[2].id] == "Example App #1 #2"
+                && labelsForward == labelsReversed
+                && !labelsForward.values.contains(where: { $0.contains("11") || $0.contains("12") }),
+               "rótulos duplicados do editor são únicos, determinísticos e não expõem identificadores de janela")
+        let foldedLabels = [
+            managedMenuBarItem(14, occurrence: 0, x: 10, section: .visible, name: "Cafe"),
+            managedMenuBarItem(15, occurrence: 1, x: 40, section: .visible, name: "Café"),
+        ]
+        let foldedLabelValues = Set(MenuBarOrganizerSupport.displayNames(for: foldedLabels).values)
+        expect(foldedLabelValues == Set(["Cafe #1", "Café #2"]),
+               "rótulos tratam caixa e acentos como colisões visuais")
+
+        let moveBefore = [
+            managedMenuBarItem(21, occurrence: 0, x: 10, section: .visible),
+            managedMenuBarItem(22, occurrence: 1, x: 30, section: .visible),
+            managedMenuBarItem(23, occurrence: 2, x: 50, section: .hidden),
+        ]
+        let moveAfter = [
+            managedMenuBarItem(21, occurrence: 0, x: 10, section: .visible),
+            managedMenuBarItem(22, occurrence: 1, x: 30, section: .hidden),
+            managedMenuBarItem(23, occurrence: 2, x: 50, section: .hidden),
+        ]
+        let reorderedAfter = [
+            managedMenuBarItem(22, occurrence: 1, x: 10, section: .visible),
+            managedMenuBarItem(21, occurrence: 0, x: 30, section: .visible),
+            managedMenuBarItem(23, occurrence: 2, x: 50, section: .hidden),
+        ]
+        let groupMoveAfter = [
+            managedMenuBarItem(21, occurrence: 0, x: 10, section: .hidden),
+            managedMenuBarItem(22, occurrence: 1, x: 30, section: .hidden),
+            managedMenuBarItem(23, occurrence: 2, x: 50, section: .hidden),
+        ]
+        var reboundAfter = moveAfter
+        reboundAfter[1] = ManagedMenuBarItem(
+            id: MenuBarItemIdentity(bundleIdentifier: "com.example.other", title: "status", occurrence: 0),
+            windowID: reboundAfter[1].windowID,
+            ownerPID: reboundAfter[1].ownerPID,
+            ownerBundleIdentifier: reboundAfter[1].ownerBundleIdentifier,
+            sourcePID: reboundAfter[1].sourcePID,
+            ownerName: reboundAfter[1].ownerName,
+            sourceName: reboundAfter[1].sourceName,
+            bundleIdentifier: "com.example.other",
+            title: reboundAfter[1].title,
+            frame: reboundAfter[1].frame,
+            section: reboundAfter[1].section,
+            identityState: reboundAfter[1].identityState,
+            isMovable: reboundAfter[1].isMovable,
+            isProtected: reboundAfter[1].isProtected,
+            image: reboundAfter[1].image)
+        var duplicateWindowAfter = moveAfter
+        duplicateWindowAfter[1] = ManagedMenuBarItem(
+            id: duplicateWindowAfter[1].id,
+            windowID: duplicateWindowAfter[0].windowID,
+            ownerPID: duplicateWindowAfter[1].ownerPID,
+            ownerBundleIdentifier: duplicateWindowAfter[1].ownerBundleIdentifier,
+            sourcePID: duplicateWindowAfter[1].sourcePID,
+            ownerName: duplicateWindowAfter[1].ownerName,
+            sourceName: duplicateWindowAfter[1].sourceName,
+            bundleIdentifier: duplicateWindowAfter[1].bundleIdentifier,
+            title: duplicateWindowAfter[1].title,
+            frame: duplicateWindowAfter[1].frame,
+            section: duplicateWindowAfter[1].section,
+            identityState: duplicateWindowAfter[1].identityState,
+            isMovable: duplicateWindowAfter[1].isMovable,
+            isProtected: duplicateWindowAfter[1].isProtected,
+            image: duplicateWindowAfter[1].image)
+        expect(MenuBarOrganizerSupport.isSingleItemMove(
+                    before: moveBefore, after: moveAfter,
+                    movingItemID: moveBefore[1].id, destination: .hidden)
+                && MenuBarOrganizerSupport.isSingleItemMove(
+                    before: moveBefore, after: reorderedAfter,
+                    movingItemID: moveBefore[1].id, destination: .visible)
+                && !MenuBarOrganizerSupport.isSingleItemMove(
+                    before: moveBefore, after: groupMoveAfter,
+                    movingItemID: moveBefore[1].id, destination: .hidden)
+                && !MenuBarOrganizerSupport.isSingleItemMove(
+                    before: moveBefore, after: reboundAfter,
+                    movingItemID: moveBefore[1].id, destination: .hidden)
+                && !MenuBarOrganizerSupport.isSingleItemMove(
+                    before: moveBefore, after: duplicateWindowAfter,
+                    movingItemID: moveBefore[1].id, destination: .hidden)
+                && !MenuBarOrganizerSupport.isSingleItemMove(
+                    before: moveBefore, after: moveBefore,
+                    movingItemID: moveBefore[1].id, destination: .visible),
+               "a validação pós-movimento aceita uma identidade e rejeita movimentação em lote")
+
         let hostedRecord = menuBarRecord(
             3,
             ownerPID: 42,

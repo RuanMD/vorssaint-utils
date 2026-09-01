@@ -54,7 +54,7 @@ reimplementado. A entrega será feita em duas unidades de valor:
 |---|---|---|---|
 | 2.1 | Busca e ativação segura de itens ocultos | 1.2 | implemented |
 | 2.2 | Barra secundária multi-monitor e espaçamento | 1.1 | implemented |
-| 2.3 | Identidade visível e movimentação unitária | 1.1, 2.2 | action-needed |
+| 2.3 | Identidade visível e movimentação unitária | 1.1, 2.2 | implemented-pending-manual-validation |
 
 ## Critérios de saída do recurso
 

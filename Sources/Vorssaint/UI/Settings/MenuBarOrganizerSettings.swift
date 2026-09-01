@@ -153,6 +153,11 @@ struct MenuBarOrganizerSettings: View {
             Text(text.dragHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            if editingBegun {
+                Label(advancedText.editingRevealHint, systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Text(text.manualHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -280,7 +285,10 @@ struct MenuBarOrganizerSettings: View {
                             .frame(minWidth: 180, minHeight: 38)
                     }
                     ForEach(laneItems) { item in
-                        MenuBarOrganizerEditorItem(item: item)
+                        MenuBarOrganizerEditorItem(
+                            item: item,
+                            label: MenuBarOrganizerSupport.displayName(for: item,
+                                                                       among: service.items))
                             .onDrag {
                                 NSItemProvider(object: item.id.storageValue as NSString)
                             }
@@ -356,6 +364,7 @@ struct MenuBarOrganizerSettings: View {
 private struct MenuBarOrganizerEditorItem: View {
     @ObservedObject private var l10n = L10n.shared
     let item: ManagedMenuBarItem
+    let label: String
 
     private var text: MenuBarOrganizerStrings {
         FeatureStrings.menuBarOrganizer(l10n.language)
@@ -364,7 +373,7 @@ private struct MenuBarOrganizerEditorItem: View {
     var body: some View {
         HStack(spacing: 5) {
             MenuBarOrganizerItemIcon(item: item, size: 18)
-            Text(item.sourceName.isEmpty ? item.title : item.sourceName)
+            Text(label)
                 .font(.caption)
                 .lineLimit(1)
             if item.identityState == .provisional {

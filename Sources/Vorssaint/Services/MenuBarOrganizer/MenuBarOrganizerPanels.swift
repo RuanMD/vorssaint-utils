@@ -97,9 +97,11 @@ private struct MenuBarOrganizerSecondaryBarView: View {
                     } label: {
                         VStack(spacing: 4) {
                             MenuBarOrganizerItemIcon(item: item, size: 24)
-                            Text(item.sourceName.isEmpty ? item.title : item.sourceName)
+                            Text(MenuBarOrganizerSupport.displayName(for: item,
+                                                                      among: service.items))
                                 .font(.caption2)
                                 .lineLimit(1)
+                                .truncationMode(.middle)
                                 .frame(maxWidth: 78)
                         }
                         .padding(6)
@@ -116,13 +118,14 @@ private struct MenuBarOrganizerSecondaryBarView: View {
 
 struct MenuBarOrganizerItemLabel: View {
     let item: ManagedMenuBarItem
+    var displayName: String?
     var showsSection = false
 
     var body: some View {
         HStack(spacing: 10) {
             MenuBarOrganizerItemIcon(item: item, size: 22)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.displayName).lineLimit(1)
+                Text(displayName ?? item.displayName).lineLimit(1)
                 if showsSection {
                     Text(item.section.rawValue)
                         .font(.caption2)

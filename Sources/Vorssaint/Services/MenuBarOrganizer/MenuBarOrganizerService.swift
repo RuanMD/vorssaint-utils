@@ -439,10 +439,12 @@ final class MenuBarOrganizerService: ObservableObject {
             operationMessage = moveErrorMessage(.provisionalIdentity)
             return
         }
-        let movingWindowID = original.windowID
-        let targetWindowID = targetID.flatMap { id in
-            items.first(where: { $0.id == id })?.windowID
+        if let targetID, items.first(where: { $0.id == targetID }) == nil {
+            operationMessage = moveErrorMessage(.itemUnavailable)
+            return
         }
+        let movingItemID = original.id
+        let baselineItems = items
 
         let orderedBefore = MenuBarOrganizerSupport.orderedItems(items, in: original.section)
         let rightNeighbor = orderedBefore
@@ -457,10 +459,17 @@ final class MenuBarOrganizerService: ObservableObject {
 
         var lastError: MenuBarItemMoveError = .verificationFailed
         for attempt in 0..<2 {
-            _ = await refreshNow()
-            guard let current = items.first(where: { $0.windowID == movingWindowID }) else {
+            guard let snapshot = await refreshNow(), snapshot.enumerationSucceeded,
+                  let current = items.first(where: { $0.id == movingItemID }) else {
                 lastError = .itemUnavailable
                 break
+            }
+            guard targetID == nil || items.first(where: { $0.id == targetID })?.section == section else {
+                lastError = .itemUnavailable
+                break
+            }
+            let targetWindowID = targetID.flatMap { id in
+                items.first(where: { $0.id == id })?.windowID
             }
             guard let destination = destination(
                 for: section,
@@ -475,10 +484,20 @@ final class MenuBarOrganizerService: ObservableObject {
                                      destinationFrame: destination.frame,
                                      placeAfter: destination.placeAfter)
                 try? await Task.sleep(for: .milliseconds(120 + attempt * 80))
-                _ = await refreshNow()
-                if moveWasVerified(windowID: movingWindowID,
-                                   targetWindowID: targetWindowID,
-                                   section: section) {
+                guard let snapshot = await refreshNow(), snapshot.enumerationSucceeded else {
+                    lastError = .itemUnavailable
+                    break
+                }
+                let movedOnlySelectedItem = MenuBarOrganizerSupport.isSingleItemMove(
+                    before: baselineItems,
+                    after: items,
+                    movingItemID: movingItemID,
+                    destination: section)
+                if movedOnlySelectedItem,
+                   let currentWindowID = items.first(where: { $0.id == movingItemID })?.windowID,
+                   moveWasVerified(windowID: currentWindowID,
+                                  targetItemID: targetID,
+                                  section: section) {
                     canUndo = undoRecord != nil
                     return
                 }
@@ -525,13 +544,13 @@ final class MenuBarOrganizerService: ObservableObject {
     }
 
     private func moveWasVerified(windowID: CGWindowID,
-                                 targetWindowID: CGWindowID?,
+                                 targetItemID: MenuBarItemIdentity?,
                                  section: MenuBarOrganizerSection) -> Bool {
         guard let current = items.first(where: { $0.windowID == windowID }),
               current.section == section
         else { return false }
-        guard let targetWindowID else { return true }
-        guard let target = items.first(where: { $0.windowID == targetWindowID }) else {
+        guard let targetItemID else { return true }
+        guard let target = items.first(where: { $0.id == targetItemID }) else {
             return false
         }
         return current.frame.maxX <= target.frame.minX + 3

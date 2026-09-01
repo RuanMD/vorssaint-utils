@@ -1,6 +1,11 @@
+---
+status: in-review
+baseline_commit: 39ca69606911a2801d7c4bf1b35b2dd1b49e89cf
+---
+
 # Story 2.3 — Identidade visível e movimentação unitária
 
-Status: ready-for-dev
+Status: implemented-pending-manual-validation
 Epic: Epic 2 — Descoberta e densidade
 Dependências: Stories 1.1 e 2.2
 Branch: feat/menu-bar-manager-followup
@@ -38,13 +43,25 @@ selecionei, para organizar a barra sem ambiguidade nem movimentação em lote.
 
 ## Tarefas
 
-- [ ] Separar visualmente `reveal for editing` de `move one item`.
-- [ ] Exibir fallback único para nomes repetidos sem expor PID ou dados privados.
-- [ ] Capturar o conjunto de window IDs antes/depois e validar cardinalidade 1.
-- [ ] Garantir que drop delegate e `MenuBarItemMover` usem a identidade completa.
-- [ ] Adicionar testes de identidade duplicada, movimento unitário e rollback.
+- [x] Separar visualmente `reveal for editing` de `move one item`.
+- [x] Exibir fallback único para nomes repetidos sem expor PID ou dados privados.
+- [x] Capturar o conjunto de window IDs antes/depois e validar cardinalidade 1.
+- [x] Garantir que drop delegate e `MenuBarItemMover` usem a identidade completa.
+- [x] Adicionar testes de identidade duplicada, movimento unitário e rollback.
 - [ ] Validar manualmente com vários status items do Vorssaint, Google Drive e
   aplicativos hospedados pelo Control Center.
+
+## Notas de implementação
+
+- O editor e a barra secundária agora calculam rótulos únicos no contexto do
+  snapshot, usando `#N` determinístico para colisões e sem mostrar IDs técnicos.
+- O serviço captura a lista ordenada antes do Command-drag e só confirma o
+  movimento quando a identidade selecionada é a única removida/reinserida entre
+  as seções. O reflow dos vizinhos é aceito; movimentação em lote é rejeitada e
+  o undo não é confirmado.
+- Um aviso na tela explica que revelar as seções durante a edição é transitório.
+- A validação manual continua necessária com Accessibility concedida no bundle
+  `com.vorssaint.utils.dev`, incluindo apps reais, notch e Control Center.
 
 ## Arquivos prováveis
 
@@ -58,3 +75,10 @@ selecionei, para organizar a barra sem ambiguidade nem movimentação em lote.
 Encaminhar para `bmad-agent-dev`/`vorssaint-implementer` na mesma branch
 `feat/menu-bar-manager-followup`. Não criar uma branch paralela nem reimplementar
 o provider da PR #360.
+
+- `resource_slug`: `menu-bar-manager-followup`
+- `worktree`: `/Users/ruansantana/Documents/DeepAgent/vorssaint-utils-menu-bar-manager`
+- `base`: `upstream/main` (`b0dde6567f2945f474cdd91b9478ba3ed44aa0a5`), com dependência
+  local no head da PR #360 (`18383b9`)
+- objetivo: corrigir somente identidade visível e movimentação unitária do
+  Organizer MVP; a implementação não é independente da PR #360

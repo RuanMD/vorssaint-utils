@@ -25,6 +25,7 @@ struct MenuBarOrganizerAdvancedStrings {
     let spacingCustom: String
     let customSpacing: String
     let pinned: String
+    let editingRevealHint: String
 }
 
 extension FeatureStrings {
@@ -41,7 +42,8 @@ extension FeatureStrings {
                          spacing: "Espaçamento", spacingCompact: "Compacto", spacingStandard: "Padrão",
                          spacingSpacious: "Espaçado", spacingCustom: "Personalizado",
                          customSpacing: "Espaçamento personalizado",
-                         pinned: "Manter barra secundária aberta")
+                         pinned: "Manter barra secundária aberta",
+                         editingRevealHint: "A edição revela temporariamente as seções; cada drop altera somente o item selecionado.")
         case .es:
             return .init(title: "Funciones avanzadas", showHidden: "Mostrar elementos ocultos", showAll: "Mostrar todo",
                          hideAll: "Ocultar todo", search: "Buscar en la barra de menús",
@@ -52,7 +54,8 @@ extension FeatureStrings {
                          emptyAreaReveal: "Mostrar al hacer clic en área vacía", scrollReveal: "Mostrar al desplazarse",
                          spacing: "Espaciado", spacingCompact: "Compacto", spacingStandard: "Estándar",
                          spacingSpacious: "Espaciado", spacingCustom: "Personalizado",
-                         customSpacing: "Espaciado personalizado", pinned: "Mantener abierta")
+                         customSpacing: "Espaciado personalizado", pinned: "Mantener abierta",
+                         editingRevealHint: "La edición muestra temporalmente las secciones; cada movimiento cambia solo el elemento seleccionado.")
         case .fr:
             return .init(title: "Fonctions avancées", showHidden: "Afficher les éléments masqués", showAll: "Tout afficher",
                          hideAll: "Tout masquer", search: "Rechercher dans la barre des menus",
@@ -63,7 +66,8 @@ extension FeatureStrings {
                          emptyAreaReveal: "Afficher au clic dans une zone vide", scrollReveal: "Afficher au défilement",
                          spacing: "Espacement", spacingCompact: "Compact", spacingStandard: "Standard",
                          spacingSpacious: "Espacé", spacingCustom: "Personnalisé",
-                         customSpacing: "Espacement personnalisé", pinned: "Garder ouverte")
+                         customSpacing: "Espacement personnalisé", pinned: "Garder ouverte",
+                         editingRevealHint: "La modification affiche temporairement les sections ; chaque déplacement concerne uniquement l’élément sélectionné.")
         default:
             return .init(title: "Advanced behavior", showHidden: "Show hidden items", showAll: "Show all items",
                          hideAll: "Hide all items", search: "Search menu bar",
@@ -74,7 +78,8 @@ extension FeatureStrings {
                          emptyAreaReveal: "Reveal on empty-area click", scrollReveal: "Reveal on scroll",
                          spacing: "Spacing", spacingCompact: "Compact", spacingStandard: "Standard",
                          spacingSpacious: "Spacious", spacingCustom: "Custom",
-                         customSpacing: "Custom spacing", pinned: "Keep bar open")
+                         customSpacing: "Custom spacing", pinned: "Keep bar open",
+                         editingRevealHint: "Editing temporarily reveals the sections; each drop changes only the selected item.")
         }
     }
 }
