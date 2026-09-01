@@ -13152,6 +13152,41 @@ struct MetricsTests {
                 && duplicateIdentities[2]?.id.occurrence == 1,
                "duplicate menu bar items keep stable identities while reordered")
 
+        let privateOnlyRecord = menuBarRecord(
+            30, ownerBundleIdentifier: "com.example.private", title: "Private", x: 10)
+        let publicOnlyRecord = menuBarRecord(
+            31, ownerBundleIdentifier: "com.example.public", title: "Public", x: 40)
+        let mergedCandidates = MenuBarOrganizerSupport.mergedMenuBarWindowRecords(
+            privateRecords: [privateOnlyRecord],
+            publicRecords: [privateOnlyRecord, publicOnlyRecord])
+        expect(mergedCandidates.map(\.windowID) == [30, 31],
+               "a partial private menu bar list keeps public WindowServer candidates")
+
+        let technicalSource = MenuBarItemSourceIdentity(
+            pid: 99,
+            bundleIdentifier: "com.example.app",
+            name: "Example App",
+            axIdentifier: "com.example.app.status",
+            axTitle: "Battery health")
+        let menuBarTechnicalIdentity = MenuBarOrganizerSupport.identities(
+            for: [privateOnlyRecord], sources: [30: technicalSource])
+        expect(menuBarTechnicalIdentity[30]?.id.title == "com.example.app.status"
+                && technicalSource.displayTitle == "Battery health"
+                && MenuBarOrganizerSupport.userFacingTitle("com.example.app.status").isEmpty
+                && !MenuBarOrganizerSupport.isTechnicalIdentifier("Battery health"),
+               "technical AX identifiers remain stable keys while accessible titles stay human-readable")
+
+        let organizerDividerRecord = menuBarRecord(
+            32,
+            ownerBundleIdentifier: "com.vorssaint.utils.dev",
+            title: "Vorssaint.MenuBarOrganizer.control",
+            x: 70)
+        expect(MenuBarOrganizerSupport.isOrganizerInternalItem(
+                    record: organizerDividerRecord, source: nil)
+                && !MenuBarOrganizerSupport.isOrganizerInternalItem(
+                    record: privateOnlyRecord, source: technicalSource),
+               "organizer dividers are excluded even before their AppKit window IDs settle")
+
         func managedMenuBarItem(_ windowID: CGWindowID,
                                 occurrence: Int,
                                 x: CGFloat,

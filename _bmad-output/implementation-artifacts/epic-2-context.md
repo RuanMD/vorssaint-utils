@@ -17,6 +17,9 @@ sem transformar uma operação individual em uma alteração em lote.
 - **2.3 — Identidade visível e movimentação unitária:** diferenciar status items
   com o mesmo rótulo e validar que apenas o item arrastado mudou de seção ou
   posição.
+- **2.4 — Descoberta confiável e editor legível:** combinar a enumeração pública
+  do WindowServer com a sonda privada, ocultar os divisores internos do Vorssaint
+  e separar a identidade técnica do rótulo apresentado.
 
 ## Requirements & Constraints
 
@@ -48,6 +51,9 @@ sem transformar uma operação individual em uma alteração em lote.
 - Cobrir sanitização, busca, rótulos duplicados e cardinalidade da alteração com
   testes determinísticos em `Tests/MetricsTests.swift`; validar TCC e apps reais
   manualmente com o bundle Developer.
+- A lista privada de janelas é uma otimização, não uma fonte autoritativa: um
+  item candidato da barra encontrado pela enumeração pública não pode sumir só
+  porque uma versão do macOS retornou uma lista privada parcial.
 
 ## UX & Interaction Patterns
 

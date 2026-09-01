@@ -52,6 +52,16 @@ struct MenuBarItemSourceIdentity: Equatable {
         let title = axTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return title.isEmpty ? nil : title
     }
+
+    /// Accessibility identifiers are excellent persistence keys but are usually
+    /// implementation details (for example `com.example.app.status`). Keep them
+    /// out of the UI and prefer the accessibility title when one is available.
+    var displayTitle: String? {
+        let title = axTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !title.isEmpty, !MenuBarOrganizerSupport.isTechnicalIdentifier(title)
+        else { return nil }
+        return title
+    }
 }
 
 struct ResolvedMenuBarItemIdentity {
@@ -78,7 +88,7 @@ struct ManagedMenuBarItem: Identifiable {
     let image: NSImage?
 
     var displayName: String {
-        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanTitle = MenuBarOrganizerSupport.userFacingTitle(title)
         let appName = sourceName.isEmpty ? ownerName : sourceName
         if !cleanTitle.isEmpty, cleanTitle.caseInsensitiveCompare(appName) != .orderedSame {
             return appName.isEmpty ? cleanTitle : "\(appName) - \(cleanTitle)"
@@ -218,6 +228,50 @@ enum MenuBarOrganizerSupport {
         record.layer != mainMenuLevel
             && !(record.ownerName == "Window Server"
                 && record.title.caseInsensitiveCompare("Menubar") == .orderedSame)
+    }
+
+    /// Joins the private probe with the public WindowServer candidates. The
+    /// private API is useful for items that the public geometry heuristic cannot
+    /// see, but on some macOS releases it returns only a subset of the menu bar.
+    /// Therefore it must never be used as an exclusive filter.
+    static func mergedMenuBarWindowRecords(
+        privateRecords: [MenuBarOrganizerWindowRecord],
+        publicRecords: [MenuBarOrganizerWindowRecord]
+    ) -> [MenuBarOrganizerWindowRecord] {
+        var seen = Set<CGWindowID>()
+        return (privateRecords + publicRecords).filter { seen.insert($0.windowID).inserted }
+    }
+
+    static func isOrganizerInternalItem(
+        record: MenuBarOrganizerWindowRecord,
+        source: MenuBarItemSourceIdentity?
+    ) -> Bool {
+        [record.title, source?.axIdentifier, source?.axTitle]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .contains { $0.hasPrefix("Vorssaint.MenuBarOrganizer.") }
+    }
+
+    static func isTechnicalIdentifier(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if trimmed.hasPrefix("Vorssaint.MenuBarOrganizer.") { return true }
+        return trimmed.range(
+            of: #"^[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*){2,}$"#,
+            options: .regularExpression
+        ) != nil
+    }
+
+    static func userFacingTitle(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return isTechnicalIdentifier(trimmed) ? "" : trimmed
+    }
+
+    static func userFacingTitle(
+        source: MenuBarItemSourceIdentity?,
+        recordTitle: String
+    ) -> String {
+        if let title = source?.displayTitle { return title }
+        return userFacingTitle(recordTitle)
     }
 
     static func frameMatchScore(_ lhs: CGRect, _ rhs: CGRect) -> CGFloat? {

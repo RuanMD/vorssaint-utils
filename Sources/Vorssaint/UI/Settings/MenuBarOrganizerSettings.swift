@@ -376,6 +376,8 @@ private struct MenuBarOrganizerEditorItem: View {
             Text(label)
                 .font(.caption)
                 .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: 180)
             if item.identityState == .provisional {
                 Image(systemName: "questionmark.circle")
                     .font(.caption2)

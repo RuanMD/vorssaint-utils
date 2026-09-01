@@ -21,8 +21,20 @@ final class MenuBarWindowProvider {
                   alwaysHiddenDividerMidX: CGFloat?,
                   excludedWindowIDs: Set<CGWindowID>) async -> MenuBarItemSnapshot {
         let enumeration = await enumerate()
-        let records = enumeration.records.filter { !excludedWindowIDs.contains($0.windowID) }
-        let sources = await resolver.resolve(records: records)
+        let enumeratedRecords = enumeration.records.filter {
+            !excludedWindowIDs.contains($0.windowID)
+        }
+        let resolvedSources = await resolver.resolve(records: enumeratedRecords)
+        // Divider window IDs can be temporarily unavailable while AppKit inserts
+        // or removes a status item. Their accessibility identifiers remain a
+        // reliable second exclusion mechanism during that transition.
+        let records = enumeratedRecords.filter {
+            !MenuBarOrganizerSupport.isOrganizerInternalItem(
+                record: $0, source: resolvedSources[$0.windowID])
+        }
+        let sources = resolvedSources.filter { entry in
+            records.contains { $0.windowID == entry.key }
+        }
         let identities = MenuBarOrganizerSupport.identities(for: records, sources: sources)
         let currentPID = ProcessInfo.processInfo.processIdentifier
 
@@ -32,16 +44,17 @@ final class MenuBarWindowProvider {
                 let source = resolved.source
                 let bundleIdentifier = source?.bundleIdentifier
                     ?? record.ownerBundleIdentifier
-                let title = source?.stableTitle ?? record.title
+                let title = MenuBarOrganizerSupport.userFacingTitle(
+                    source: source, recordTitle: record.title)
                 let protected = source?.pid == currentPID
                     || MenuBarOrganizerSupport.isSystemImmovable(
                         bundleIdentifier: bundleIdentifier,
                         title: title)
                 let movable = resolved.state == .stable && !protected
-                let sourceApp = source.flatMap {
-                    NSRunningApplication(processIdentifier: $0.pid)
-                }
-                let icon = sourceApp?.bundleURL.map {
+                let sourceApp = source.flatMap { NSRunningApplication(processIdentifier: $0.pid) }
+                let ownerApp = NSRunningApplication(processIdentifier: record.ownerPID)
+                let iconApp = sourceApp ?? ownerApp
+                let icon = iconApp?.bundleURL.map {
                     NSWorkspace.shared.icon(forFile: $0.path)
                 }
                 return ManagedMenuBarItem(
@@ -127,14 +140,16 @@ final class MenuBarWindowProvider {
             MenuBarOrganizerSupport.isMenuBarItemCandidate(
                 $0, mainMenuLevel: mainMenuLevel)
         }
-        if let privateIDSet {
-            records = records.filter { privateIDSet.contains($0.windowID) }
-        } else {
-            records = records.filter {
-                MenuBarOrganizerSupport.isLikelyMenuBarWindow(
-                    $0, statusLevel: statusLevel, screenTopEdges: topEdges)
-            }
+        let privateRecords = privateIDSet.map { ids in
+            records.filter { ids.contains($0.windowID) }
+        } ?? []
+        let publicRecords = records.filter {
+            MenuBarOrganizerSupport.isLikelyMenuBarWindow(
+                $0, statusLevel: statusLevel, screenTopEdges: topEdges)
         }
+        records = MenuBarOrganizerSupport.mergedMenuBarWindowRecords(
+            privateRecords: privateRecords,
+            publicRecords: publicRecords)
 
         return EnumerationResult(
             records: records,

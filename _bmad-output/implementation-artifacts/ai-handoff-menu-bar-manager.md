@@ -183,7 +183,7 @@ git log --oneline upstream/main..HEAD
 ```
 
 Resultado automatizado atual: `swift build` e `./build.sh --test` passam; o harness
-reporta 9.473 checks. `./build.sh --dev`, `SELFTEST` e a instalação Developer
+reporta 9.476 checks. `./build.sh --dev`, `SELFTEST` e a instalação Developer
 também foram concluídos no commit `d5f814a`. A validação em hardware real ainda é necessária
 para TCC, notch, múltiplos monitores, Spaces e interação com organizer concorrente.
 Essa correção de curso já foi implementada na Story 2.3: rótulos repetidos e a
@@ -296,5 +296,44 @@ screenshots privados ou dumps no Git.
 git diff --check
 ```
 
-4. Atualizar a Story 2.3 e este handoff com o commit, a evidência e as limitações.
+4. Atualizar a Story 2.3/2.4 e este handoff com o commit, a evidência e as limitações.
    Só então considerar a entrega pronta para revisão humana.
+
+## 11. Correção de descoberta e clareza do editor (Story 2.4)
+
+Relato que motivou a correção: o editor exibia poucos status items reais, incluía
+os próprios divisores do Organizer e mostrava nomes como
+`Vorssaint.MenuBarOrganizer.control`. Isso acontece em macOS 26 quando a lista
+privada de IDs devolve apenas um subconjunto da barra.
+
+Implementação desta Story:
+
+1. `MenuBarWindowProvider` agora une a sonda privada com os candidatos públicos
+   filtrados por nível/posição do WindowServer. A sonda privada melhora cobertura,
+   mas não pode mais ocultar um item público válido.
+2. Os identificadores `Vorssaint.MenuBarOrganizer.*` são reconhecidos como
+   divisores internos e filtrados mesmo quando o `NSStatusItem.windowID` está
+   temporariamente indisponível.
+3. `AXIdentifier` continua sendo chave de persistência, enquanto o texto da UI
+   usa `AXTitle` humano ou nome do app. Títulos técnicos são eliminados e a pill
+   corta pelo meio após 180 pt, mantendo o tooltip completo.
+4. O ícone agora usa a aplicação-fonte quando resolvida e a aplicação dona como
+   fallback. Itens sem identidade verificável seguem visíveis, com bloqueio.
+5. Os testes puros cobrem união de candidatos, filtro de divisor, separação entre
+   identidade e rótulo, além da suíte anterior de movimentação unitária.
+
+Referência externa permitida: o comportamento e a separação conceitual foram
+comparados à documentação pública do Thaw. Não foi copiado código, dependência,
+asset, texto de interface ou nome interno daquele projeto.
+
+### Roteiro manual adicional
+
+1. Ative o Organizer no bundle Developer e clique em **Atualizar**.
+2. Compare os ícones no editor com a barra de status real: os itens de apps como
+   Google Drive, QSpace e Orca devem aparecer quando sua janela é candidata.
+3. Confirme que nenhum pill contém `Vorssaint.MenuBarOrganizer.*`; devem existir
+   apenas os itens externos editáveis e os itens provisórios bloqueados.
+4. Confirme que o tooltip preserva o nome completo e que o texto da pill não toma
+   toda a faixa horizontal.
+5. Tente mover somente um item estável e confirme que o controle de lote da Story
+   2.3 permanece ativo.
