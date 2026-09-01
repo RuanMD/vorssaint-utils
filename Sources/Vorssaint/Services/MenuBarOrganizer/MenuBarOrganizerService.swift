@@ -147,6 +147,11 @@ final class MenuBarOrganizerService: ObservableObject {
 
     func toggleHiddenSection() {
         guard isRunning else { return }
+        // Collapsing during editing widens the divider to 4096 px and shifts
+        // its midX far to the right — the editor then classifies every item
+        // as .alwaysHidden and looks completely desynchronised from the real
+        // menu bar. Keep sections expanded while the user is arranging them.
+        guard editingCount == 0 else { return }
         if hiddenSectionShown || secondaryPanel?.isVisible == true {
             hideAll()
         } else {
@@ -159,6 +164,7 @@ final class MenuBarOrganizerService: ObservableObject {
               UserDefaults.standard.bool(
                 forKey: DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled)
         else { return }
+        guard editingCount == 0 else { return }
         if alwaysHiddenSectionShown || secondaryPanel?.isVisible == true {
             alwaysHiddenSectionShown = false
             secondaryPanel?.close()
