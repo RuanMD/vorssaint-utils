@@ -43,6 +43,13 @@ final class MenuBarOrganizerService: ObservableObject {
     private var preEditingState: (hidden: Bool, always: Bool)?
     private var undoRecord: UndoRecord?
     private var suppressUndo = false
+    // Last-known midX of each divider while it was narrow (a real section
+    // boundary). When the divider is collapsed to 4096 px its live frame.midX
+    // shifts far to the right and stops being a meaningful boundary — we
+    // fall back to this cached value so section attribution stays synchronised
+    // with what the user actually sees on the menu bar.
+    private var stableHiddenDividerMidX: CGFloat?
+    private var stableAlwaysHiddenDividerMidX: CGFloat?
 
     private struct UndoRecord {
         let itemID: MenuBarItemIdentity
@@ -147,11 +154,6 @@ final class MenuBarOrganizerService: ObservableObject {
 
     func toggleHiddenSection() {
         guard isRunning else { return }
-        // Collapsing during editing widens the divider to 4096 px and shifts
-        // its midX far to the right — the editor then classifies every item
-        // as .alwaysHidden and looks completely desynchronised from the real
-        // menu bar. Keep sections expanded while the user is arranging them.
-        guard editingCount == 0 else { return }
         if hiddenSectionShown || secondaryPanel?.isVisible == true {
             hideAll()
         } else {
@@ -164,7 +166,6 @@ final class MenuBarOrganizerService: ObservableObject {
               UserDefaults.standard.bool(
                 forKey: DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled)
         else { return }
-        guard editingCount == 0 else { return }
         if alwaysHiddenSectionShown || secondaryPanel?.isVisible == true {
             alwaysHiddenSectionShown = false
             secondaryPanel?.close()
@@ -327,6 +328,8 @@ final class MenuBarOrganizerService: ObservableObject {
         preEditingState = nil
         undoRecord = nil
         canUndo = false
+        stableHiddenDividerMidX = nil
+        stableAlwaysHiddenDividerMidX = nil
 
         guard isRunning || controlItem != nil || hiddenDivider != nil
                 || alwaysHiddenDivider != nil
@@ -411,9 +414,13 @@ final class MenuBarOrganizerService: ObservableObject {
             hiddenDivider?.windowID,
             alwaysHiddenDivider?.windowID,
         ].compactMap { $0 })
+        let hiddenMidX = stableDividerMidX(
+            for: hiddenDivider, cache: &stableHiddenDividerMidX)
+        let alwaysHiddenMidX = stableDividerMidX(
+            for: alwaysHiddenDivider, cache: &stableAlwaysHiddenDividerMidX)
         let snapshot = await provider.snapshot(
-            hiddenDividerMidX: hiddenDivider?.frame?.midX,
-            alwaysHiddenDividerMidX: alwaysHiddenDivider?.frame?.midX,
+            hiddenDividerMidX: hiddenMidX,
+            alwaysHiddenDividerMidX: alwaysHiddenMidX,
             excludedWindowIDs: excluded)
         guard !Task.isCancelled, isRunning else { return nil }
         capabilities = snapshot.capabilities
@@ -598,6 +605,22 @@ final class MenuBarOrganizerService: ObservableObject {
             canUndo = false
         }
         _ = await refreshNow()
+    }
+
+    /// Return a section-boundary midX that stays put when the divider is
+    /// collapsed to its 4096 px length. A "narrow enough" frame width means
+    /// the marker chevron is at a real position; anything wider is a
+    /// collapse and we return the last-known narrow midX instead.
+    private func stableDividerMidX(for divider: MenuBarDividerItem?,
+                                   cache: inout CGFloat?) -> CGFloat? {
+        guard let frame = divider?.frame else { return cache }
+        // NSStatusItem.squareLength is ~22 pt. Any frame narrower than 64 pt
+        // is a real, uncollapsed marker whose midX is a valid boundary.
+        if frame.width <= 64 {
+            cache = frame.midX
+            return frame.midX
+        }
+        return cache
     }
 
     private func destination(for section: MenuBarOrganizerSection,
