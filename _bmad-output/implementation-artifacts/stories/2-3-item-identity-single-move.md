@@ -1,5 +1,5 @@
 ---
-status: in-review
+status: done
 baseline_commit: 39ca69606911a2801d7c4bf1b35b2dd1b49e89cf
 ---
 
@@ -82,3 +82,37 @@ o provider da PR #360.
   local no head da PR #360 (`18383b9`)
 - objetivo: corrigir somente identidade visível e movimentação unitária do
   Organizer MVP; a implementação não é independente da PR #360
+
+## Suggested Review Order
+
+**Validação da movimentação unitária**
+
+- O serviço usa um baseline único e só confirma a identidade arrastada após refresh.
+  [`MenuBarOrganizerService.swift:420`](../../../Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerService.swift#L420)
+
+- O alvo é revalidado por identidade antes do gesto e depois da reordenação.
+  [`MenuBarOrganizerService.swift:461`](../../../Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerService.swift#L461)
+
+**Identidade e rótulos visíveis**
+
+- Rótulos duplicados recebem sufixos determinísticos sem expor identificadores técnicos.
+  [`MenuBarOrganizerSupport.swift:298`](../../../Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerSupport.swift#L298)
+
+- A validação tolera reflow e recriação de janelas, mas rejeita mutações adicionais.
+  [`MenuBarOrganizerSupport.swift:340`](../../../Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerSupport.swift#L340)
+
+**Superfícies da interface**
+
+- O editor comunica a revelação transitória e usa o rótulo único no drag-and-drop.
+  [`MenuBarOrganizerSettings.swift:153`](../../../Sources/Vorssaint/UI/Settings/MenuBarOrganizerSettings.swift#L153)
+
+- A barra secundária e a busca preservam a mesma identificação apresentada.
+  [`MenuBarOrganizerPanels.swift:94`](../../../Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerPanels.swift#L94)
+
+**Cobertura e contexto**
+
+- Os testes cobrem colisões, identidade reatribuída, window ID duplicado, lote e no-op.
+  [`MetricsTests.swift:13178`](../../../Tests/MetricsTests.swift#L13178)
+
+- O contexto da Epic 2 registra dependências, limites e decisões desta branch.
+  [`epic-2-context.md:1`](../epic-2-context.md#L1)
