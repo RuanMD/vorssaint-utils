@@ -69,11 +69,22 @@ struct MenuBarItemSourceIdentity: Equatable {
 struct MenuBarItemSourceCandidate: Equatable {
     let source: MenuBarItemSourceIdentity
     let frame: CGRect
+    /// CGWindowID obtained via _AXUIElementGetWindow; nil when the private API
+    /// is unavailable or the element has no backing CoreGraphics window yet.
+    let windowID: CGWindowID?
 
     var slotKey: String {
         "\(source.pid):\(source.bundleIdentifier):"
             + (source.axIdentifier ?? source.axTitle ?? source.name)
-            + ":\(Int(frame.minX)): \(Int(frame.minY))"
+            + ":\(Int(frame.minX)):\(Int(frame.minY))"
+    }
+
+    init(source: MenuBarItemSourceIdentity,
+         frame: CGRect,
+         windowID: CGWindowID? = nil) {
+        self.source = source
+        self.frame = frame
+        self.windowID = windowID
     }
 }
 
@@ -308,7 +319,7 @@ enum MenuBarOrganizerSupport {
         let overlap = intersection.isNull
             ? 0
             : (intersection.width * intersection.height) / max(lhs.width * lhs.height, 1)
-        guard centerDistance <= 5 || overlap >= 0.72 else { return nil }
+        guard centerDistance <= 12 || overlap >= 0.72 else { return nil }
         return centerDistance + sizeDistance * 0.25 - overlap
     }
 

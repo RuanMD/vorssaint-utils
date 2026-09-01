@@ -5,6 +5,19 @@ import AppKit
 import ApplicationServices
 import Foundation
 
+// MARK: - Private AX → CGWindowID bridge
+
+/// Resolves the CGWindowID that backs an AX element. Used to correlate AX
+/// status-item candidates with their WindowServer windows on macOS 26 where
+/// Control Center may composite the whole status bar into one surface.
+private typealias AXGetWindowFn =
+    @convention(c) (AXUIElement, UnsafeMutablePointer<CGWindowID>) -> AXError
+private let _axGetWindow: AXGetWindowFn? = {
+    guard let sym = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "_AXUIElementGetWindow")
+    else { return nil }
+    return unsafeBitCast(sym, to: AXGetWindowFn.self)
+}()
+
 /// Resolves the app that created each status item. On macOS 26 the WindowServer
 /// owner is commonly Control Center, so owner PID alone is not a stable item
 /// identity. AX work runs away from the main actor and is bounded by the app's
@@ -36,6 +49,13 @@ actor MenuBarItemSourceResolver {
                 var candidates: [MenuBarItemSourceCandidate] = []
                 for application in applications {
                     guard !Task.isCancelled else { return [] }
+                    // Control Center's own AX children are just the items it
+                    // hosts on behalf of real apps. Those apps expose the same
+                    // items from their own process — scanning CC only creates
+                    // duplicate candidates with the wrong source bundle.
+                    guard application.bundleIdentifier
+                            != MenuBarOrganizerSupport.controlCenterBundleIdentifier
+                    else { continue }
                     candidates.append(contentsOf: Self.scanExtrasMenuBar(application))
                 }
                 return candidates
@@ -58,8 +78,31 @@ actor MenuBarItemSourceResolver {
         cache = cache.filter { liveWindowIDs.contains($0.key) }
 
         var result = cache
+
+        // Priority 1 — direct window-ID match (most reliable).
+        // Each AX element that exposes a backing CGWindowID via
+        // _AXUIElementGetWindow skips the frame-heuristic entirely.
+        var windowIDResolved = Set<CGWindowID>()
+        for candidate in catalog {
+            guard let wid = candidate.windowID,
+                  liveWindowIDs.contains(wid),
+                  !MenuBarOrganizerSupport.isOrganizerInternalSource(candidate.source)
+            else { continue }
+            let existing = result[wid]
+            guard existing == nil
+                || existing?.bundleIdentifier
+                    == MenuBarOrganizerSupport.controlCenterBundleIdentifier
+            else { continue }
+            result[wid] = candidate.source
+            cache[wid] = candidate.source
+            windowIDResolved.insert(wid)
+        }
+
+        // Priority 2 — owner-bundle fallback for non-CC records not yet resolved.
         for record in records
-        where record.ownerBundleIdentifier != MenuBarOrganizerSupport.controlCenterBundleIdentifier {
+        where !windowIDResolved.contains(record.windowID)
+            && record.ownerBundleIdentifier
+                != MenuBarOrganizerSupport.controlCenterBundleIdentifier {
             let source = MenuBarItemSourceIdentity(
                 pid: record.ownerPID,
                 bundleIdentifier: record.ownerBundleIdentifier.isEmpty
@@ -71,7 +114,10 @@ actor MenuBarItemSourceResolver {
             result[record.windowID] = source
             cache[record.windowID] = source
         }
-        let matches = Self.match(records: records, catalog: catalog)
+
+        // Priority 3 — frame-based matching for records not resolved above.
+        let needsFrameMatch = records.filter { !windowIDResolved.contains($0.windowID) }
+        let matches = Self.match(records: needsFrameMatch, catalog: catalog)
         for (windowID, source) in matches {
             result[windowID] = source
             cache[windowID] = source
@@ -174,7 +220,16 @@ actor MenuBarItemSourceResolver {
                 name: app.name,
                 axIdentifier: attribute(kAXIdentifierAttribute, from: child),
                 axTitle: attribute(kAXTitleAttribute, from: child))
-            return MenuBarItemSourceCandidate(source: source, frame: frame)
+            // Attempt direct window-ID resolution. Fallback to frame matching
+            // when the private symbol is unavailable or the element has no
+            // backing CoreGraphics window yet (e.g. not yet on screen).
+            var wid: CGWindowID = 0
+            let resolvedWindowID: CGWindowID? = _axGetWindow.flatMap { fn in
+                fn(child, &wid) == .success && wid != 0 ? wid : nil
+            }
+            return MenuBarItemSourceCandidate(source: source,
+                                              frame: frame,
+                                              windowID: resolvedWindowID)
         }
     }
 

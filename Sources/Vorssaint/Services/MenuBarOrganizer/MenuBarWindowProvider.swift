@@ -42,7 +42,12 @@ final class MenuBarWindowProvider {
             records.contains { $0.windowID == entry.key }
         }
         let uncorrelatedCandidates = catalog.filter { candidate in
+            // Never promote Control Center's own AX children to virtual records:
+            // the real apps that own those items already appear in the catalog
+            // under their own bundle IDs, making CC duplicates redundant.
             !MenuBarOrganizerSupport.isOrganizerInternalSource(candidate.source)
+                && candidate.source.bundleIdentifier
+                    != MenuBarOrganizerSupport.controlCenterBundleIdentifier
                 && !records.contains {
                     MenuBarOrganizerSupport.frameMatchScore($0.frame, candidate.frame) != nil
                 }
@@ -84,9 +89,11 @@ final class MenuBarWindowProvider {
                 let sourceApp = source.flatMap { NSRunningApplication(processIdentifier: $0.pid) }
                 let ownerApp = NSRunningApplication(processIdentifier: record.ownerPID)
                 let iconApp = sourceApp ?? ownerApp
-                let icon = iconApp?.bundleURL.map {
-                    NSWorkspace.shared.icon(forFile: $0.path)
-                }
+                // NSRunningApplication.icon is the high-res app icon sourced
+                // directly from the bundle; prefer it over the NSWorkspace path
+                // which can return lower-quality or wrong icons for hosted items.
+                let icon: NSImage? = iconApp?.icon
+                    ?? iconApp?.bundleURL.map { NSWorkspace.shared.icon(forFile: $0.path) }
                 return ManagedMenuBarItem(
                     id: resolved.id,
                     windowID: record.windowID,
