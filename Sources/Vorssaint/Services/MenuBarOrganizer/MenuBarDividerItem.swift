@@ -19,11 +19,11 @@ final class MenuBarDividerItem: NSObject {
     var onRightClick: (() -> Void)?
 
     var windowID: CGWindowID? {
-        // windowNumber can be non-positive for a window without a window
-        // device; CGWindowID's unsigned conversion would trap on it.
-        statusItem.button?.window.flatMap {
-            $0.windowNumber > 0 ? CGWindowID($0.windowNumber) : nil
-        }
+        // During status-item insertion/removal AppKit can expose a temporary
+        // negative or out-of-range window number. Use an exact conversion so
+        // a WindowServer transition becomes an unavailable id, not a trap.
+        guard let window = statusItem.button?.window else { return nil }
+        return UInt32(exactly: window.windowNumber)
     }
 
     var frame: CGRect? { statusItem.button?.window?.frame }
