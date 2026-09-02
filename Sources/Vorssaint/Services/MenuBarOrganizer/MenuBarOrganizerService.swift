@@ -177,12 +177,16 @@ final class MenuBarOrganizerService: ObservableObject {
     }
 
     func showSecondaryBar() {
+        showSecondaryBar(scope: .alwaysHidden)
+    }
+
+    private func showSecondaryBar(scope: MenuBarOrganizerSection) {
         guard isRunning else { return }
         refresh()
         if secondaryPanel == nil {
             secondaryPanel = MenuBarOrganizerPanelController(service: self)
         }
-        secondaryPanel?.show(anchor: controlItem?.frame)
+        secondaryPanel?.show(anchor: controlItem?.frame, scope: scope)
         scheduleAutoRehide()
     }
 
@@ -295,7 +299,6 @@ final class MenuBarOrganizerService: ObservableObject {
         control.onRightClick = { [weak self, weak control] in
             self?.showContextMenu(relativeTo: control)
         }
-        hidden.onLeftClick = { [weak self] in self?.toggleHiddenSection() }
         controlItem = control
         hiddenDivider = hidden
         secondaryPanel = MenuBarOrganizerPanelController(service: self)
@@ -374,7 +377,6 @@ final class MenuBarOrganizerService: ObservableObject {
             forKey: DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled)
         if enabled, alwaysHiddenDivider == nil {
             let divider = MenuBarDividerItem(kind: .alwaysHidden)
-            divider.onLeftClick = { [weak self] in self?.toggleAlwaysHiddenSection() }
             alwaysHiddenDivider = divider
         } else if !enabled, let divider = alwaysHiddenDivider {
             alwaysHiddenSectionShown = true
@@ -390,10 +392,7 @@ final class MenuBarOrganizerService: ObservableObject {
     private func applyDividerState() {
         let setupComplete = UserDefaults.standard.bool(
             forKey: DefaultsKey.menuBarOrganizerSetupComplete)
-        let markers = editingCount > 0
-            || !setupComplete
-            || UserDefaults.standard.bool(
-                forKey: DefaultsKey.menuBarOrganizerShowDividers)
+        let markers = editingCount > 0 || !setupComplete
         let length = MenuBarOrganizerSupport.collapsedLength(
             screenWidths: NSScreen.screens.map(\.frame.width))
         hiddenDivider?.setCollapsed(
@@ -685,7 +684,7 @@ final class MenuBarOrganizerService: ObservableObject {
             hiddenWidth: hiddenWidth,
             availableWidth: availableWidth,
             hasNotch: hasNotch) {
-            showSecondaryBar()
+            showSecondaryBar(scope: section)
         } else {
             showInMenuBar(section)
         }

@@ -62,9 +62,13 @@ final class MenuBarDividerItem: NSObject {
         let length: CGFloat = collapsed ? collapsedLength : (markerVisible ? NSStatusItem.squareLength : 1)
         statusItem.length = length
         guard let button = statusItem.button else { return }
-        button.image = markerVisible ? NSImage(systemSymbolName: kind == .hidden ? "chevron.left" : "lock.fill",
-                                               accessibilityDescription: nil) : nil
-        button.toolTip = kind == .hidden ? "Hidden menu bar section" : "Always-hidden menu bar section"
+        button.image = markerVisible && kind == .alwaysHidden
+            ? NSImage(systemSymbolName: "lock.fill", accessibilityDescription: nil)
+            : nil
+        button.title = markerVisible && kind == .hidden ? "│" : ""
+        button.toolTip = markerVisible
+            ? (kind == .hidden ? "Hidden menu bar section" : "Always-hidden menu bar section")
+            : nil
     }
 
     func expandForRemoval() {
@@ -87,18 +91,17 @@ final class MenuBarDividerItem: NSObject {
 
     private func configureButton() {
         guard let button = statusItem.button else { return }
+        button.identifier = NSUserInterfaceItemIdentifier(kind.autosaveName)
+        button.setAccessibilityIdentifier(kind.autosaveName)
+        guard kind == .control else { return }
         button.target = self
         button.action = #selector(clicked)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        button.identifier = NSUserInterfaceItemIdentifier(kind.autosaveName)
-        button.setAccessibilityIdentifier(kind.autosaveName)
-        if kind == .control {
-            // The managed items sit to this control's left, so the icon also
-            // communicates the direction in which a click reveals them.
-            button.image = NSImage(systemSymbolName: "chevron.left",
-                                   accessibilityDescription: "Menu bar organizer")
-            button.toolTip = "Menu bar organizer"
-        }
+        // The managed items sit to this control's left, so the icon also
+        // communicates the direction in which a click reveals them.
+        button.image = NSImage(systemSymbolName: "chevron.left",
+                               accessibilityDescription: "Menu bar organizer")
+        button.toolTip = "Menu bar organizer"
     }
 
     @objc private func clicked() {

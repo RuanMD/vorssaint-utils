@@ -621,7 +621,6 @@ enum DefaultsKey {
     static let menuBarOrganizerEnabled = "menuBarOrganizerEnabled"
     static let menuBarOrganizerSetupComplete = "menuBarOrganizerSetupComplete"
     static let menuBarOrganizerAlwaysHiddenEnabled = "menuBarOrganizerAlwaysHiddenEnabled"
-    static let menuBarOrganizerShowDividers = "menuBarOrganizerShowDividers"
     static let menuBarOrganizerPresentationMode = "menuBarOrganizerPresentationMode"
     static let menuBarOrganizerAutoRehidePolicy = "menuBarOrganizerAutoRehidePolicy"
     static let menuBarOrganizerCustomRehideSeconds = "menuBarOrganizerCustomRehideSeconds"
@@ -1001,7 +1000,6 @@ enum Defaults {
         DefaultsKey.menuBarOrganizerEnabled: false,
         DefaultsKey.menuBarOrganizerSetupComplete: false,
         DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled: false,
-        DefaultsKey.menuBarOrganizerShowDividers: false,
         DefaultsKey.menuBarOrganizerPresentationMode:
             MenuBarOrganizerPresentationMode.automatic.rawValue,
         DefaultsKey.menuBarOrganizerAutoRehidePolicy:

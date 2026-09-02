@@ -19,16 +19,17 @@ final class MenuBarOrganizerPanelController {
         panel?.frame.contains(point) == true
     }
 
-    func show(anchor: CGRect?) {
+    func show(anchor: CGRect?, scope: MenuBarOrganizerSection) {
         guard let service else { return }
-        let hiddenCount = max(service.items.filter {
-            $0.section != .visible && $0.isMovable
-        }.count, 1)
+        let hiddenCount = max(MenuBarOrganizerSupport.secondaryBarItems(
+            service.items,
+            scope: scope
+        ).count, 1)
         let spacing = service.secondaryBarSpacing
         let size = CGSize(width: min(max(CGFloat(hiddenCount) * 62
                                          + CGFloat(max(hiddenCount - 1, 0)) * spacing + 32, 260), 720),
                           height: 94)
-        let content = MenuBarOrganizerSecondaryBarView(service: service)
+        let content = MenuBarOrganizerSecondaryBarView(service: service, scope: scope)
         let panel = self.panel ?? makePanel(size: size)
         panel.hidesOnDeactivate = !UserDefaults.standard.bool(
             forKey: DefaultsKey.menuBarOrganizerSecondaryBarPinned)
@@ -77,10 +78,11 @@ final class MenuBarOrganizerPanelController {
 
 private struct MenuBarOrganizerSecondaryBarView: View {
     @ObservedObject var service: MenuBarOrganizerService
+    let scope: MenuBarOrganizerSection
     @ObservedObject private var l10n = L10n.shared
 
     private var hiddenItems: [ManagedMenuBarItem] {
-        service.items.filter { $0.section != .visible && $0.isMovable }
+        MenuBarOrganizerSupport.secondaryBarItems(service.items, scope: scope)
     }
 
     var body: some View {

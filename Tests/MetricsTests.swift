@@ -13122,8 +13122,12 @@ struct MetricsTests {
                 && MenuBarOrganizerSupport.shouldUseSecondaryBar(
                     mode: .automatic, hiddenWidth: 10, availableWidth: 500, hasNotch: true)
                 && !MenuBarOrganizerSupport.shouldUseSecondaryBar(
-                    mode: .menuBar, hiddenWidth: 900, availableWidth: 100, hasNotch: true),
-               "automatic presentation handles overflow and notches while explicit mode wins")
+                    mode: .automatic, hiddenWidth: 10, availableWidth: 500, hasNotch: false)
+                && !MenuBarOrganizerSupport.shouldUseSecondaryBar(
+                    mode: .menuBar, hiddenWidth: 900, availableWidth: 100, hasNotch: true)
+                && MenuBarOrganizerSupport.shouldUseSecondaryBar(
+                    mode: .secondaryBar, hiddenWidth: 10, availableWidth: 500, hasNotch: false),
+               "presentation modes choose only where the requested scope is revealed")
 
         func menuBarRecord(_ windowID: CGWindowID,
                            ownerPID: pid_t = 1,
@@ -13267,6 +13271,52 @@ struct MetricsTests {
                 isProtected: isProtected,
                 image: nil)
         }
+        let secondaryBarCandidates = [
+            managedMenuBarItem(12, occurrence: 0, x: 10, section: .visible),
+            managedMenuBarItem(13, occurrence: 1, x: 30, section: .hidden),
+            managedMenuBarItem(14, occurrence: 2, x: 50, section: .alwaysHidden),
+            managedMenuBarItem(15, occurrence: 3, x: 70, section: .hidden,
+                               isMovable: false, isProtected: true),
+        ]
+        expect(MenuBarOrganizerSupport.secondaryBarItems(
+                    secondaryBarCandidates, scope: .hidden).map(\.windowID) == [13],
+               "the hidden secondary bar excludes always-hidden, visible and blocked items")
+        expect(MenuBarOrganizerSupport.secondaryBarItems(
+                    secondaryBarCandidates, scope: .alwaysHidden).map(\.windowID) == [13, 14],
+               "the all-items secondary bar includes both movable hidden sections only")
+
+        let organizerServiceSource = (try? String(
+            contentsOfFile: "Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerService.swift",
+            encoding: .utf8)) ?? ""
+        let organizerDividerSource = (try? String(
+            contentsOfFile: "Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarDividerItem.swift",
+            encoding: .utf8)) ?? ""
+        let organizerPanelSource = (try? String(
+            contentsOfFile: "Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerPanels.swift",
+            encoding: .utf8)) ?? ""
+        let organizerPreferenceSources = [
+            "Sources/Vorssaint/Core/Defaults.swift",
+            "Sources/Vorssaint/Core/MenuBarOrganizerStrings.swift",
+            "Sources/Vorssaint/Services/MenuBarOrganizer/MenuBarOrganizerService.swift",
+            "Sources/Vorssaint/UI/Settings/MenuBarOrganizerSettings.swift",
+        ].map { path in
+            (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
+        }.joined(separator: "\n")
+        expect(organizerServiceSource.contains("control.onLeftClick")
+                && !organizerServiceSource.contains("hidden.onLeftClick")
+                && !organizerServiceSource.contains("divider.onLeftClick"),
+               "only the outer organizer control receives a click handler")
+        expect(organizerDividerSource.contains("guard kind == .control else { return }")
+                && organizerDividerSource.contains("button.target = self")
+                && organizerDividerSource.contains("button.action = #selector(clicked)"),
+               "internal organizer dividers remain non-interactive boundary markers")
+        expect(organizerServiceSource.contains("showSecondaryBar(scope: section)")
+                && organizerPanelSource.contains("secondaryBarItems(service.items, scope: scope)"),
+               "secondary-bar presentation preserves the requested organizer scope")
+        expect(!organizerPreferenceSources.contains("menuBarOrganizerShowDividers")
+                && !organizerPreferenceSources.contains("showDividers"),
+               "the removed permanent-divider preference is no longer registered or rendered")
+
         let moveAvailabilityItems = [
             managedMenuBarItem(16, occurrence: 0, x: 10, section: .visible),
             managedMenuBarItem(17, occurrence: 1, x: 30, section: .visible,
@@ -15036,8 +15086,7 @@ struct MetricsTests {
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerSetupComplete] as? Bool == false
                 && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled] as? Bool == false,
                "the menu bar organizer and destructive hiding state ship off")
-        expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerShowDividers] as? Bool == false
-                && Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresentationMode] as? String
+        expect(Defaults.registeredDefaults[DefaultsKey.menuBarOrganizerPresentationMode] as? String
                     == MenuBarOrganizerPresentationMode.automatic.rawValue,
                "the MVP organizer has only conservative presentation defaults")
         expect(MenuBarRehidePolicy.fromStorage("seconds:999") == .afterSeconds(300)

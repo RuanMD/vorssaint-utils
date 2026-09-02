@@ -17,6 +17,53 @@ Antes de começar, confirmar `git branch --show-current`, `git status --short`, 
 base real e a existência da dependência. Registrar qualquer mudança de base neste
 arquivo e no handoff antes de alterar código.
 
+## Correção aprovada — controle único e escopo da revelação
+
+- `resource_slug`: `menu-bar-organizer-single-control`.
+- Branch alvo: `feat/menu-bar-manager-followup`.
+- Worktree dedicado: `/Users/ruansantana/Documents/DeepAgent/vorssaint-utils-menu-bar-manager`.
+- Base confirmada em 2026-09-01: `upstream/main` em `b0dde656`; a dependência
+  `18383b9` está contida no histórico do follow-up. Não houve mudança de base.
+- Dependência: PR #360 (`codex/menu-bar-organizer`); esta continua sendo uma PR de
+  follow-up e não deve ser tratada como independente.
+- Objetivo único: deixar apenas a seta de controle operacional e preservar no painel
+  secundário o escopo solicitado para `Ocultos` ou para todos os itens não visíveis.
+- Limitação de preflight: este worktree não contém
+  `.agents/skills/vorssaint-feature-pr/scripts/preflight.sh`; executar e registrar as
+  verificações equivalentes manualmente, sem copiar scripts de outra branch.
+
+### Critérios de aceitação
+
+1. **Given** o organizador está ativo e a tela de organização está fechada,
+   **When** o usuário observa ou clica nos divisores,
+   **Then** somente a seta de controle à direita permanece visível e clicável.
+2. **Given** a tela de organização está aberta,
+   **When** as três seções são exibidas,
+   **Then** os divisores internos aparecem apenas como marcadores de fronteira e não
+   alternam `Ocultos` nem `Sempre ocultos` ao receber clique.
+3. **Given** a ação solicita revelar `Ocultos` e o modo efetivo escolhe a barra
+   secundária,
+   **When** o painel é aberto,
+   **Then** ele contém somente itens movíveis da seção `Ocultos`.
+4. **Given** a ação é “Mostrar todos” ou “Mostrar barra secundária”,
+   **When** o painel é aberto,
+   **Then** ele contém itens movíveis de `Ocultos` e `Sempre ocultos`, sem itens
+   `Visíveis`.
+5. **Given** existe um valor legado de `menuBarOrganizerShowDividers`,
+   **When** a versão corrigida inicia,
+   **Then** o valor não é mais lido nem exposto, mas também não é apagado de forma
+   destrutiva do `UserDefaults`.
+
+### Matriz de permissão/TCC
+
+| Operação | Permissão | Momento de solicitação | Recusa/revogação | Validação manual |
+|---|---|---|---|---|
+| Enumerar e mover itens de outros apps | Accessibility | Ao habilitar/usar o organizador, pelo fluxo contextual existente | Parar o serviço de forma idempotente, remover handlers e orientar o usuário sem afetar outras features | Bundle Developer limpo: negar, verificar orientação, conceder, voltar ao app e testar; depois revogar e confirmar teardown |
+| Exibir marcadores, alternar seções e abrir painel com snapshot já disponível | Nenhuma permissão adicional | Não solicitar | Manter a UI inerte quando o serviço não puder operar | Confirmar que não há solicitação de Screen Recording |
+
+Esta correção não adiciona entitlement, acesso de rede, persistência privada ou nova
+permissão TCC.
+
 ## Code Map
 
 ### Núcleo puro

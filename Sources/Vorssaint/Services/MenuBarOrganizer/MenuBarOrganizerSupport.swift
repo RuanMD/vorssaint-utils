@@ -495,6 +495,21 @@ enum MenuBarOrganizerSupport {
         }
     }
 
+    static func secondaryBarItems(_ items: [ManagedMenuBarItem],
+                                  scope: MenuBarOrganizerSection) -> [ManagedMenuBarItem] {
+        items.filter { item in
+            guard item.isMovable else { return false }
+            switch scope {
+            case .visible:
+                return false
+            case .hidden:
+                return item.section == .hidden
+            case .alwaysHidden:
+                return item.section != .visible
+            }
+        }
+    }
+
     static func orderedItems(_ items: [ManagedMenuBarItem],
                              in section: MenuBarOrganizerSection) -> [ManagedMenuBarItem] {
         items.filter { $0.section == section }.sorted {

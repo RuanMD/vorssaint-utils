@@ -13,7 +13,6 @@ struct MenuBarOrganizerSettings: View {
     @AppStorage(DefaultsKey.menuBarOrganizerSetupComplete) private var setupComplete = false
     @AppStorage(DefaultsKey.menuBarOrganizerAlwaysHiddenEnabled)
     private var alwaysHiddenEnabled = false
-    @AppStorage(DefaultsKey.menuBarOrganizerShowDividers) private var showDividers = false
     @AppStorage(DefaultsKey.menuBarOrganizerPresentationMode) private var presentationMode =
         MenuBarOrganizerPresentationMode.automatic.rawValue
     @AppStorage(DefaultsKey.menuBarOrganizerAutoRehidePolicy) private var autoRehidePolicy =
@@ -202,7 +201,6 @@ struct MenuBarOrganizerSettings: View {
     private var behaviorSection: some View {
         Section {
             Toggle(text.alwaysHiddenToggle, isOn: $alwaysHiddenEnabled)
-            Toggle(text.showDividers, isOn: $showDividers)
             Picker(text.presentationTitle, selection: $presentationMode) {
                 Text(text.presentationAutomatic)
                     .tag(MenuBarOrganizerPresentationMode.automatic.rawValue)
@@ -264,7 +262,7 @@ struct MenuBarOrganizerSettings: View {
     }
 
     private var preferenceSignature: String {
-        "\(alwaysHiddenEnabled)|\(showDividers)|\(presentationMode)|\(autoRehidePolicy)|\(customRehideSeconds)|\(hoverReveal)|\(emptyAreaReveal)|\(scrollReveal)|\(spacingPreset)|\(customSpacing)|\(secondaryBarPinned)"
+        "\(alwaysHiddenEnabled)|\(presentationMode)|\(autoRehidePolicy)|\(customRehideSeconds)|\(hoverReveal)|\(emptyAreaReveal)|\(scrollReveal)|\(spacingPreset)|\(customSpacing)|\(secondaryBarPinned)"
     }
 
     private var isCustomRehide: Bool {
