@@ -157,10 +157,7 @@ final class MenuBarOrganizerService: ObservableObject {
         if hiddenSectionShown || secondaryPanel?.isVisible == true {
             hideAll()
         } else {
-            // Chevron clicks always reveal inline in the menu bar,
-            // regardless of the presentation mode setting (which governs
-            // hotkey/gesture reveals only).
-            showInMenuBar(.hidden)
+            show(.hidden)
         }
     }
 
@@ -175,7 +172,7 @@ final class MenuBarOrganizerService: ObservableObject {
             applyDividerState()
             refresh()
         } else {
-            showInMenuBar(.alwaysHidden)
+            show(.alwaysHidden)
         }
     }
 
@@ -671,10 +668,6 @@ final class MenuBarOrganizerService: ObservableObject {
     }
 
     private func show(_ section: MenuBarOrganizerSection) {
-        guard editingCount == 0 else {
-            showInMenuBar(section)
-            return
-        }
         let mode = MenuBarOrganizerPresentationMode.sanitized(
             UserDefaults.standard.string(
                 forKey: DefaultsKey.menuBarOrganizerPresentationMode))
