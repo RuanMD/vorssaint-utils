@@ -18,6 +18,15 @@ enum KeychainStoreError: Error, Equatable {
 final class KeychainStore: KeychainStoring {
     static let shared = KeychainStore()
 
+    /// Developer and Release bundles have different signing identities. Keep
+    /// their credentials in separate Keychain records so a local build never
+    /// asks to access an item created by the distributed app.
+    static func namespacedService(_ service: String,
+                                  bundleIdentifier: String? = Bundle.main.bundleIdentifier) -> String {
+        guard bundleIdentifier == "com.vorssaint.utils.dev" else { return service }
+        return service + ".dev"
+    }
+
     func value(service: String, account: String) throws -> String? {
         var query = baseQuery(service: service, account: account)
         query[kSecReturnData as String] = true
@@ -67,6 +76,10 @@ final class KeychainStore: KeychainStoring {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            // Use the modern per-device data-protection keychain. This keeps
+            // credentials bound to this Mac and avoids legacy login-keychain
+            // ACL prompts when the Developer bundle is rebuilt.
+            kSecUseDataProtectionKeychain as String: true,
         ]
     }
 }

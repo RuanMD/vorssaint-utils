@@ -10,7 +10,8 @@ import Foundation
 @MainActor
 final class DictationService: ObservableObject {
     static let shared = DictationService()
-    static let keychainService = "com.vorssaint.utils.dictation"
+    static let keychainService = KeychainStore.namespacedService(
+        "com.vorssaint.utils.dictation")
 
     @Published private(set) var state: DictationState = .idle
     @Published private(set) var level: Float = 0

@@ -13393,6 +13393,8 @@ struct MetricsTests {
         expect(keychainSource.contains("protocol KeychainStoring")
                 && keychainSource.contains("kSecAttrService")
                 && keychainSource.contains("kSecAttrAccount")
+                && keychainSource.contains("kSecUseDataProtectionKeychain")
+                && keychainSource.contains("namespacedService")
                 && keychainSource.contains("kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly")
                 && !keychainSource.contains("UserDefaults"),
                "API keys use an injectable service/account Keychain store and never defaults")
