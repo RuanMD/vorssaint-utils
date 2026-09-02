@@ -284,47 +284,9 @@ enum DictationInsertionDecision: Equatable {
     case paste
     case copy(DictationFailure)
 
-    static func decide(accessibilityGranted: Bool,
-                       currentTargetIsAvailable: Bool) -> DictationInsertionDecision {
+    static func decide(accessibilityGranted: Bool) -> DictationInsertionDecision {
         guard accessibilityGranted else { return .copy(.accessibilityRequiredCopied) }
-        guard currentTargetIsAvailable else { return .copy(.focusChangedCopied) }
         return .paste
-    }
-}
-
-/// Stable, non-content accessibility metadata used when browsers recreate the
-/// AXUIElement wrapper for a field while a transcription request is in flight.
-struct DictationFocusIdentity {
-    let role: String
-    let subrole: String?
-    let identifier: String?
-    let domIdentifier: String?
-    let placeholder: String?
-    let description: String?
-    let frame: CGRect?
-
-    func matches(_ other: DictationFocusIdentity) -> Bool {
-        guard role == other.role, subrole == other.subrole else { return false }
-        if let identifier, !identifier.isEmpty,
-           let otherIdentifier = other.identifier, identifier == otherIdentifier { return true }
-        if let domIdentifier, !domIdentifier.isEmpty,
-           let otherDOMIdentifier = other.domIdentifier,
-           domIdentifier == otherDOMIdentifier { return true }
-        switch (frame, other.frame) {
-        case let (lhs?, rhs?) where lhs.origin.x == rhs.origin.x
-            && lhs.origin.y == rhs.origin.y
-            && lhs.size.width == rhs.size.width
-            && lhs.size.height == rhs.size.height: break
-        case (nil, nil): break
-        default: return false
-        }
-        if let placeholder, !placeholder.isEmpty,
-           let otherPlaceholder = other.placeholder,
-           placeholder == otherPlaceholder { return true }
-        if let description, !description.isEmpty,
-           let otherDescription = other.description,
-           description == otherDescription { return true }
-        return false
     }
 }
 

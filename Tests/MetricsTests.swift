@@ -13153,10 +13153,8 @@ struct MetricsTests {
         expect(openAIStop.state == .processing
                 && openAIStop.effects.contains(.upload)
                 && groqStop == openAIStop
-                && DictationInsertionDecision.decide(
-                    accessibilityGranted: true,
-                    currentTargetIsAvailable: true) == .paste,
-               "OpenAI and Groq follow the same stop-upload-raw-insert lifecycle")
+                && DictationInsertionDecision.decide(accessibilityGranted: true) == .paste,
+               "OpenAI and Groq keep insertion eligible after processing and app switches")
         for state in [DictationState.listening, .processing] {
             let cancelled = DictationLifecycle.transition(from: state, event: .cancel)
             expect(cancelled.state == .idle
@@ -13180,29 +13178,9 @@ struct MetricsTests {
                 && silence.effects.contains(.discardAudio)
                 && !silence.effects.contains(.insert),
                "silence inserts nothing and reports that no speech was detected")
-        expect(DictationInsertionDecision.decide(
-            accessibilityGranted: false,
-            currentTargetIsAvailable: true) == .copy(.accessibilityRequiredCopied)
-                && DictationInsertionDecision.decide(
-                    accessibilityGranted: true,
-                    currentTargetIsAvailable: false) == .copy(.focusChangedCopied),
-               "missing Accessibility or current field copy instead of attempting an unsafe paste")
-        let originalWebField = DictationFocusIdentity(
-            role: "AXTextArea", subrole: nil, identifier: nil,
-            domIdentifier: "issue-comment", placeholder: "Leave a comment",
-            description: nil, frame: CGRect(x: 40, y: 80, width: 600, height: 180))
-        let recreatedWebField = DictationFocusIdentity(
-            role: "AXTextArea", subrole: nil, identifier: nil,
-            domIdentifier: "issue-comment", placeholder: "Leave a comment",
-            description: nil, frame: CGRect(x: 40, y: 80, width: 600, height: 180))
-        let differentWebField = DictationFocusIdentity(
-            role: "AXTextArea", subrole: nil, identifier: nil,
-            domIdentifier: "new-issue", placeholder: "Leave a comment",
-            description: nil, frame: CGRect(x: 40, y: 400, width: 600, height: 180))
-        expect(originalWebField.matches(recreatedWebField),
-               "dictation recognizes a browser field after AX recreates its wrapper")
-        expect(!originalWebField.matches(differentWebField),
-               "dictation still rejects a genuinely different browser field")
+        expect(DictationInsertionDecision.decide(accessibilityGranted: false)
+                    == .copy(.accessibilityRequiredCopied),
+               "missing Accessibility copies instead of attempting an unsafe paste")
         let disabledDuringUpload = DictationLifecycle.transition(from: .processing, event: .disable)
         expect(disabledDuringUpload.state == .idle
                 && disabledDuringUpload.effects.contains(.cancelAll)

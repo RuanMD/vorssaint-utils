@@ -436,40 +436,28 @@ final class DictationService: ObservableObject {
             fail(.accessibilityRequiredCopied)
             return
         }
-        // Resolve the cursor at delivery time so switching apps while the
-        // provider is transcribing does not force a clipboard-only result.
-        guard let target = Target.capture(), target.element != nil else {
-            copyToClipboard(text)
-            fail(.focusChangedCopied)
-            return
-        }
-        switch DictationInsertionDecision.decide(
-            accessibilityGranted: true,
-            currentTargetIsAvailable: true) {
+        switch DictationInsertionDecision.decide(accessibilityGranted: true) {
         case .copy(let failure):
             copyToClipboard(text)
             fail(failure)
         case .paste:
-            var focusChanged = false
+            // Post Cmd-V against the current cursor. AX wrappers are not stable
+            // across app, window, Space, or browser changes while transcription
+            // is in flight; retaining one and comparing it here rejects valid
+            // delivery targets. TransientPaste delays the event until its
+            // clipboard transaction is ready, matching the native paste flow.
             let accepted = TransientPaste.shared.paste(
                 text,
-                shouldPostShortcut: {
-                    let focused = target.isFocused
-                    focusChanged = !focused
-                    return focused
-                },
                 didPostShortcut: { [weak self] in
                     guard let self, self.sessionID == id else { return }
                     self.finishSuccessfully()
                 },
                 didFail: { [weak self] in
                     guard let self, self.sessionID == id else { return }
-                    let failure: DictationFailure = focusChanged
-                        ? .focusChangedCopied : .pasteFailedCopied
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) { [weak self] in
                         guard let self, self.sessionID == id else { return }
                         self.copyToClipboard(text)
-                        self.fail(failure)
+                        self.fail(.pasteFailedCopied)
                     }
                 })
             if !accepted {
@@ -912,87 +900,4 @@ final class DictationService: ObservableObject {
         let profile: DictationShortcutProfile
     }
 
-    private struct Target {
-        let pid: pid_t
-        let element: AXUIElement?
-        let focusIdentity: DictationFocusIdentity?
-
-        static func capture() -> Target? {
-            guard let front = NSWorkspace.shared.frontmostApplication else { return nil }
-            let pid = front.processIdentifier
-            guard AXIsProcessTrusted() else {
-                return Target(pid: pid, element: nil, focusIdentity: nil)
-            }
-            let app = AXUIElementCreateApplication(pid)
-            AXUIElementSetMessagingTimeout(app, 0.25)
-            let element = focusedElement(in: app)
-            return Target(pid: pid,
-                          element: element,
-                          focusIdentity: element.flatMap(identity(for:)))
-        }
-
-        var isFocused: Bool {
-            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid,
-                  let element else { return false }
-            let app = AXUIElementCreateApplication(pid)
-            AXUIElementSetMessagingTimeout(app, 0.25)
-            guard let current = Self.focusedElement(in: app) else { return false }
-            if CFEqual(element, current) { return true }
-            guard let focusIdentity,
-                  let currentIdentity = Self.identity(for: current) else { return false }
-            return focusIdentity.matches(currentIdentity)
-        }
-
-        private static func focusedElement(in app: AXUIElement) -> AXUIElement? {
-            var value: CFTypeRef?
-            guard AXUIElementCopyAttributeValue(app, kAXFocusedUIElementAttribute as CFString,
-                                                &value) == .success,
-                  let value,
-                  CFGetTypeID(value) == AXUIElementGetTypeID()
-            else { return nil }
-            return (value as! AXUIElement)
-        }
-
-        private static func identity(for element: AXUIElement) -> DictationFocusIdentity? {
-            guard let role = stringAttribute(kAXRoleAttribute as CFString, from: element) else {
-                return nil
-            }
-            return DictationFocusIdentity(
-                role: role,
-                subrole: stringAttribute(kAXSubroleAttribute as CFString, from: element),
-                identifier: stringAttribute(kAXIdentifierAttribute as CFString, from: element),
-                domIdentifier: stringAttribute("AXDOMIdentifier" as CFString, from: element),
-                placeholder: stringAttribute("AXPlaceholderValue" as CFString, from: element),
-                description: stringAttribute(kAXDescriptionAttribute as CFString, from: element),
-                frame: frame(of: element))
-        }
-
-        private static func stringAttribute(_ attribute: CFString,
-                                            from element: AXUIElement) -> String? {
-            var value: CFTypeRef?
-            guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success,
-                  let string = value as? String else { return nil }
-            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? nil : trimmed
-        }
-
-        private static func frame(of element: AXUIElement) -> CGRect? {
-            var positionValue: CFTypeRef?
-            var sizeValue: CFTypeRef?
-            guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString,
-                                                &positionValue) == .success,
-                  AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString,
-                                                &sizeValue) == .success,
-                  let positionValue,
-                  let sizeValue,
-                  CFGetTypeID(positionValue) == AXValueGetTypeID(),
-                  CFGetTypeID(sizeValue) == AXValueGetTypeID() else { return nil }
-            var position = CGPoint.zero
-            var size = CGSize.zero
-            guard AXValueGetValue(positionValue as! AXValue, .cgPoint, &position),
-                  AXValueGetValue(sizeValue as! AXValue, .cgSize, &size) else { return nil }
-            return CGRect(x: position.x.rounded(), y: position.y.rounded(),
-                          width: size.width.rounded(), height: size.height.rounded())
-        }
-    }
 }
