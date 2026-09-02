@@ -129,7 +129,6 @@ final class FeatureRuntime: ObservableObject {
     /// Launch path: replaces the old unconditional sync block. Only available
     /// features get their binding run, so nothing else even instantiates.
     func syncAtLaunch() {
-        CustomActionService.shared.syncWithPreferences()
         for feature in AppFeature.allCases where feature.isAvailable {
             Self.bindings[feature]?()
         }

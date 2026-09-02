@@ -2,9 +2,14 @@
 // Copyright (C) 2026 Vorssaint
 
 import AppKit
-import Carbon.HIToolbox
 import Combine
-import CoreGraphics
+
+private final class CustomActionCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+    func cancel() { lock.withLock { value = true } }
+    var isCancelled: Bool { lock.withLock { value } }
+}
 
 /// Coordinates user-defined text transformations. The JavaScript runtime is
 /// deliberately kept behind this service: scripts receive a snapshot of
@@ -18,6 +23,7 @@ final class CustomActionService: ObservableObject {
 
     private var generation = 0
     private var hotkeys: [QuickToolHotkey] = []
+    private var activeCancellation: CustomActionCancellation?
     private init() {}
 
     func syncWithPreferences() {
@@ -27,6 +33,8 @@ final class CustomActionService: ObservableObject {
 
     func suspend() {
         generation &+= 1
+        activeCancellation?.cancel()
+        activeCancellation = nil
         for hotkey in hotkeys { hotkey.unregister() }
         hotkeys = []
         lastPreview = nil
@@ -79,15 +87,20 @@ final class CustomActionService: ObservableObject {
         guard action.enabled else { return }
         generation &+= 1
         let runGeneration = generation
+        activeCancellation?.cancel()
+        let cancellation = CustomActionCancellation()
+        activeCancellation = cancellation
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let snapshot = context ?? CustomActionContext(
                 selectedText: CommandBarSelectionReader.readSelectedText(),
                 clipboardText: NSPasteboard.general.string(forType: .string) ?? "")
-            let result = CustomActionSupport.execute(script: action.script,
-                                                      context: snapshot,
-                                                      input: action.input)
+            let result = CustomActionJavaScriptExecutor.run(script: action.script,
+                                                             context: snapshot,
+                                                             input: action.input,
+                                                             isCancelled: { cancellation.isCancelled })
             DispatchQueue.main.async {
                 guard let self, self.generation == runGeneration else { return }
+                self.activeCancellation = nil
                 switch result {
                 case .failure(let error):
                     self.lastError = error.localizedDescription
@@ -108,7 +121,9 @@ final class CustomActionService: ObservableObject {
             CommandBarEntry(id: "custom-action.\(action.id.uuidString)",
                             stableKey: "custom-action.\(action.id.uuidString)",
                             title: action.name,
-                            subtitle: action.description.isEmpty ? "Custom Action" : action.description,
+                            subtitle: action.description.isEmpty
+                                ? FeatureStrings.customActions(L10n.shared.language).actionSection
+                                : action.description,
                             keywords: "custom action javascript \(action.name)",
                             icon: .symbol("wand.and.stars"),
                             countsUsage: false) { [weak self] _ in
@@ -122,16 +137,20 @@ final class CustomActionService: ObservableObject {
         case .preview:
             lastPreview = text
         case .copyToClipboard:
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
-        case .insertAtCursor:
-            writeAndPaste(text, replacingSelection: false)
-        case .replaceSelection:
-            guard !context.selectedText.isEmpty else {
-                lastError = "Não existe texto selecionado para substituir."
+            guard TransientPaste.shared.copy(text, didFail: { [weak self] in
+                self?.lastError = CustomActionRuntimeError.clipboardFailed.localizedDescription
+            }) else {
+                lastError = CustomActionRuntimeError.clipboardFailed.localizedDescription
                 return
             }
-            writeAndPaste(text, replacingSelection: true)
+        case .insertAtCursor:
+            paste(text)
+        case .replaceSelection:
+            guard !context.selectedText.isEmpty else {
+                lastError = FeatureStrings.customActions(L10n.shared.language).noSelection
+                return
+            }
+            paste(text)
         }
     }
 
@@ -149,39 +168,12 @@ final class CustomActionService: ObservableObject {
         }
     }
 
-    private func writeAndPaste(_ text: String, replacingSelection _: Bool) {
-        NSPasteboard.general.clearContents()
-        guard NSPasteboard.general.setString(text, forType: .string) else {
-            lastError = "Não foi possível escrever o resultado no clipboard."
+    private func paste(_ text: String) {
+        guard TransientPaste.shared.paste(text, didFail: { [weak self] in
+            self?.lastError = FeatureStrings.customActions(L10n.shared.language).pasteFailed
+        }) else {
+            lastError = FeatureStrings.customActions(L10n.shared.language).pasteFailed
             return
-        }
-        postPasteWhenModifiersAreReleased(attempt: 0)
-    }
-
-    private func postPasteWhenModifiersAreReleased(attempt: Int) {
-        guard attempt < 100 else {
-            lastError = "Não foi possível entregar o resultado ao campo atual."
-            return
-        }
-        let held = CGEventSource.flagsState(.combinedSessionState)
-            .intersection([.maskCommand, .maskAlternate, .maskShift, .maskControl])
-        guard held.isEmpty else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.015) { [weak self] in
-                self?.postPasteWhenModifiersAreReleased(attempt: attempt + 1)
-            }
-            return
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
-            guard let source = CGEventSource(stateID: .hidSystemState),
-                  let down = CGEvent(keyboardEventSource: source,
-                                     virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
-                  let up = CGEvent(keyboardEventSource: source,
-                                   virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false)
-            else { return }
-            down.flags = .maskCommand
-            up.flags = .maskCommand
-            down.post(tap: .cghidEventTap)
-            up.post(tap: .cghidEventTap)
         }
     }
 }

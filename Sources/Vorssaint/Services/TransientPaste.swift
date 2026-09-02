@@ -83,6 +83,35 @@ final class TransientPaste {
         return true
     }
 
+    /// Atomically replaces the pasteboard for a persistent copy operation.
+    /// Snapshotting and the failure rollback stay here so callers cannot leave
+    /// the user's clipboard empty when a write fails.
+    @discardableResult
+    func copy(_ text: String, didFail: (() -> Void)? = nil) -> Bool {
+        guard Thread.isMainThread, !isPerforming else { return false }
+        isPerforming = true
+        GeneralPasteboardAccess.shared.async {
+            let pasteboard = NSPasteboard.general
+            guard let snapshot = Self.snapshot(of: pasteboard) else {
+                DispatchQueue.main.async { self.isPerforming = false; didFail?() }
+                return
+            }
+            pasteboard.clearContents()
+            guard pasteboard.setString(text, forType: .string) else {
+                pasteboard.clearContents()
+                if !snapshot.isEmpty { pasteboard.writeObjects(snapshot) }
+                DispatchQueue.main.async { self.isPerforming = false; didFail?() }
+                return
+            }
+            let changeCount = pasteboard.changeCount
+            DispatchQueue.main.async {
+                ClipboardHistoryService.shared.ignoreNextChange(upTo: changeCount)
+                self.isPerforming = false
+            }
+        }
+        return true
+    }
+
     private func scheduleRestore(snapshot: [NSPasteboardItem], changeCount: Int) {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }

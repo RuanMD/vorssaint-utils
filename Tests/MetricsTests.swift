@@ -21343,6 +21343,33 @@ struct MetricsTests {
                                             context: customContext, input: .selectedText)
                    == .failure(.javascript("Error: bad")),
                "custom action reports JavaScript exceptions")
+        let customSupportSource = (try? String(contentsOfFile: "Sources/Vorssaint/Services/CustomActions/CustomActionSupport.swift", encoding: .utf8)) ?? ""
+        let customServiceSource = (try? String(contentsOfFile: "Sources/Vorssaint/Services/CustomActions/CustomActionService.swift", encoding: .utf8)) ?? ""
+        expect(!customSupportSource.contains("JSContext"),
+               "custom action scripts never use an in-process JavaScript runtime")
+        expect(!customServiceSource.contains("clearContents()")
+                && customServiceSource.contains("TransientPaste.shared"),
+               "custom action delivery delegates clipboard ownership to TransientPaste")
+        expect(customSupportSource.contains("/usr/bin/osascript")
+                && customSupportSource.contains("timeout: timeout")
+                && customSupportSource.contains("isCancelled"),
+               "custom action executor uses bounded cancellable JXA")
+        let timeoutStart = Date()
+        let timedOutAction = CustomActionJavaScriptExecutor.run(
+            script: "while (true) {}", context: customContext, input: .selectedText)
+        expect(timedOutAction == .failure(.timeout) && Date().timeIntervalSince(timeoutStart) < 3,
+               "infinite custom action is terminated by the two second deadline")
+        expect(CustomActionJavaScriptExecutor.run(
+            script: "return 'x'.repeat(1000001)", context: customContext, input: .selectedText)
+                   == .failure(.resultTooLarge),
+               "custom action rejects output above one MiB")
+        expect(CustomActionJavaScriptExecutor.run(
+            script: "return input", context: customContext, input: .selectedText,
+            isCancelled: { true }) == .failure(.cancelled),
+               "cancelled custom action terminates its child process")
+        let runtimeSource = (try? String(contentsOfFile: "Sources/Vorssaint/App/FeatureRuntime.swift", encoding: .utf8)) ?? ""
+        expect(!runtimeSource.contains("func syncAtLaunch() {\n        CustomActionService.shared.syncWithPreferences()"),
+               "custom actions sync only through the availability binding at launch")
         let customRadial = RadialMenuItem(kind: .customAction, payload: UUID().uuidString)
         expect(RadialMenuSupport.isValidPayload(customRadial),
                "radial custom action payload validates as a UUID")

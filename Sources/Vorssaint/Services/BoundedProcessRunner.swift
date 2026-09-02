@@ -8,6 +8,7 @@ private final class BoundedProcessOutput: @unchecked Sendable {
     private let lock = NSLock()
     private let limit: Int
     private var data = Data()
+    private var exceeded = false
 
     init(limit: Int) {
         self.limit = max(0, limit)
@@ -16,6 +17,7 @@ private final class BoundedProcessOutput: @unchecked Sendable {
     func append(_ chunk: Data) {
         lock.lock()
         defer { lock.unlock() }
+        if data.count + chunk.count > limit { exceeded = true }
         let available = max(0, limit - data.count)
         if available > 0 { data.append(chunk.prefix(available)) }
     }
@@ -25,39 +27,61 @@ private final class BoundedProcessOutput: @unchecked Sendable {
         defer { lock.unlock() }
         return data
     }
+
+    var didExceed: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return exceeded
+    }
 }
 
 enum BoundedProcessRunner {
     struct Result {
         let status: Int32
         let output: Data
+        let errorOutput: Data
         let timedOut: Bool
+        let outputExceeded: Bool
+        let cancelled: Bool
     }
 
     static func run(_ path: String,
                     _ arguments: [String],
                     timeout: TimeInterval,
-                    maxOutputBytes: Int) -> Result {
+                    maxOutputBytes: Int,
+                    input: Data = Data(),
+                    isCancelled: (() -> Bool)? = nil) -> Result {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)
         process.arguments = arguments
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        let inputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+        process.standardInput = inputPipe
 
         let output = BoundedProcessOutput(limit: maxOutputBytes)
-        let drained = DispatchSemaphore(value: 0)
-        let reader = pipe.fileHandleForReading
-        reader.readabilityHandler = { handle in
+        func drain(_ reader: FileHandle, into output: BoundedProcessOutput,
+                   signal: DispatchSemaphore) {
+            reader.readabilityHandler = { handle in
             let chunk = handle.availableData
             if chunk.isEmpty {
-                drained.signal()
+                signal.signal()
             } else {
                 // Keep draining after the retained prefix is full so the child
                 // can never block on a full pipe or turn output into memory use.
                 output.append(chunk)
             }
+            }
         }
+        let outputReader = outputPipe.fileHandleForReading
+        let errorOutput = BoundedProcessOutput(limit: maxOutputBytes)
+        let errorReader = errorPipe.fileHandleForReading
+        let outputDrained = DispatchSemaphore(value: 0)
+        let errorDrained = DispatchSemaphore(value: 0)
+        drain(outputReader, into: output, signal: outputDrained)
+        drain(errorReader, into: errorOutput, signal: errorDrained)
 
         // The child is watched through its termination handler. A blocking
         // `waitUntilExit()` has to be parked on a thread of its own, and the
@@ -74,14 +98,26 @@ enum BoundedProcessRunner {
         do {
             try process.run()
         } catch {
-            reader.readabilityHandler = nil
-            try? reader.close()
-            return Result(status: -1, output: Data(), timedOut: false)
+            outputReader.readabilityHandler = nil
+            errorReader.readabilityHandler = nil
+            try? outputReader.close()
+            try? errorReader.close()
+            return Result(status: -1, output: Data(), errorOutput: Data(), timedOut: false,
+                          outputExceeded: false, cancelled: false)
         }
 
-        var didFinish = finished.wait(timeout: .now() + max(0, timeout)) == .success
+        if !input.isEmpty { try? inputPipe.fileHandleForWriting.write(contentsOf: input) }
+        try? inputPipe.fileHandleForWriting.close()
+
+        let deadline = Date().addingTimeInterval(max(0, timeout))
+        var didFinish = false
+        var cancelled = false
+        while Date() < deadline {
+            if isCancelled?() == true { cancelled = true; break }
+            if finished.wait(timeout: .now() + 0.01) == .success { didFinish = true; break }
+        }
         let timedOut = !didFinish
-        if timedOut {
+        if timedOut || cancelled {
             process.terminate()
             didFinish = finished.wait(timeout: .now() + 0.5) == .success
             if !didFinish {
@@ -93,12 +129,18 @@ enum BoundedProcessRunner {
         // A child may inherit stdout after the command itself exits. Give an
         // ordinary EOF a moment to deliver the tail, then close our descriptor
         // so that inherited handle cannot leave a reader alive indefinitely.
-        _ = drained.wait(timeout: .now() + 0.2)
-        reader.readabilityHandler = nil
-        try? reader.close()
+        _ = outputDrained.wait(timeout: .now() + 0.2)
+        _ = errorDrained.wait(timeout: .now() + 0.2)
+        outputReader.readabilityHandler = nil
+        errorReader.readabilityHandler = nil
+        try? outputReader.close()
+        try? errorReader.close()
 
-        return Result(status: timedOut ? -1 : process.terminationStatus,
+        return Result(status: timedOut || cancelled ? -1 : process.terminationStatus,
                       output: output.value(),
-                      timedOut: timedOut)
+                      errorOutput: errorOutput.value(),
+                      timedOut: timedOut && !cancelled,
+                      outputExceeded: output.didExceed || errorOutput.didExceed,
+                      cancelled: cancelled)
     }
 }

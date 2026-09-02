@@ -2,7 +2,6 @@
 // Copyright (C) 2026 Vorssaint
 
 import Foundation
-import JavaScriptCore
 
 enum CustomActionInput: String, Codable, CaseIterable, Identifiable {
     case selectedText
@@ -71,15 +70,26 @@ enum CustomActionRuntimeError: LocalizedError, Equatable {
     case javascript(String)
     case nonTextResult
     case resultTooLarge
+    case inputTooLarge
+    case timeout
+    case cancelled
+    case process(String)
+    case clipboardFailed
 
     var errorDescription: String? {
+        let strings = FeatureStrings.customActions(L10n.shared.language)
         switch self {
-        case .emptyScript: return "O script JavaScript está vazio."
-        case .scriptTooLarge: return "O script excede o limite permitido."
-        case .forbiddenAPI(let name): return "A API '\(name)' não está disponível em Custom Actions."
-        case .javascript(let message): return message
-        case .nonTextResult: return "O script precisa retornar um texto."
-        case .resultTooLarge: return "O resultado excede o limite permitido."
+        case .emptyScript: return strings.emptyScript
+        case .scriptTooLarge: return strings.scriptTooLarge
+        case .forbiddenAPI(let name): return strings.forbiddenAPI(name)
+        case .javascript(let message): return "\(strings.javascriptError): \(message)"
+        case .nonTextResult: return strings.nonTextResult
+        case .resultTooLarge: return strings.resultTooLarge
+        case .inputTooLarge: return strings.inputTooLarge
+        case .timeout: return strings.timeout
+        case .cancelled: return strings.cancelled
+        case .process(let message): return "\(strings.processError): \(message)"
+        case .clipboardFailed: return strings.clipboardFailed
         }
     }
 }
@@ -87,6 +97,7 @@ enum CustomActionRuntimeError: LocalizedError, Equatable {
 enum CustomActionSupport {
     static let maxScriptLength = 64 * 1024
     static let maxResultLength = 1_000_000
+    static let maxInputLength = 1_000_000
     static let maxStoredActions = 100
 
     static func sanitized(_ action: CustomAction) -> CustomAction? {
@@ -125,20 +136,84 @@ enum CustomActionSupport {
         context.input(for: source)
     }
 
+    static func makePayload(script: String, context: CustomActionContext,
+                            input: CustomActionInput) -> Data? {
+        let payload: [String: String] = [
+            "selectedText": context.selectedText,
+            "clipboardText": context.clipboardText,
+            "input": resolveInput(context: context, source: input)
+        ]
+        return try? JSONSerialization.data(withJSONObject: payload)
+    }
+
     static func execute(script: String, context: CustomActionContext, input: CustomActionInput) -> Result<String, CustomActionRuntimeError> {
         if let error = validate(script: script) { return .failure(error) }
-        let selected = JSContext()!
-        var exception: String?
-        selected.exceptionHandler = { _, value in exception = value?.toString() }
-        selected.setObject(context.selectedText, forKeyedSubscript: "selectedText" as NSString)
-        selected.setObject(context.clipboardText, forKeyedSubscript: "clipboardText" as NSString)
-        selected.setObject(resolveInput(context: context, source: input), forKeyedSubscript: "input" as NSString)
-        let value = selected.evaluateScript("(function() {\n\(script)\n})()")
-        if let exception { return .failure(.javascript(exception)) }
-        guard let value, !value.isNull, !value.isUndefined, let output = value.toString() else {
-            return .failure(.nonTextResult)
-        }
-        guard output.utf8.count <= maxResultLength else { return .failure(.resultTooLarge) }
-        return .success(output)
+        return CustomActionJavaScriptExecutor.run(script: script, context: context, input: input)
     }
 }
+
+private enum CustomActionJXAResult: Decodable {
+    case success(String)
+    case failure(String)
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if try container.decode(Bool.self, forKey: .ok) {
+            self = .success(try container.decode(String.self, forKey: .value))
+        } else {
+            self = .failure(try container.decode(String.self, forKey: .error))
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey { case ok, value, error }
+}
+
+enum CustomActionJavaScriptExecutor {
+    static let timeout: TimeInterval = 2
+
+    static func run(script: String, context: CustomActionContext,
+                    input: CustomActionInput,
+                    isCancelled: (() -> Bool)? = nil) -> Result<String, CustomActionRuntimeError> {
+        if let validationError = CustomActionSupport.validate(script: script) { return .failure(validationError) }
+        guard let payload = CustomActionSupport.makePayload(script: script, context: context, input: input),
+              payload.count <= CustomActionSupport.maxInputLength else { return .failure(.inputTooLarge) }
+
+            // The user script is nested in a function whose dangerous JXA globals
+            // are shadowed. The only values passed into it are the three strings.
+            let wrapper = """
+            ObjC.import('Foundation');
+            var data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;
+            var payload = JSON.parse(ObjC.unwrap($.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding)));
+            function invoke(selectedText, clipboardText, input, Application, ObjC, $, FileManager, NSProcessInfo, NSURLSession, XMLHttpRequest, process, require) {
+              'use strict';
+              try {
+                var value = (function() {
+            \(script)
+                })();
+                if (typeof value !== 'string') return JSON.stringify({ok:false,error:'non-text result'});
+                return JSON.stringify({ok:true,value:value});
+              } catch (error) { return JSON.stringify({ok:false,error:String(error)}); }
+            }
+            invoke(payload.selectedText, payload.clipboardText, payload.input, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined);
+            """
+            let processResult = BoundedProcessRunner.run(
+                "/usr/bin/osascript", ["-l", "JavaScript", "-e", wrapper],
+                timeout: timeout, maxOutputBytes: CustomActionSupport.maxResultLength,
+                input: payload, isCancelled: isCancelled)
+            if processResult.cancelled { return .failure(.cancelled) }
+            if processResult.timedOut { return .failure(.timeout) }
+            if processResult.outputExceeded { return .failure(.resultTooLarge) }
+            guard processResult.status == 0 else {
+                return .failure(.process("exit \(processResult.status)"))
+            }
+            guard let result = try? JSONDecoder().decode(CustomActionJXAResult.self, from: processResult.output) else {
+                return .failure(.process("invalid output"))
+            }
+        switch result {
+            case .success(let value):
+                guard value.utf8.count <= CustomActionSupport.maxResultLength else { return .failure(.resultTooLarge) }
+                return .success(value)
+            case .failure(let message): return .failure(message == "non-text result" ? .nonTextResult : .javascript(message))
+            }
+        }
+    }
