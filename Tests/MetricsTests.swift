@@ -13434,7 +13434,7 @@ struct MetricsTests {
                 && dictationServiceSource.contains("hud.hide()")
                 && dictationAppDelegateSource.contains("DictationService.shared.suspend()"),
                "dictation teardown structurally cancels upload, capture, hotkeys, monitors and HUD")
-        expect(dictationAppDelegateSource.contains(".superKey, .mixer, .dictation,"),
+        expect(dictationAppDelegateSource.contains(".superKey, .quitWindowProtection, .mixer, .dictation,"),
                "granting or revoking Accessibility re-syncs the dictation global shortcut")
         expect(dictationAppDelegateSource.contains("DictationService.shared.syncWithPreferences()")
                 && dictationAppDelegateSource.contains("func appBecameActive()"),
