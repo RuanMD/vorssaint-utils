@@ -42,24 +42,31 @@ enum DictationModifierKey: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .leftCommand: return "Command esquerdo"
-        case .rightCommand: return "Command direito"
-        case .leftOption: return "Option esquerdo"
-        case .rightOption: return "Option direito"
-        case .leftControl: return "Control esquerdo"
-        case .rightControl: return "Control direito"
-        case .leftShift: return "Shift esquerdo"
-        case .rightShift: return "Shift direito"
-        case .function: return "Fn"
+        case .leftCommand: return "⌘ (Left)"
+        case .rightCommand: return "⌘ (Right)"
+        case .leftOption: return "⌥ (Left)"
+        case .rightOption: return "⌥ (Right)"
+        case .leftControl: return "⌃ (Left)"
+        case .rightControl: return "⌃ (Right)"
+        case .leftShift: return "⇧ (Left)"
+        case .rightShift: return "⇧ (Right)"
+        case .function: return "fn"
         }
     }
 
     var eventFlag: CGEventFlags {
         switch self {
-        case .leftCommand, .rightCommand: return .maskCommand
-        case .leftOption, .rightOption: return .maskAlternate
-        case .leftControl, .rightControl: return .maskControl
-        case .leftShift, .rightShift: return .maskShift
+        // Device-independent flags are shared by the left/right twins. Use
+        // the device-dependent bits so a second modifier on the opposite side
+        // cannot keep a hold-to-talk gesture pressed.
+        case .leftCommand: return CGEventFlags(rawValue: 0x8)
+        case .rightCommand: return CGEventFlags(rawValue: 0x10)
+        case .leftOption: return CGEventFlags(rawValue: 0x20)
+        case .rightOption: return CGEventFlags(rawValue: 0x40)
+        case .leftControl: return CGEventFlags(rawValue: 0x1)
+        case .rightControl: return CGEventFlags(rawValue: 0x2000)
+        case .leftShift: return CGEventFlags(rawValue: 0x2)
+        case .rightShift: return CGEventFlags(rawValue: 0x4)
         case .function: return .maskSecondaryFn
         }
     }

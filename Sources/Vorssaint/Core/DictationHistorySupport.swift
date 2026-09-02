@@ -81,7 +81,9 @@ enum DictationHistoryRetention {
     }
 
     static func isExpired(createdAt: Date, now: Date, days: Int) -> Bool {
-        now.timeIntervalSince(createdAt) >= TimeInterval(sanitizedDays(days)) * 86_400
+        let retentionDays = sanitizedDays(days)
+        guard retentionDays > 0 else { return false }
+        return now.timeIntervalSince(createdAt) >= TimeInterval(retentionDays) * 86_400
     }
 }
 

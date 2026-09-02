@@ -13088,8 +13088,10 @@ struct MetricsTests {
                "dictation language choices map to provider-safe ISO codes")
         expect(DictationModifierKey.from(keyCode: Int64(kVK_RightCommand)) == .rightCommand
                 && DictationModifierKey.from(keyCode: Int64(kVK_RightOption)) == .rightOption
-                && DictationModifierKey.function.keyCode == Int64(kVK_Function),
-               "standalone modifier choices preserve left/right and Fn key identities")
+                && DictationModifierKey.function.keyCode == Int64(kVK_Function)
+                && !DictationModifierKey.leftCommand.displayName.contains("esquerdo")
+                && DictationModifierKey.leftCommand.eventFlag != DictationModifierKey.rightCommand.eventFlag,
+               "standalone modifier choices preserve identities, device-specific flags and neutral labels")
 
         let multipart = try? DictationMultipartBody(
             model: openAIModel.id,
@@ -13306,6 +13308,10 @@ struct MetricsTests {
                                                         now: historyDate.addingTimeInterval(6 * 86_400),
                                                         days: 7),
                "dictation history expires exactly at the configured age")
+        expect(!DictationHistoryRetention.isExpired(createdAt: historyDate,
+                                                    now: historyDate.addingTimeInterval(365 * 86_400),
+                                                    days: 0),
+               "zero dictation retention keeps history forever")
         let anotherHistoryEntry = DictationHistoryEntry(createdAt: historyDate.addingTimeInterval(1),
                                                          duration: 1, provider: .groq,
                                                          model: DictationProvider.groq.defaultModel,
