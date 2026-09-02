@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Vorssaint
 
 import Foundation
+import os
 import Security
 
 protocol KeychainStoring {
@@ -17,6 +18,7 @@ enum KeychainStoreError: Error, Equatable {
 
 final class KeychainStore: KeychainStoring {
     static let shared = KeychainStore()
+    private let logger = Logger(subsystem: "com.vorssaint.utils", category: "KeychainStore")
 
     /// Developer and Release bundles have different signing identities. Keep
     /// their credentials in separate Keychain records so a local build never
@@ -55,6 +57,7 @@ final class KeychainStore: KeychainStoring {
         // other macOS clients.
         let deleteStatus = SecItemDelete(query as CFDictionary)
         guard deleteStatus == errSecSuccess || deleteStatus == errSecItemNotFound else {
+            logger.error("Keychain delete failed with status \(deleteStatus, privacy: .public)")
             throw KeychainStoreError.unexpectedStatus(deleteStatus)
         }
         var addition = query
@@ -62,6 +65,7 @@ final class KeychainStore: KeychainStoring {
         addition[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let addStatus = SecItemAdd(addition as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
+            logger.error("Keychain add failed with status \(addStatus, privacy: .public)")
             throw KeychainStoreError.unexpectedStatus(addStatus)
         }
     }
@@ -78,10 +82,12 @@ final class KeychainStore: KeychainStoring {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            // Use the modern per-device data-protection keychain. This keeps
-            // credentials bound to this Mac and avoids legacy login-keychain
-            // ACL prompts when the Developer bundle is rebuilt.
-            kSecUseDataProtectionKeychain as String: true,
+            // Keep this query on the classic login keychain. The Developer
+            // bundle is ad-hoc signed and has no team entitlement, so Apple's
+            // data-protection keychain returns errSecMissingEntitlement
+            // (-34018). The item remains encrypted by the user's login
+            // keychain, while the bundle-specific service prevents cross-app
+            // ACL prompts.
         ]
     }
 }
