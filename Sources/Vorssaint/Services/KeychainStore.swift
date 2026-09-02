@@ -49,11 +49,13 @@ final class KeychainStore: KeychainStoring {
         }
         let data = Data(trimmed.utf8)
         let query = baseQuery(service: service, account: account)
-        let update = [kSecValueData as String: data]
-        let updateStatus = SecItemUpdate(query as CFDictionary, update as CFDictionary)
-        if updateStatus == errSecSuccess { return }
-        guard updateStatus == errSecItemNotFound else {
-            throw KeychainStoreError.unexpectedStatus(updateStatus)
+        // Recreate only this record instead of updating across legacy and
+        // data-protection keychain classes. This is reliable after a bundle
+        // signature changes and mirrors the safe replacement flow used by
+        // other macOS clients.
+        let deleteStatus = SecItemDelete(query as CFDictionary)
+        guard deleteStatus == errSecSuccess || deleteStatus == errSecItemNotFound else {
+            throw KeychainStoreError.unexpectedStatus(deleteStatus)
         }
         var addition = query
         addition[kSecValueData as String] = data
