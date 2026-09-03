@@ -12,7 +12,7 @@ import AppKit
 /// browser tab that still has old page text selected underneath);
 /// Accessibility supplies the text and its screen position, the same way
 /// the Command Bar already reads what is selected. A keyboard shortcut
-/// offers the same read on demand, for a selection made without a fresh
+    /// offers the same read on demand, for a selection made without a fresh
 /// mouse gesture (arrow-key selection, or re-summoning after the bar
 /// auto-dismissed).
 final class SelectionActionsService: ObservableObject {
@@ -65,16 +65,16 @@ final class SelectionActionsService: ObservableObject {
     /// Reads whatever is selected right now and shows the bar for it,
     /// bypassing the mouse-gesture gate — the keyboard shortcut's whole
     /// point is to work without one. Unlike a mouse gesture, the global
-    /// hotkey fires with no event of ours to check `isLocal` against, so it
-    /// asks a different question with the same answer: is one of our own
-    /// windows key right now? A `.nonactivatingPanel` like the Scratchpad
-    /// can be key without this app ever becoming frontmost, which is exactly
-    /// the situation `isLocal` exists to detect — `NSApp.keyWindow` catches
-    /// it the same way a local mouse monitor does, without needing to know
-    /// about any specific panel.
+    /// hotkey fires with no mouse event to attribute. A retained internal
+    /// key window is not proof that this app owns focus while it is in the
+    /// background, so resolve the focused process through Accessibility at
+    /// the moment the key arrives. That is the same source the reader uses
+    /// for an unspecified target and keeps a selected TextEdit/browser field
+    /// from being replaced by a stale Settings window.
     func summon() {
-        let isLocal = NSApp.keyWindow != nil
-        performRead(expected: nextGeneration(), targetPID: isLocal ? getpid() : nil, clickLocation: nil,
+        let targetPID = SelectionReader.focusedApplication()?.processIdentifier
+        let isLocal = targetPID == getpid()
+        performRead(expected: nextGeneration(), targetPID: targetPID, clickLocation: nil,
                    isLocal: isLocal, allowsEmptySelection: true)
     }
 
