@@ -17,6 +17,9 @@ struct SelectionActionsSettings: View {
     /// itself is read and written through `PanelLayout`.
     @AppStorage(DefaultsKey.selectionActionsOrder) private var orderRaw = ""
     @State private var draggingAction: SelectionAction?
+    /// Keeps the shared permission poll alive while this page tells the
+    /// person whether the Developer build is actually trusted by macOS.
+    @State private var permissionSurfaceID = UUID()
 
     private var text: SelectionActionsStrings { FeatureStrings.selectionActions(l10n.language) }
 
@@ -43,21 +46,14 @@ struct SelectionActionsSettings: View {
                 Toggle(text.enableToggleTitle, isOn: $enabled)
                     .onChange(of: enabled) { _, isOn in
                         if isOn, !permissions.accessibility {
-                            Permissions.shared.requestAccessibility()
+                            permissions.requestAccessibility()
+                            permissions.openAccessibilitySettings()
                         }
                         SelectionActionsService.shared.syncWithPreferences()
                     }
                 Text(text.enableToggleCaption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if enabled, !permissions.accessibility {
-                    Label(text.permissionBody, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                    Button(text.permissionButton) {
-                        Permissions.shared.openAccessibilitySettings()
-                    }
-                }
                 Picker(text.displayStyleLabel, selection: displayStyleBinding) {
                     Text(text.displayStyleIcon).tag(SelectionActionsDisplayStyle.icon)
                     Text(text.displayStyleWord).tag(SelectionActionsDisplayStyle.word)
@@ -93,6 +89,15 @@ struct SelectionActionsSettings: View {
                 Text(text.pageTitle)
             }
 
+            if enabled, !permissions.accessibility {
+                Section {
+                    PermissionRow(kind: .accessibility)
+                    Text(text.permissionBody)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section {
                 SelectionActionsExcludedAppsList()
                 SelectionActionsExcludedDomainsList()
@@ -124,6 +129,13 @@ struct SelectionActionsSettings: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear {
+            permissions.setActivePermissionSurface(permissionSurfaceID, visible: true)
+            SelectionActionsService.shared.syncWithPreferences()
+        }
+        .onDisappear {
+            permissions.setActivePermissionSurface(permissionSurfaceID, visible: false)
+        }
     }
 
     private var displayStyleBinding: Binding<SelectionActionsDisplayStyle> {
