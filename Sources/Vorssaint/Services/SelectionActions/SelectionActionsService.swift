@@ -262,8 +262,8 @@ final class SelectionActionsService: ObservableObject {
             return
         }
         let defaults = UserDefaults.standard
-        let enabledRaw = defaults.string(forKey: DefaultsKey.selectionActionsEnabledActions)
-            ?? SelectionActionCatalog.defaultEnabledStorageValue
+        let enabledRaw = SelectionActionCatalog.enabledActionsStorage(
+            from: defaults.string(forKey: DefaultsKey.selectionActionsEnabledActions))
         let orderRaw = defaults.string(forKey: DefaultsKey.selectionActionsOrder) ?? ""
         let actions = SelectionActionCatalog.availableActions(for: snapshot.text,
                                                                isEditable: snapshot.isEditable,
