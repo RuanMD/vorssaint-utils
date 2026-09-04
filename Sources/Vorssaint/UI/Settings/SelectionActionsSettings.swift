@@ -9,7 +9,6 @@ struct SelectionActionsSettings: View {
     @ObservedObject private var permissions = Permissions.shared
     @ObservedObject private var service = SelectionActionsService.shared
     @AppStorage(DefaultsKey.selectionActionsEnabled) private var enabled = false
-    @AppStorage(DefaultsKey.selectionActionsShortcutEnabled) private var shortcutEnabled = true
     @AppStorage(DefaultsKey.selectionActionsEnabledActions) private var enabledActionsRaw = ""
     @AppStorage(DefaultsKey.selectionActionsDisplayStyle) private var displayStyleRaw = "icon"
     @AppStorage(DefaultsKey.selectionActionsMaxVisible) private var maxVisible = 8
@@ -72,15 +71,10 @@ struct SelectionActionsSettings: View {
                 Text(text.maxVisibleCaption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Toggle(l10n.s.quickToolShortcutToggle, isOn: $shortcutEnabled)
-                    .onChange(of: shortcutEnabled) { _, _ in
-                        SelectionActionsService.shared.syncWithPreferences()
-                    }
-                    .disabled(!enabled)
-                ShortcutPreferenceRow(role: .selectionActions, isEnabled: enabled && shortcutEnabled) {
+                ShortcutPreferenceRow(role: .selectionActions, isEnabled: enabled) {
                     SelectionActionsService.shared.syncWithPreferences()
                 }
-                if shortcutEnabled, service.shortcutRegistrationFailed {
+                if service.shortcutRegistrationFailed {
                     Text(l10n.s.shortcutUnavailable)
                         .font(.caption)
                         .foregroundStyle(.orange)

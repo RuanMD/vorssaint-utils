@@ -50,11 +50,9 @@ final class SelectionActionsService: ObservableObject {
         } else {
             stopMonitor()
         }
-        let shortcutEnabled = enabled
-            && UserDefaults.standard.bool(forKey: DefaultsKey.selectionActionsShortcutEnabled)
         let shortcut = GlobalShortcut.saved(for: DefaultsKey.selectionActionsShortcut,
                                             fallback: .selectionActionsDefault)
-        shortcutRegistrationFailed = !hotkey.sync(enabled: shortcutEnabled, shortcut: shortcut)
+        shortcutRegistrationFailed = !hotkey.sync(enabled: enabled, shortcut: shortcut)
     }
 
     func suspend() {
