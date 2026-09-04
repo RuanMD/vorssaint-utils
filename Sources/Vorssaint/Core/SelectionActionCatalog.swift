@@ -139,6 +139,13 @@ enum SelectionActionCatalog {
         storageValue(for: defaultEnabled)
     }
 
+    /// A missing preference means this installation has not customized the
+    /// action list yet. An explicitly empty value remains meaningful: the
+    /// person turned every action off.
+    static func enabledActionsStorage(from raw: String?) -> String {
+        raw ?? defaultEnabledStorageValue
+    }
+
     static func isEnabled(_ action: SelectionAction, enabledRaw: String) -> Bool {
         enabledActions(from: enabledRaw).contains(action)
     }
