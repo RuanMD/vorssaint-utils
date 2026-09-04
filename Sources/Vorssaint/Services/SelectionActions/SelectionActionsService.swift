@@ -12,7 +12,7 @@ import AppKit
 /// browser tab that still has old page text selected underneath);
 /// Accessibility supplies the text and its screen position, the same way
 /// the Command Bar already reads what is selected. A keyboard shortcut
-    /// offers the same read on demand, for a selection made without a fresh
+/// offers the same read on demand, for a selection made without a fresh
 /// mouse gesture (arrow-key selection, or re-summoning after the bar
 /// auto-dismissed).
 final class SelectionActionsService: ObservableObject {
