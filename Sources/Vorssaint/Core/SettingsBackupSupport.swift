@@ -36,6 +36,7 @@ enum SettingsBackupSupport {
         DefaultsKey.commandBarLinks,
         DefaultsKey.commandBarRowShortcuts,
         DefaultsKey.calendarSelectedCalendars,
+        DefaultsKey.calendarNextEventWindowHours,
         DefaultsKey.calendarCustomDateFormat,
         DefaultsKey.calendarShowMonthOutline,
         DefaultsKey.calendarShowDeclinedEvents,

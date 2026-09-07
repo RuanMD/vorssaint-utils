@@ -172,7 +172,8 @@ final class CalendarService: ObservableObject {
         )
         let scale = min(1.4, max(0.8, UserDefaults.standard.double(forKey: DefaultsKey.calendarTextScale)))
         let dateFormat = CalendarDateDisplayFormat(rawValue: UserDefaults.standard.string(forKey: DefaultsKey.calendarDateDisplayFormat) ?? "dayMonth") ?? .dayMonth
-        let nextEvent = events.first(where: { !$0.isAllDay && $0.startDate >= date })
+        let nextEventWindow = CalendarUpcomingEventWindow(rawValue: defaults.integer(forKey: DefaultsKey.calendarNextEventWindowHours)) ?? .twelveHours
+        let nextEvent = CalendarSupport.nextTimedEvent(in: events, startingAt: date, within: nextEventWindow)
         button.image = CalendarStatusItemRenderer.render(components: components,
                                                           date: date,
                                                           nextEvent: nextEvent,

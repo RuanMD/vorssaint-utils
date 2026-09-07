@@ -37,6 +37,16 @@ enum CalendarMenuBarComponent: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// The maximum time ahead used only for the menu bar's next-event component.
+/// The agenda cache and notification scheduling deliberately keep their wider
+/// time span so a presentation preference cannot hide calendar data elsewhere.
+enum CalendarUpcomingEventWindow: Int, CaseIterable, Identifiable {
+    case oneHour = 1, twoHours = 2, sixHours = 6, twelveHours = 12, twentyFourHours = 24, fortyEightHours = 48
+
+    var id: Int { rawValue }
+    var interval: TimeInterval { TimeInterval(rawValue * 3_600) }
+}
+
 struct CalendarQuickEventDraft: Equatable {
     var title: String
     var startDate: Date
@@ -108,6 +118,15 @@ enum CalendarQuickEventParser {
 }
 
 enum CalendarSupport {
+    static func nextTimedEvent(in events: [EKEvent],
+                               startingAt date: Date,
+                               within window: CalendarUpcomingEventWindow) -> EKEvent? {
+        let deadline = date.addingTimeInterval(window.interval)
+        return events
+            .filter { !$0.isAllDay && $0.startDate >= date && $0.startDate <= deadline }
+            .min { $0.startDate < $1.startDate }
+    }
+
     static func menuBarComponents(from rawValue: String?, fallbackStyle: CalendarIconStyle = .icon) -> [CalendarMenuBarComponent] {
         let parsed = rawValue?
             .split(separator: ",")

@@ -22765,12 +22765,14 @@ struct MetricsTests {
         expect(Defaults.registeredDefaults[DefaultsKey.calendarEnabled] as? Bool == false
                 && Defaults.registeredDefaults[DefaultsKey.calendarIconStyle] as? String == "icon"
                 && Defaults.registeredDefaults[DefaultsKey.calendarMenuBarComponents] as? String == "icon"
+                && Defaults.registeredDefaults[DefaultsKey.calendarNextEventWindowHours] as? Int == CalendarUpcomingEventWindow.twelveHours.rawValue
                 && Defaults.registeredDefaults[DefaultsKey.calendarTextScale] as? Double == 1.0
                 && Defaults.registeredDefaults[DefaultsKey.calendarAlertEnabled] as? Bool == true
                 && Defaults.registeredDefaults[DefaultsKey.calendarAlertMinutesBefore] as? Int == 5,
                "Calendar ships with stable, opt-in defaults")
         let calendarPopoverSource = (try? String(contentsOfFile: "Sources/Vorssaint/UI/MenuPanel/CalendarPopoverView.swift", encoding: .utf8)) ?? ""
         let calendarServiceSource = (try? String(contentsOfFile: "Sources/Vorssaint/Services/Calendar/CalendarService.swift", encoding: .utf8)) ?? ""
+        let calendarSettingsSource = (try? String(contentsOfFile: "Sources/Vorssaint/UI/Settings/CalendarSettings.swift", encoding: .utf8)) ?? ""
         let calendarInfoPrompt = (NSDictionary(contentsOfFile: "Resources/Info.plist") as? [String: Any])?["NSCalendarsFullAccessUsageDescription"] as? String ?? ""
         expect(calendarPopoverSource.contains("strings.noEvents")
                 && calendarPopoverSource.contains("strings.allDay")
@@ -22778,6 +22780,8 @@ struct MetricsTests {
                 && calendarPopoverSource.contains("strings.duration")
                 && calendarPopoverSource.contains("calendar.locale = l10n.language.locale")
                 && calendarPopoverSource.contains("formatter.locale = l10n.language.locale")
+                && calendarServiceSource.contains("CalendarSupport.nextTimedEvent")
+                && calendarSettingsSource.contains("CalendarStrings.nextEventWindow")
                 && calendarServiceSource.contains("autosaveName")
                 && calendarInfoPrompt.localizedCaseInsensitiveContains("create events"),
                "Calendar routes popover copy, preserves status-item placement, and declares write access")
@@ -22820,6 +22824,9 @@ struct MetricsTests {
                 && CalendarSupport.menuBarComponents(from: nil, fallbackStyle: .nextEvent) == [.nextEvent]
                 && CalendarSupport.encodedMenuBarComponents([.nextEvent, .date, .nextEvent]) == "nextEvent,date",
                "Calendar menu bar components preserve inclusion and ordering")
+        expect(CalendarUpcomingEventWindow.allCases.map(\.rawValue) == [1, 2, 6, 12, 24, 48]
+                && AppLanguage.allCases.allSatisfy { !CalendarStrings.nextEventWindow($0).isEmpty },
+               "Calendar exposes localized next-event time windows")
         expect(CalendarSupport.duration(from: 0) == "0 minutes"
                 && CalendarSupport.duration(from: 45 * 60) == "45 minutes"
                 && CalendarSupport.duration(from: 90 * 60) == "1 hour 30 minutes"
@@ -22860,6 +22867,26 @@ struct MetricsTests {
         calendarEvent.title = "Daily standup"
         calendarEvent.startDate = calendarDraftNow
         calendarEvent.endDate = calendarDraftNow.addingTimeInterval(3600)
+        let inRangeEvent = EKEvent(eventStore: calendarEventStore)
+        inRangeEvent.title = "Boundary event"
+        inRangeEvent.startDate = calendarDraftNow.addingTimeInterval(2 * 3_600)
+        inRangeEvent.endDate = inRangeEvent.startDate.addingTimeInterval(3_600)
+        let outsideRangeEvent = EKEvent(eventStore: calendarEventStore)
+        outsideRangeEvent.title = "Outside window"
+        outsideRangeEvent.startDate = calendarDraftNow.addingTimeInterval(2 * 3_600 + 1)
+        outsideRangeEvent.endDate = outsideRangeEvent.startDate.addingTimeInterval(3_600)
+        let allDayEvent = EKEvent(eventStore: calendarEventStore)
+        allDayEvent.title = "All day"
+        allDayEvent.startDate = calendarDraftNow.addingTimeInterval(3_600)
+        allDayEvent.endDate = allDayEvent.startDate.addingTimeInterval(86_400)
+        allDayEvent.isAllDay = true
+        expect(CalendarSupport.nextTimedEvent(in: [outsideRangeEvent, allDayEvent, inRangeEvent],
+                                              startingAt: calendarDraftNow,
+                                              within: .twoHours)?.title == "Boundary event"
+                && CalendarSupport.nextTimedEvent(in: [outsideRangeEvent],
+                                                   startingAt: calendarDraftNow,
+                                                   within: .twoHours) == nil,
+               "Calendar next-event window includes its boundary and excludes all-day and later events")
         let calendarEventImage = CalendarStatusItemRenderer.render(style: .nextEvent,
                                                                    date: calendarDraftNow,
                                                                    nextEvent: calendarEvent,
@@ -22899,7 +22926,8 @@ struct MetricsTests {
                "Calendar month dots distinguish single and multiple event days")
         expect(SettingsBackupSupport.exportKeys().contains(DefaultsKey.calendarShowMonthOutline)
                 && SettingsBackupSupport.exportKeys().contains(DefaultsKey.calendarShowDeclinedEvents)
-                && SettingsBackupSupport.exportKeys().contains(DefaultsKey.calendarEventDots),
+                && SettingsBackupSupport.exportKeys().contains(DefaultsKey.calendarEventDots)
+                && SettingsBackupSupport.exportKeys().contains(DefaultsKey.calendarNextEventWindowHours),
                "Calendar visual preferences travel in backups")
         expect(CalendarSupport.eventListHeight(for: 0) == 60
                 && CalendarSupport.eventListHeight(for: 1) == 60

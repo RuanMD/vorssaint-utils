@@ -580,6 +580,7 @@ enum DefaultsKey {
     static let calendarEnabled = "calendarEnabled"
     static let calendarIconStyle = "calendarIconStyle" // icon | date | nextEvent
     static let calendarMenuBarComponents = "calendarMenuBarComponents" // comma-joined CalendarMenuBarComponent raw values
+    static let calendarNextEventWindowHours = "calendarNextEventWindowHours"
     static let calendarTextScale = "calendarTextScale"
     static let calendarAlertEnabled = "calendarAlertEnabled"
     static let calendarAlertMinutesBefore = "calendarAlertMinutesBefore"
@@ -924,6 +925,7 @@ enum Defaults {
         DefaultsKey.calendarEnabled: false,
         DefaultsKey.calendarIconStyle: "icon",
         DefaultsKey.calendarMenuBarComponents: "icon",
+        DefaultsKey.calendarNextEventWindowHours: CalendarUpcomingEventWindow.twelveHours.rawValue,
         DefaultsKey.calendarTextScale: 1.0,
         DefaultsKey.calendarAlertEnabled: true,
         DefaultsKey.calendarAlertMinutesBefore: 5,

@@ -9,6 +9,7 @@ struct CalendarSettings: View {
     @AppStorage(DefaultsKey.calendarEnabled) private var enabled = false
     @AppStorage(DefaultsKey.calendarIconStyle) private var iconStyle = CalendarIconStyle.icon.rawValue
     @AppStorage(DefaultsKey.calendarMenuBarComponents) private var menuBarComponentsRaw = "icon"
+    @AppStorage(DefaultsKey.calendarNextEventWindowHours) private var nextEventWindowHours = CalendarUpcomingEventWindow.twelveHours.rawValue
     @AppStorage(DefaultsKey.calendarTextScale) private var textScale = 1.0
     @AppStorage(DefaultsKey.calendarAlertEnabled) private var alertsEnabled = true
     @AppStorage(DefaultsKey.calendarAlertMinutesBefore) private var alertMinutes = 5
@@ -40,6 +41,14 @@ struct CalendarSettings: View {
                         .foregroundStyle(.secondary)
                     ForEach(CalendarMenuBarComponent.allCases) { component in
                         componentRow(component)
+                    }
+                    if selectedMenuBarComponents.contains(.nextEvent) {
+                        Picker(CalendarStrings.nextEventWindow(l10n.language), selection: $nextEventWindowHours) {
+                            ForEach(CalendarUpcomingEventWindow.allCases) { window in
+                                Text(strings.duration(from: window.interval)).tag(window.rawValue)
+                            }
+                        }
+                        .padding(.leading, 22)
                     }
                     if selectedMenuBarComponents.contains(.date) {
                         Picker(strings.menuBarDateFormat, selection: $dateFormat) {
@@ -91,6 +100,7 @@ struct CalendarSettings: View {
             service.syncWithPreferences()
         }
         .onChange(of: menuBarComponentsRaw) { _, _ in service.refresh() }
+        .onChange(of: nextEventWindowHours) { _, _ in service.refresh() }
         .onChange(of: dateFormat) { _, _ in service.refresh() }
         .onChange(of: customDateFormat) { _, _ in service.refresh() }
         .onChange(of: alertMinutes) { _, _ in service.refresh() }

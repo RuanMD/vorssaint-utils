@@ -48,4 +48,22 @@ struct CalendarStrings {
         case .zhHK: return .init(title: "日曆", description: "在選單列中查看本機日程和會議連結。", showInMenuBar: "在選單列顯示日曆", accessRequired: "需要日曆存取權。", openPreferences: "打開設定", appearance: "外觀", menuBarStyle: "選單列樣式", textScale: "文字縮放", meetingAlerts: "會議提醒", alerts: "提醒", notifyBefore: "提前提醒", calendars: "日曆", noEvents: "沒有日程", join: "加入", openInCalendar: "在日曆中打開", allDay: "全日", agenda: "日程", showMonthOutline: "顯示月份外框", showDeclinedEvents: "顯示已拒絕的日程", eventDots: "日程圓點", eventDotsNone: "無圓點", eventDotsSingleNeutral: "單一低調圓點", eventDotsSingleHighlighted: "單一醒目圓點", eventDotsMultiple: "多個圓點", menuBarComponents: "選單列元件", showAdjacentDays: "顯示相鄰日期", componentIcon: "圖示", componentDate: "日期", componentNextEvent: "下一個日程", menuBarDateFormat: "日期格式", customDatePattern: "Unicode 模式（例如 dd/MM）", moveUp: "向上移動", moveDown: "向下移動", newEvent: "新增日程", start: "開始", end: "結束", cancel: "取消", save: "儲存", calendarLabel: "日曆", quickAddPlaceholder: "例如：明天 15:00 開會 1 小時 /工作", durationZero: "0 分鐘", durationMinute: "分鐘", durationMinutes: "分鐘", durationHour: "小時", durationHours: "小時", durationDay: "天", durationDays: "天")
         }
     }
+
+    static func nextEventWindow(_ language: AppLanguage) -> String {
+        switch language {
+        case .enUS: "Show events starting within"
+        case .ptBR: "Mostrar eventos que começam em até"
+        case .es: "Mostrar eventos que comienzan dentro de"
+        case .fr: "Afficher les événements commençant dans"
+        case .de: "Ereignisse anzeigen, die beginnen innerhalb von"
+        case .it: "Mostra gli eventi che iniziano entro"
+        case .ja: "次の時間以内に開始する予定を表示"
+        case .ko: "다음 시간 안에 시작하는 일정 표시"
+        case .ru: "Показывать события, начинающиеся в течение"
+        case .tr: "Şu süre içinde başlayan etkinlikleri göster"
+        case .zhHans: "显示在以下时间内开始的事件"
+        case .zhTW: "顯示在以下時間內開始的行程"
+        case .zhHK: "顯示在以下時間內開始的日程"
+        }
+    }
 }
