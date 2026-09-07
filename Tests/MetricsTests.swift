@@ -22780,6 +22780,8 @@ struct MetricsTests {
                 && calendarPopoverSource.contains("strings.duration")
                 && calendarPopoverSource.contains("calendar.locale = l10n.language.locale")
                 && calendarPopoverSource.contains("formatter.locale = l10n.language.locale")
+                && calendarPopoverSource.contains("SettingsRouter.shared.request(AppFeature.calendar.settingsDestination)")
+                && calendarPopoverSource.contains("Image(systemName: \"gearshape\")")
                 && calendarServiceSource.contains("CalendarSupport.nextTimedEvent")
                 && calendarSettingsSource.contains("CalendarStrings.nextEventWindow")
                 && calendarServiceSource.contains("autosaveName")

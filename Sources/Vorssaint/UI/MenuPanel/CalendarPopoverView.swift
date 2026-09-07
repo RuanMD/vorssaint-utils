@@ -36,6 +36,15 @@ struct CalendarPopoverView: View {
                     Text("\(strings.agenda): \(selectedDayEvents.count)").font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     Button { showingQuickAdd = true } label: { Image(systemName: "plus") }.buttonStyle(.plain).help(strings.newEvent)
+                    Button {
+                        SettingsRouter.shared.request(AppFeature.calendar.settingsDestination)
+                        appDelegate()?.openSettingsWindow()
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .buttonStyle(.plain)
+                    .help(l10n.s.menuSettings)
+                    .accessibilityLabel(l10n.s.menuSettings)
                     Button { NSWorkspace.shared.open(URL(string: "ical://")!) } label: { Image(systemName: "calendar") }.buttonStyle(.plain).help(strings.openInCalendar)
                 }
                 CalendarMonthView(month: $month, selectedDay: $day, events: service.events,
