@@ -110,6 +110,7 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
 
     private func exitDrawingMode() {
         isDrawingActive = false
+        drawingView?.commitTextEditor()
         // Keep the strokes visible, but restore pass-through to the app below.
         canvasPanel?.ignoresMouseEvents = ScreenAnnotationSupport.canvasIgnoresMouseEvents(isDrawing: false)
         removeKeyMonitors()
@@ -567,11 +568,12 @@ private final class AnnotationDrawingView: NSView, NSTextFieldDelegate {
     }
 
     func cancelTextEditor() {
-        textField?.removeFromSuperview()
+        let field = textField
         textField = nil
         textOrigin = nil
         editingColor = nil
         editingWidth = nil
+        field?.removeFromSuperview()
         // Removing the field leaves first responder nil until the next
         // click; reclaim it now so the canvas — not the toolbar's own
         // controls — is what a keystroke like Escape reaches.
@@ -605,8 +607,11 @@ private final class AnnotationDrawingView: NSView, NSTextFieldDelegate {
     /// Critical: return self for all points so the view captures all mouse events.
     /// Without this, a transparent view may let clicks pass through.
     override func hitTest(_ point: NSPoint) -> NSView? {
-        if let textField, textField.frame.contains(point) {
-            return textField.hitTest(point)
+        if let textField {
+            let local = convert(point, from: superview)
+            if textField.frame.contains(local) {
+                return textField.hitTest(local)
+            }
         }
         return bounds.contains(point) ? self : nil
     }
