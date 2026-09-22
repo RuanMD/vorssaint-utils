@@ -63,6 +63,7 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
     }
 
     @objc func clearAll() {
+        drawingView?.cancelTextEditor()
         strokes = ScreenAnnotationSupport.clear(strokes)
         drawingView?.needsDisplay = true
     }
