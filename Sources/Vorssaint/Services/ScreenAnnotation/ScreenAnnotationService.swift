@@ -193,9 +193,12 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
               let canvas = canvasPanel,
               let toolbar = toolbarPanel else { return }
 
-        let display = ScreenAnnotationDisplay(displayID: screen.displayID, frame: screen.frame)
-        let placement = sessionState.begin(on: display)
-        if strokes.isEmpty, canvas.frame != placement.frame {
+        let fallback = ScreenAnnotationDisplay(displayID: screen.displayID, frame: screen.frame)
+        let displays = NSScreen.screens.map {
+            ScreenAnnotationDisplay(displayID: $0.displayID, frame: $0.frame)
+        }
+        let placement = sessionState.refresh(on: displays, fallback: fallback)
+        if canvas.frame != placement.frame {
             canvas.setFrame(placement.frame, display: false)
         }
         canvas.orderFrontRegardless()

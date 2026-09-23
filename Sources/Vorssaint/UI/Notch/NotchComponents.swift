@@ -164,8 +164,9 @@ struct NotchArtwork: View {
 }
 
 /// Items fill each column top to bottom and continue sideways, so a short
-/// island scrolls to the side and never down. Columns spread across the full
-/// width whenever everything fits without scrolling.
+/// island scrolls to the side and never down. Whenever everything fits
+/// without scrolling, the items read left to right instead, in rows of equal
+/// cells across the full width, and a short last row sits centered.
 struct NotchRail<Item: Identifiable, Content: View>: View {
     let items: [Item]
     let rows: Int
@@ -177,9 +178,11 @@ struct NotchRail<Item: Identifiable, Content: View>: View {
     @ViewBuilder let content: (Item) -> Content
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private var columns: Int { NotchLayout.railColumns(count: items.count, rows: rows) }
     private var starts: [Int] { Array(stride(from: 0, to: items.count, by: max(1, rows))) }
+    private var rowStarts: [Int] { Array(stride(from: 0, to: items.count, by: max(1, columns))) }
     private var fits: Bool {
-        CGFloat(starts.count) * itemWidth + CGFloat(max(0, starts.count - 1)) * spacing <= width
+        NotchLayout.railFits(columns: columns, itemWidth: itemWidth, spacing: spacing, width: width)
     }
 
     // Scroll to the column itself: its identity is known before lazy children
@@ -191,8 +194,9 @@ struct NotchRail<Item: Identifiable, Content: View>: View {
 
     var body: some View {
         if fits {
-            HStack(alignment: .top, spacing: spacing) {
-                ForEach(starts, id: \.self) { start in column(start).frame(maxWidth: .infinity) }
+            let cell = (width - CGFloat(max(0, columns - 1)) * spacing) / CGFloat(max(1, columns))
+            VStack(spacing: rowSpacing) {
+                ForEach(rowStarts, id: \.self) { start in row(start, cell: cell) }
             }
         } else {
             ScrollViewReader { proxy in
@@ -202,6 +206,7 @@ struct NotchRail<Item: Identifiable, Content: View>: View {
                     LazyHStack(alignment: .top, spacing: spacing) {
                         ForEach(starts, id: \.self) { start in column(start).frame(width: itemWidth).id(start) }
                     }
+                    .contentShape(Rectangle())
                 }
                 .scrollIndicators(.never)
                 .onAppear {
@@ -215,6 +220,15 @@ struct NotchRail<Item: Identifiable, Content: View>: View {
                 }
             }
         }
+    }
+
+    private func row(_ start: Int, cell: CGFloat) -> some View {
+        HStack(alignment: .top, spacing: spacing) {
+            ForEach(items[start..<min(items.count, start + max(1, columns))]) { item in
+                content(item).frame(width: cell)
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func column(_ start: Int) -> some View {
@@ -235,6 +249,17 @@ extension EnvironmentValues {
         get { self[NotchGlassSurfaceKey.self] }
         set { self[NotchGlassSurfaceKey.self] = newValue }
     }
+
+    /// A page drawn in Settings to preview the island. It shows what the
+    /// island shows but must leave the island's state and the keyboard alone.
+    var notchSettingsPreview: Bool {
+        get { self[NotchSettingsPreviewKey.self] }
+        set { self[NotchSettingsPreviewKey.self] = newValue }
+    }
+}
+
+private struct NotchSettingsPreviewKey: EnvironmentKey {
+    static let defaultValue = false
 }
 
 /// The native host publishes the same path used by its animated mask. Keeping
@@ -450,5 +475,45 @@ private struct NotchMenuAnchorView: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         anchor.view = nsView
+    }
+}
+
+extension NSAlert {
+    /// A SwiftUI alert or confirmation dialog hangs from the island as a
+    /// sheet, which moves and reskins the borderless surface. Inside the
+    /// island a tool asks the same question on its own, just above it, like
+    /// the Scratchpad page does, and the island gets the keyboard back after.
+    static func confirmAboveIsland(_ title: String, message: String, action: String,
+                                   destructive: Bool, cancel: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: action).hasDestructiveAction = destructive
+        // Escape cancels in every language, like the dialog's cancel role.
+        alert.addButton(withTitle: cancel).keyEquivalent = "\u{1b}"
+        return alert.runAboveIsland() == .alertFirstButtonReturn
+    }
+
+    private func runAboveIsland() -> NSApplication.ModalResponse {
+        let island = NotchService.shared.presentationWindow
+        var observers: [NSObjectProtocol] = []
+        if let island {
+            // The modal session puts the alert at the modal panel level, below
+            // the island, and puts it back there when it activates the app or
+            // makes the alert key. Raise it once running and after each of those.
+            let level = NSWindow.Level(rawValue: island.level.rawValue + 1)
+            let alertWindow = window
+            let raise: (Notification) -> Void = { _ in alertWindow.level = level }
+            observers = [NSWindow.didBecomeKeyNotification, NSApplication.didBecomeActiveNotification].map {
+                NotificationCenter.default.addObserver(forName: $0, object: nil, queue: .main, using: raise)
+            }
+            DispatchQueue.main.async { alertWindow.level = level }
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        let response = runModal()
+        observers.forEach(NotificationCenter.default.removeObserver)
+        // A closed island declines key status, so this only returns to an open one.
+        if let island, island.isVisible { island.makeKey() }
+        return response
     }
 }

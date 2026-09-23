@@ -56,5 +56,15 @@ enum ScreenAnnotationTests {
         textSession.resetAfterMutation(strokes: [])
         suite.expect(textSession.begin(on: otherDisplay) == otherDisplay,
                      "annotation canceling empty text resets the next canvas display")
+
+        var reconfiguredSession = ScreenAnnotationSessionState()
+        _ = reconfiguredSession.begin(on: pointerDisplay)
+        let movedPointerDisplay = ScreenAnnotationDisplay(
+            displayID: pointerDisplay.displayID,
+            frame: CGRect(x: 1680, y: 0, width: 1680, height: 1050))
+        suite.expect(reconfiguredSession.refresh(on: [movedPointerDisplay], fallback: otherDisplay) == movedPointerDisplay,
+                     "annotation refreshes the saved display frame after reconfiguration")
+        suite.expect(reconfiguredSession.refresh(on: [otherDisplay], fallback: otherDisplay) == otherDisplay,
+                     "annotation falls back to the pointer display when the saved display is gone")
     }
 }

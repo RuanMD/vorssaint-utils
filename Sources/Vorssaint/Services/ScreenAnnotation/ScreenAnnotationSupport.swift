@@ -79,6 +79,12 @@ struct ScreenAnnotationSessionState {
         return placement ?? display
     }
 
+    mutating func refresh(on displays: [ScreenAnnotationDisplay], fallback: ScreenAnnotationDisplay) -> ScreenAnnotationDisplay {
+        guard let placement else { return begin(on: fallback) }
+        self.placement = displays.first(where: { $0.displayID == placement.displayID }) ?? fallback
+        return self.placement ?? fallback
+    }
+
     mutating func resetAfterCanvasBecameEmpty() {
         placement = nil
     }
