@@ -64,6 +64,31 @@ struct AnnotationStroke: Codable, Equatable {
     }
 }
 
+struct ScreenAnnotationDisplay: Equatable {
+    let displayID: UInt32
+    let frame: CGRect
+}
+
+struct ScreenAnnotationSessionState {
+    private(set) var placement: ScreenAnnotationDisplay?
+
+    mutating func begin(on display: ScreenAnnotationDisplay) -> ScreenAnnotationDisplay {
+        if placement == nil {
+            placement = display
+        }
+        return placement ?? display
+    }
+
+    mutating func resetAfterCanvasBecameEmpty() {
+        placement = nil
+    }
+
+    mutating func resetAfterMutation(strokes: [AnnotationStroke]) {
+        guard strokes.isEmpty else { return }
+        resetAfterCanvasBecameEmpty()
+    }
+}
+
 enum ScreenAnnotationSupport {
     static let maxPointsPerStroke = 600
     static let defaultWidth = 6.0

@@ -21,6 +21,7 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
     private var canvasPanel: AnnotationCanvasPanel?
     private var toolbarPanel: NSPanel?
     private var drawingView: AnnotationDrawingView?
+    private var sessionState = ScreenAnnotationSessionState()
 
     // MARK: - State
 
@@ -66,11 +67,13 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
         drawingView?.cancelTextEditor()
         strokes = ScreenAnnotationSupport.clear(strokes)
         drawingView?.needsDisplay = true
+        orderOutCanvasWhenEmpty()
     }
 
     @objc func undo() {
         strokes = ScreenAnnotationSupport.undo(strokes)
         drawingView?.needsDisplay = true
+        orderOutCanvasWhenEmpty()
     }
 
     @objc func hideOverlay() {
@@ -80,6 +83,7 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
         drawingView?.needsDisplay = true
         canvasPanel?.orderOut(nil)
         toolbarPanel?.orderOut(nil)
+        sessionState.resetAfterCanvasBecameEmpty()
     }
 
     func teardown() {
@@ -94,6 +98,7 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
         toolbarPanel = nil
         drawingView = nil
         strokes.removeAll()
+        sessionState.resetAfterCanvasBecameEmpty()
     }
 
     // MARK: - Drawing mode
@@ -123,17 +128,19 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
     // MARK: - Panel building
 
     private func buildPanels() {
-        guard let screen = NSScreen.main else { return }
-        buildCanvasPanel(screen: screen)
-        buildToolbarPanel(screen: screen)
+        guard let screen = NSScreen.withMouse else { return }
+        let display = ScreenAnnotationDisplay(displayID: screen.displayID, frame: screen.frame)
+        let placement = sessionState.begin(on: display)
+        buildCanvasPanel(frame: placement.frame)
+        buildToolbarPanel(frame: placement.frame)
     }
 
 
     /// Builds the full-screen drawing surface.
     /// Mirrors `ScreenshotOverlayPanel` from `ScreenshotSelectionController`.
-    private func buildCanvasPanel(screen: NSScreen) {
+    private func buildCanvasPanel(frame: NSRect) {
         let p = AnnotationCanvasPanel(
-            contentRect: screen.frame,
+            contentRect: frame,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false)
@@ -149,23 +156,19 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
         p.ignoresMouseEvents = false
 
         let view = AnnotationDrawingView(service: self)
-        view.frame = NSRect(origin: .zero, size: screen.frame.size)
+        view.frame = NSRect(origin: .zero, size: frame.size)
         view.autoresizingMask = [.width, .height]
         p.contentView = view
         self.canvasPanel = p
         self.drawingView = view
     }
 
-    private func buildToolbarPanel(screen: NSScreen) {
+    private func buildToolbarPanel(frame: NSRect) {
         let host = NSHostingController(rootView: AnyView(AnnotationToolbarView(service: self)))
         host.view.layoutSubtreeIfNeeded()
         let size = host.view.fittingSize
 
-        let rect = NSRect(
-            x: screen.frame.midX - size.width / 2,
-            y: screen.frame.minY + 24,
-            width: max(size.width, 300),
-            height: max(size.height, 44))
+        let rect = toolbarFrame(for: frame, size: size)
 
         let p = NSPanel(contentRect: rect,
                         styleMask: [.borderless, .nonactivatingPanel],
@@ -186,24 +189,39 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
     // MARK: - Show
 
     private func showPanels() {
-        guard let screen = NSScreen.main,
+        guard let screen = NSScreen.withMouse,
               let canvas = canvasPanel,
               let toolbar = toolbarPanel else { return }
 
-        canvas.setFrame(screen.frame, display: false)
+        let display = ScreenAnnotationDisplay(displayID: screen.displayID, frame: screen.frame)
+        let placement = sessionState.begin(on: display)
+        if strokes.isEmpty, canvas.frame != placement.frame {
+            canvas.setFrame(placement.frame, display: false)
+        }
         canvas.orderFrontRegardless()
 
         if let host = toolbar.contentViewController {
             host.view.layoutSubtreeIfNeeded()
             let size = host.view.fittingSize
-            let tb = NSRect(
-                x: screen.frame.midX - size.width / 2,
-                y: screen.frame.minY + 24,
-                width: max(size.width, 300),
-                height: max(size.height, 44))
+            let tb = toolbarFrame(for: placement.frame, size: size)
             toolbar.setFrame(tb, display: false)
         }
         toolbar.orderFrontRegardless()
+    }
+
+    private func toolbarFrame(for canvasFrame: NSRect, size: NSSize) -> NSRect {
+        NSRect(x: canvasFrame.midX - size.width / 2,
+               y: canvasFrame.minY + 24,
+               width: max(size.width, 300),
+               height: max(size.height, 44))
+    }
+
+    fileprivate func orderOutCanvasWhenEmpty() {
+        guard strokes.isEmpty else { return }
+        if isDrawingActive { exitDrawingMode() }
+        canvasPanel?.orderOut(nil)
+        toolbarPanel?.orderOut(nil)
+        sessionState.resetAfterMutation(strokes: strokes)
     }
 
     // MARK: - Key monitors (pattern from ScreenshotSelectionController)
@@ -316,6 +334,7 @@ final class ScreenAnnotationService: NSObject, ObservableObject {
             let index = strokeIndex(at: p, bounds: bounds)
             if let index { strokes.remove(at: index) }
             drawingView?.needsDisplay = true
+            orderOutCanvasWhenEmpty()
             return
         }
         let n = ScreenAnnotationSupport.normalized(
@@ -579,6 +598,7 @@ private final class AnnotationDrawingView: NSView, NSTextFieldDelegate {
         // click; reclaim it now so the canvas — not the toolbar's own
         // controls — is what a keystroke like Escape reaches.
         window?.makeFirstResponder(self)
+        service?.orderOutCanvasWhenEmpty()
     }
 
     @objc fileprivate func commitTextEditor() {

@@ -25,5 +25,36 @@ enum ScreenAnnotationTests {
         suite.expect(!ScreenAnnotationSupport.canvasIgnoresMouseEvents(isDrawing: true)
                 && ScreenAnnotationSupport.canvasIgnoresMouseEvents(isDrawing: false),
                "annotation canvas captures only while drawing")
+
+        var session = ScreenAnnotationSessionState()
+        let pointerDisplay = ScreenAnnotationDisplay(displayID: 2,
+                                                      frame: CGRect(x: 1440, y: 0, width: 1440, height: 900))
+        let otherDisplay = ScreenAnnotationDisplay(displayID: 1,
+                                                   frame: CGRect(x: 0, y: 0, width: 1440, height: 900))
+        let firstPlacement = session.begin(on: pointerDisplay)
+        suite.expect(firstPlacement == pointerDisplay,
+                     "annotation starts an empty session on the pointer display")
+        let preservedPlacement = session.begin(on: otherDisplay)
+        suite.expect(preservedPlacement == pointerDisplay,
+                     "annotation preserves the canvas display while strokes exist")
+        session.resetAfterCanvasBecameEmpty()
+        let nextPlacement = session.begin(on: otherDisplay)
+        suite.expect(nextPlacement == otherDisplay,
+                     "annotation chooses the pointer display after an empty session")
+
+        var eraserSession = ScreenAnnotationSessionState()
+        _ = eraserSession.begin(on: pointerDisplay)
+        eraserSession.resetAfterMutation(strokes: [])
+        suite.expect(eraserSession.begin(on: otherDisplay) == otherDisplay,
+                     "annotation erasing the last stroke resets the next canvas display")
+
+        var textSession = ScreenAnnotationSessionState()
+        _ = textSession.begin(on: pointerDisplay)
+        textSession.resetAfterMutation(strokes: [boundedStroke])
+        suite.expect(textSession.begin(on: otherDisplay) == pointerDisplay,
+                     "annotation keeps the canvas display while text editing leaves strokes")
+        textSession.resetAfterMutation(strokes: [])
+        suite.expect(textSession.begin(on: otherDisplay) == otherDisplay,
+                     "annotation canceling empty text resets the next canvas display")
     }
 }

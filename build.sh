@@ -485,6 +485,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Uninstall/UninstallerSupport.swift
         Sources/Vorssaint/Services/ManagedDownloads/WhatsAppDownloadSupport.swift
         Sources/Vorssaint/Core/SecureInputSupport.swift
+        Sources/Vorssaint/Core/AppKitExtensions.swift
         Sources/Vorssaint/Services/ScreenAnnotation/ScreenAnnotationSupport.swift
         Sources/Vorssaint/Services/ScreenAnnotation/ScreenAnnotationService.swift
         Sources/Vorssaint/Services/QuickTools/QuickToolHotkey.swift
